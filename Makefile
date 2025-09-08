@@ -1,4 +1,5 @@
 all:
-	g++ src/*.cpp -Iinclude -o riscvemu
+	mkdir -p build
+	cd build && cmake .. && make
 clean:
-	rm ./riscvemu
+	rm -rf build

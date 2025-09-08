@@ -1,3 +1,5 @@
 /riscvemu
 /.vscode/*
 /.vscode
+/build/*
+/build
