@@ -226,7 +226,7 @@ int main(int argc, char* argv[]) {
 		cpu_start(hart, debug,dtb_path_in_memory);
 		return 0;
 	} else {
-		std::cout << "Specify a file: ./riscvemu <path to binary> -k <path to kernel> -d <path to dtb file>" << std::endl;
+		std::cout << "Specify a file: ./riscvem <path to binary> -k <path to kernel> -d <path to dtb file>" << std::endl;
 		return 1;
 	}
 }
