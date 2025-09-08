@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(riscvemu)
+project(riscvem)
 
 set(CMAKE_CXX_STANDARD 17)
 
@@ -8,6 +8,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 file(GLOB SOURCES "src/*.cpp")
 
-add_executable(riscvemu ${SOURCES})
+add_executable(riscvem ${SOURCES})
 
-target_include_directories(riscvemu PRIVATE include)
+target_include_directories(riscvem PRIVATE include)
