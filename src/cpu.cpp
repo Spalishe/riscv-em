@@ -685,12 +685,6 @@ static inline int cause_to_mipbit(int cause) {
     }
 }
 
-// Primary trap routine: performs full CSR updates and vector jump.
-// - hart: pointer to hart state
-// - cause: exception/interrupt code (Exception Code field, without interrupt bit)
-// - tval: trap value (bad address, instruction bits, etc.)
-// - is_interrupt: true if this is an asynchronous interrupt
-//
 void cpu_trap(struct HART *hart, uint64_t cause, uint64_t tval, bool is_interrupt) {
 	if(hart->dbg) {
 		std::cout << (is_interrupt ? "INTERRUPT" : "EXCEPTION") << " " << cause << "   " << tval << std::endl;
