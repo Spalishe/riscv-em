@@ -6,6 +6,7 @@
 #include "../include/opcodes.h"
 #include "../include/instset.h"
 #include "../include/csr.h"
+#include "../include/devices/plic.hpp"
 #include <cstdio>
 #include <cstdarg>
 #include <sstream>
@@ -40,7 +41,7 @@ void cpu_start(struct HART *hart, bool debug, uint64_t dtb_path) {
 	hart->regs[0] = 0x00;
 	//hart->regs[2] = 0x1000;
 	//hart->pc      = DRAM_BASE;
-	hart->pc      = 0;
+	hart->pc      = DRAM_BASE;
 	hart->dbg_singlestep = false;
 	hart->dbg     = debug;
 

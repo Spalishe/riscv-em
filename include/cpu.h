@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 #include "dram.h"
-#include "mmio.h"
+#include "devices/mmio.h"
 #include <string>
 #include <functional>
 #include <map>

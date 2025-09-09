@@ -135,7 +135,7 @@ void exec_C_LI(struct HART *hart, uint32_t inst) {
     uint64_t imm = (get_bits(inst, 12, 12) << 5) | get_bits(inst, 6, 2);
     imm = sext(imm,6);
 
-	hart->regs[rd] = (int64_t) imm;
+	hart->regs[rd] = (uint64_t) imm;
     
 	print_d(hart,"{0x%.8X} [C.LI] rd: %d; imm: int %d uint %u",hart->pc,rd,(int64_t) imm, imm);
 }
@@ -145,7 +145,7 @@ void exec_C_LUI(struct HART *hart, uint32_t inst) {
     uint64_t imm = (get_bits(inst, 12, 12) << 5) | get_bits(inst, 6, 2);
     imm = sext(imm,6);
 
-	hart->regs[rd] = (int64_t) imm << 12;
+	hart->regs[rd] = (uint64_t) imm << 12;
     
 	print_d(hart,"{0x%.8X} [C.LUI] rd: %d; imm: int %d uint %u",hart->pc,rd,(int64_t) imm, imm);
 }

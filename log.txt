@@ -1,0 +1,77 @@
+[DEBUG] Entered debug mode.
+Opening bootloader: fw_jump.bin
+Loading kernel: u-boot.bin
+[dbg] Next instruction: 0x00050433
+{0x80000000} [ADD] rs1: 10; rs2: 0; rd: 8
+Next instruction: 0x000584B3
+{0x80000004} [ADD] rs1: 11; rs2: 0; rd: 9
+Next instruction: 0x00060933
+{0x80000008} [ADD] rs1: 12; rs2: 0; rd: 18
+Next instruction: 0x7A4000EF
+{0x800007B0} [JAL] rd: 1; imm: int 1956 uint 1956
+Next instruction: 0xFFF00513
+{0x800007B0} [ADDI] rs1: 0; rd: 10; imm: int -1 uint 4294967295
+Next instruction: 0x00008067
+{0x80000010} [JALR] rs1: 1; rd: 0; imm: int 0 uint 0
+Next instruction: 0x00050833
+{0x80000010} [ADD] rs1: 10; rs2: 0; rd: 16
+Next instruction: 0x00040533
+{0x80000014} [ADD] rs1: 8; rs2: 0; rd: 10
+Next instruction: 0x000485B3
+{0x80000018} [ADD] rs1: 9; rs2: 0; rd: 11
+Next instruction: 0x00090633
+{0x8000001C} [ADD] rs1: 18; rs2: 0; rd: 12
+Next instruction: 0xFFF00893
+{0x80000020} [ADDI] rs1: 0; rd: 17; imm: int -1 uint 4294967295
+Next instruction: 0x01180463
+{0x80000028} [BEQ] rs1: 16; rs2: 17; imm: int 8 uint 8
+Next instruction: 0x00040817
+{0x8000002C} [AUIPC] rd: 16; imm: int 64 uint 64
+Next instruction: 0xFD480813
+{0x80000030} [ADDI] rs1: 16; rd: 16; imm: int -44 uint 4294967252
+Next instruction: 0x00100893
+{0x80000034} [ADDI] rs1: 0; rd: 17; imm: int 1 uint 1
+Next instruction: 0x0918282F
+{0x80000038} [AMOSWAP.W] rd: 16; rs1: 16; rs2: 17
+Next instruction: 0x2C081463
+{0x8000003C} [BNE] rs1: 16; rs2: 0; imm: int 712 uint 712
+Next instruction: 0x00000293
+{0x80000040} [ADDI] rs1: 0; rd: 5; imm: int 0 uint 0
+Next instruction: 0x00000317
+{0x80000044} [AUIPC] rd: 6; imm: int 0 uint 0
+Next instruction: 0xFBC30313
+{0x80000048} [ADDI] rs1: 6; rd: 6; imm: int -68 uint 4294967228
+Next instruction: 0x405303B3
+{0x8000004C} [SUB] rs1: 6; rs2: 5; rd: 7
+Next instruction: 0x00032297
+{0x80000050} [AUIPC] rd: 5; imm: int 50 uint 50
+Next instruction: 0xFB028293
+{0x80000054} [ADDI] rs1: 5; rd: 5; imm: int -80 uint 4294967216
+Next instruction: 0x00035317
+{0x80000058} [AUIPC] rd: 6; imm: int 53 uint 53
+Next instruction: 0xEE830313
+{0x8000005C} [ADDI] rs1: 6; rd: 6; imm: int -280 uint 4294967016
+Next instruction: 0x02628663
+{0x80000060} [BEQ] rs1: 5; rs2: 6; imm: int 44 uint 44
+Next instruction: 0x0082BF03
+{0x80000064} [LD] rs1: 5; rd: 30; imm: int 8 uint 8
+Next instruction: 0x00300E13
+{0x80000068} [ADDI] rs1: 0; rd: 28; imm: int 3 uint 3
+Next instruction: 0x01CF1C63
+{0x8000006C} [BNE] rs1: 30; rs2: 28; imm: int 24 uint 24
+Next instruction: 0x0002BE03
+{0x80000070} [LD] rs1: 5; rd: 28; imm: int 0 uint 0
+Next instruction: 0x0102BF03
+{0x80000074} [LD] rs1: 5; rd: 30; imm: int 16 uint 16
+Next instruction: 0x007F0F33
+{0x80000078} [ADD] rs1: 30; rs2: 7; rd: 30
+Next instruction: 0x007E0E33
+{0x8000007C} [ADD] rs1: 28; rs2: 7; rd: 28
+Next instruction: 0x01EE3023
+EXCEPTION 7   4295229464
+{0x00000000} [SD] rs1: 28; rs2: 30; imm: int 0 uint 0
+Next instruction: 0x00000000
+[dbg] Register x28: 4295229464; 4295229464
+[dbg] Register x30: 4295241728; 4295241728
+[dbg] Register x7: 2147483648; 2147483648
+[dbg] 

@@ -1,4 +1,4 @@
-#include "libfdt.hpp"
+#include "../include/libfdt.hpp"
 #include <cstring>
 #include <algorithm>
 #include <iostream>
