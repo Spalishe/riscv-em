@@ -7,6 +7,7 @@
 #include "../include/devices/plic.hpp"
 #include "../include/devices/uart.hpp"
 #include "../include/devices/virtio.hpp"
+#include "../include/devices/dtb.hpp"
 
 #include "../include/memory_map.h"
 #include "../include/libfdt.hpp"
@@ -27,8 +28,6 @@
 		-RV64D for RV64C
 */
 
-bool debug = false;
-
 bool hasValue(char* arr[], int arrlen, std::string match) {
 	bool has = false;
 	for (int i = 1; i < arrlen; ++i) {
@@ -43,6 +42,8 @@ bool hasValue(char* arr[], int arrlen, std::string match) {
 int main(int argc, char* argv[]) {
 	if(argc > 1) {
 		std::vector<std::string> filtered_args;
+
+		bool debug = false;
 
     	std::string kernel_path;
 		bool kernel_has = false;
@@ -210,10 +211,11 @@ int main(int argc, char* argv[]) {
 			VirtioBlkDevice* virtio_blk = new VirtioBlkDevice(0x10001000,0x1000,hart->dram,plic,(dtb_has ? NULL : fdt),2,image_path);
 			mmio->add(virtio_blk);
 		}
-
-		memmap.add_region(dtb_path_in_memory, 0x1000);
-		DTB* dtb = new DTB(dtb_path_in_memory,0x1000,hart->dram);
-		mmio->add(dtb);
+		
+		//memmap.add_region(dtb_path_in_memory, 0x1000);
+		//DTB* dtb = new DTB(dtb_path_in_memory,0x1000,hart->dram);
+		//mmio->add(dtb);
+		//commented cuz path in memory rn > 0x80000000
 
 		if(!dtb_has) {
 			size_t dtb_size = fdt_size(fdt);
@@ -236,20 +238,20 @@ int main(int argc, char* argv[]) {
 		} else {
 			// places our dtb in memory
 
-			cpu_readfile(hart, dtb_path, dtb_path_in_memory, false);
+			hart->cpu_readfile(dtb_path, dtb_path_in_memory, false);
 		}
-
 
 		if (kernel_has) {
 			std::cout << "Loading kernel: " << kernel_path << std::endl;
-			cpu_readfile(hart, kernel_path, DRAM_BASE + 0x200000,false);
+			hart->cpu_readfile(kernel_path, DRAM_BASE + 0x200000,false);
 		}
 
 		if (!file.empty()) {
-			cpu_readfile(hart, file, DRAM_BASE,false);
+			hart->cpu_readfile(file, DRAM_BASE,false);
 		}
 
-		cpu_start(hart, debug,dtb_path_in_memory);
+		
+		hart->cpu_start(debug,dtb_path_in_memory);
 		return 0;
 	} else {
 		std::cout << "Specify a file: ./riscvem <path to binary> -k <path to kernel> -d <path to dtb file>" << std::endl;

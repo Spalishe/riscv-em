@@ -96,8 +96,8 @@ void CLINT::write(HART* hart, uint64_t addr, uint64_t size, uint64_t value) {
 }
 
 void CLINT::update_mip(HART* hart) {
-    uint64_t mip = h_cpu_csr_read(hart, MIP);
-    uint32_t hart_id = h_cpu_id(hart);
+    uint64_t mip = hart->h_cpu_csr_read(MIP);
+    uint32_t hart_id = hart->h_cpu_id();
 
     // MSIP -> software interrupt
     if (msip[hart_id] & 0x1)
@@ -111,5 +111,5 @@ void CLINT::update_mip(HART* hart) {
     else
         mip &= ~(1ULL << MIP_MTIP);
 
-    h_cpu_csr_write(hart, MIP, mip);
+    hart->h_cpu_csr_write(MIP, mip);
 }

@@ -9,22 +9,22 @@
 
 void exec_MUL(struct HART *hart, uint32_t inst) {
 	hart->regs[rd(inst)] = hart->regs[rs1(inst)] * hart->regs[rs2(inst)];
-	print_d(hart,"{0x%.8X} [MUL] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1(inst),rs2(inst),rd(inst));
+	hart->print_d("{0x%.8X} [MUL] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1(inst),rs2(inst),rd(inst));
 }
 void exec_MULH(struct HART *hart, uint32_t inst) {
     __int128_t res = (__int128_t)(int64_t)hart->regs[rs1(inst)] * (__int128_t)(int64_t)hart->regs[rs2(inst)];
 	hart->regs[rd(inst)] = (uint64_t)(res>>64);
-	print_d(hart,"{0x%.8X} [MULH] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1(inst),rs2(inst),rd(inst));
+	hart->print_d("{0x%.8X} [MULH] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1(inst),rs2(inst),rd(inst));
 }
 void exec_MULHSU(struct HART *hart, uint32_t inst) {
     __int128_t res = (__int128_t)hart->regs[rs1(inst)] * (__int128_t)hart->regs[rs2(inst)];
 	hart->regs[rd(inst)] = (uint64_t)(res>>64);
-	print_d(hart,"{0x%.8X} [MULHSU] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1(inst),rs2(inst),rd(inst));
+	hart->print_d("{0x%.8X} [MULHSU] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1(inst),rs2(inst),rd(inst));
 }
 void exec_MULHU(struct HART *hart, uint32_t inst) {
     __uint128_t res = (__uint128_t)hart->regs[rs1(inst)] * (__uint128_t)hart->regs[rs2(inst)];
 	hart->regs[rd(inst)] = (uint64_t)(res>>64);
-	print_d(hart,"{0x%.8X} [MULHU] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1(inst),rs2(inst),rd(inst));
+	hart->print_d("{0x%.8X} [MULHU] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1(inst),rs2(inst),rd(inst));
 }
 
 void exec_DIV(struct HART *hart, uint32_t inst) {
@@ -35,7 +35,7 @@ void exec_DIV(struct HART *hart, uint32_t inst) {
     } else {
         hart->regs[rd(inst)] = (uint64_t)((int64_t)hart->regs[rs1(inst)] / (int64_t)hart->regs[rs2(inst)]);
     }
-	print_d(hart,"{0x%.8X} [DIV] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1(inst),rs2(inst),rd(inst));
+	hart->print_d("{0x%.8X} [DIV] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1(inst),rs2(inst),rd(inst));
 }
 void exec_DIVU(struct HART *hart, uint32_t inst) {
     if(hart->regs[rs2(inst)] == 0) {
@@ -43,7 +43,7 @@ void exec_DIVU(struct HART *hart, uint32_t inst) {
     } else {
         hart->regs[rd(inst)] = hart->regs[rs1(inst)] / hart->regs[rs2(inst)];
     }
-	print_d(hart,"{0x%.8X} [DIVU] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1(inst),rs2(inst),rd(inst));
+	hart->print_d("{0x%.8X} [DIVU] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1(inst),rs2(inst),rd(inst));
 }
 void exec_REM(struct HART *hart, uint32_t inst) {
     if(hart->regs[rs2(inst)] == 0) {
@@ -53,7 +53,7 @@ void exec_REM(struct HART *hart, uint32_t inst) {
     } else {
         hart->regs[rd(inst)] = (uint64_t)((int64_t)hart->regs[rs1(inst)] % (int64_t)hart->regs[rs2(inst)]);
     }
-	print_d(hart,"{0x%.8X} [REM] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1(inst),rs2(inst),rd(inst));
+	hart->print_d("{0x%.8X} [REM] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1(inst),rs2(inst),rd(inst));
 }
 void exec_REMU(struct HART *hart, uint32_t inst) {
     if(hart->regs[rs2(inst)] == 0) {
@@ -61,5 +61,5 @@ void exec_REMU(struct HART *hart, uint32_t inst) {
     } else {
         hart->regs[rd(inst)] = hart->regs[rs1(inst)] % (int64_t)hart->regs[rs2(inst)];
     }
-	print_d(hart,"{0x%.8X} [REMU] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1(inst),rs2(inst),rd(inst));
+	hart->print_d("{0x%.8X} [REMU] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1(inst),rs2(inst),rd(inst));
 }

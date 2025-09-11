@@ -7,7 +7,7 @@
 
 std::optional<uint64_t> MMIO::load(HART* hart, uint64_t addr, uint64_t size) {
     if((addr % (size/8)) != 0) {
-        cpu_trap(hart,EXC_LOAD_ADDR_MISALIGNED,addr,false);
+        hart->cpu_trap(EXC_LOAD_ADDR_MISALIGNED,addr,false);
         return std::nullopt;
     }
 
@@ -24,13 +24,13 @@ std::optional<uint64_t> MMIO::load(HART* hart, uint64_t addr, uint64_t size) {
     }
 
     // Fault
-    cpu_trap(hart,EXC_LOAD_ACCESS_FAULT,addr,false);
+    hart->cpu_trap(EXC_LOAD_ACCESS_FAULT,addr,false);
     return std::nullopt;
 }
 
 void MMIO::store(HART* hart, uint64_t addr, uint64_t size, uint64_t value) {
     if(addr % (size/8) != 0) {
-        cpu_trap(hart,EXC_STORE_ADDR_MISALIGNED,addr,false);
+        hart->cpu_trap(EXC_STORE_ADDR_MISALIGNED,addr,false);
         return;
     }
 
@@ -49,5 +49,5 @@ void MMIO::store(HART* hart, uint64_t addr, uint64_t size, uint64_t value) {
     }
     
     // Fault
-    cpu_trap(hart,EXC_STORE_ACCESS_FAULT,addr,false);
+    hart->cpu_trap(EXC_STORE_ACCESS_FAULT,addr,false);
 }

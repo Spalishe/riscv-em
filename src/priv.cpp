@@ -4,7 +4,7 @@
 #include <iostream>
 
 void exec_WFI(struct HART *hart, uint32_t inst) {
-    print_d(hart,"{0x%.8X} [WFI] waiting for interrupt...",hart->pc);
+    hart->print_d("{0x%.8X} [WFI] waiting for interrupt...",hart->pc);
     hart->stopexec = true;
 }
 
@@ -17,7 +17,7 @@ inline bool bit_check(uint64_t number, uint64_t n) {
 
 void exec_SRET(struct HART *hart, uint32_t inst) {
     if(hart->mode != 0) {
-        cpu_trap(hart,EXC_ILLEGAL_INSTRUCTION,hart->mode,false);
+        hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,hart->mode,false);
         return;
     }
 
@@ -26,7 +26,7 @@ void exec_SRET(struct HART *hart, uint32_t inst) {
     hart->csrs[SSTATUS] = bit_set_to(hart->csrs[SSTATUS],8,false);
     hart->pc = hart->csrs[SEPC];
 
-    print_d(hart,"{0x%.8X} [SRET] ahh returned from exc",hart->pc);
+    hart->print_d("{0x%.8X} [SRET] ahh returned from exc",hart->pc);
 }
 void exec_MRET(struct HART *hart, uint32_t inst) {
     if(get_bits(hart->csrs[MSTATUS],12,11) != 3) {
@@ -49,5 +49,5 @@ void exec_MRET(struct HART *hart, uint32_t inst) {
 
     hart->pc = hart->csrs[MEPC];
 
-    print_d(hart,"{0x%.8X} [MRET] ahh returned from exc",hart->pc);
+    hart->print_d("{0x%.8X} [MRET] ahh returned from exc",hart->pc);
 }

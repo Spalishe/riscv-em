@@ -149,14 +149,14 @@ void PLIC::write(HART* hart, uint64_t addr, uint64_t size, uint64_t value) {
 
 void PLIC::plic_service(HART* hart) {
     // Global enables
-    uint64_t mstatus = h_cpu_csr_read(hart,MSTATUS);
-    uint64_t sstatus = h_cpu_csr_read(hart,SSTATUS);
+    uint64_t mstatus = hart->h_cpu_csr_read(MSTATUS);
+    uint64_t sstatus = hart->h_cpu_csr_read(SSTATUS);
     bool m_glb = ((mstatus >> MSTATUS_MIE_BIT) & 1ULL) != 0;
     bool s_glb = ((sstatus >> SSTATUS_SIE_BIT) & 1ULL) != 0;
 
     // Local enables in mie/sie
-    uint64_t mie = h_cpu_csr_read(hart,MIE);
-    uint64_t sie = h_cpu_csr_read(hart,SIE);
+    uint64_t mie = hart->h_cpu_csr_read(MIE);
+    uint64_t sie = hart->h_cpu_csr_read(SIE);
     bool me_ie = ((mie >> MIE_MEIE_BIT) & 1ULL) != 0;
     bool se_ie = ((sie >> SIE_SEIE_BIT) & 1ULL) != 0;
 
@@ -167,30 +167,30 @@ void PLIC::plic_service(HART* hart) {
     // Priority: Machine ext > Supervisor ext (higher privilege first)
     if (m_src && m_glb && me_ie) {
         // Set MEIP and take trap
-        uint64_t mip = h_cpu_csr_read(hart, MIP);
+        uint64_t mip = hart->h_cpu_csr_read(MIP);
         mip |= (1ULL << MIP_MEIP); 
-        h_cpu_csr_write(hart, MIP, mip);
-        cpu_trap(hart, IRQ_MEXT, 0, /*is_interrupt=*/true);
+        hart->h_cpu_csr_write(MIP, mip);
+        hart->cpu_trap(IRQ_MEXT, 0, /*is_interrupt=*/true);
         return;
     }
     if (s_src && s_glb && se_ie) {
         // Set SEIP and take trap
-        uint64_t sip = h_cpu_csr_read(hart, SIP);
+        uint64_t sip = hart->h_cpu_csr_read(SIP);
         sip |= (1ULL << MIP_SEIP);
-        h_cpu_csr_write(hart, SIP, sip);
+        hart->h_cpu_csr_write(SIP, sip);
 
-        cpu_trap(hart, IRQ_SEXT, 0, /*is_interrupt=*/true);
+        hart->cpu_trap(IRQ_SEXT, 0, /*is_interrupt=*/true);
         return;
     }
 
     // If not taking now, just reflect line level into MIP/SIP for software visibility
-    uint64_t mip = h_cpu_csr_read(hart, MIP);
+    uint64_t mip = hart->h_cpu_csr_read(MIP);
     mip = set_bit(mip, MIP_MEIP, m_src != 0);
-    h_cpu_csr_write(hart, MIP, mip);
+    hart->h_cpu_csr_write(MIP, mip);
 
-    uint64_t sip = h_cpu_csr_read(hart, SIP);
+    uint64_t sip = hart->h_cpu_csr_read(SIP);
     sip = set_bit(sip, MIP_SEIP, s_src != 0);
-    h_cpu_csr_write(hart, SIP, sip);
+    hart->h_cpu_csr_write(SIP, sip);
 }
 
 // pick highest-priority enabled pending source above threshold for given ctx

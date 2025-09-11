@@ -23,9 +23,15 @@ std::string uint32_to_hex(uint32_t value) {
     ss << std::hex << std::setw(8) << std::setfill('0') << static_cast<int>(value);
     return ss.str();
 }
+std::string uint_to_hex(uint64_t value) {
+    std::stringstream stream;
+	stream << std::hex << value;
+	std::string result( stream.str() );
+	return result;
+}
 
-void print_d(struct HART *hart, const std::string& fmt, ...) {
-	if(hart->dbg) {
+void HART::print_d(const std::string& fmt, ...) {
+	if(dbg) {
 		va_list args;
     	va_start(args, fmt);
 		
@@ -35,36 +41,35 @@ void print_d(struct HART *hart, const std::string& fmt, ...) {
 	}
 }
 
-void cpu_start(struct HART *hart, bool debug, uint64_t dtb_path) {
-	for(int i=0; i<32; i++) hart->regs[i] = 0;
-	for(int i=0; i<4069; i++) hart->csrs[i] = 0;
-	hart->regs[0] = 0x00;
-	//hart->regs[2] = 0x1000;
-	//hart->pc      = DRAM_BASE;
-	hart->pc      = DRAM_BASE;
-	hart->dbg_singlestep = false;
-	hart->dbg     = debug;
+void HART::cpu_start(bool debug, uint64_t dtb_path) {
+	for(int i=0; i<32; i++) regs[i] = 0;
+	for(int i=0; i<4069; i++) csrs[i] = 0;
+	regs[0] = 0x00;
+	//regs[2] = 0x1000;
+	pc      = DRAM_BASE;
+	dbg_singlestep = false;
+	dbg     = debug;
 
-	hart->id = 0;
+	id = 0;
 
-	hart->stopexec = false;
-	hart->regs[10] = hart->id;
+	stopexec = false;
+	regs[10] = id;
 
-	hart->regs[11] = dtb_path;
+	regs[11] = dtb_path;
 
-	hart->reservation_valid = false;
-	hart->reservation_value = 0;
-	hart->reservation_addr = 0;
-	hart->reservation_size = 32;
+	reservation_valid = false;
+	reservation_value = 0;
+	reservation_addr = 0;
+	reservation_size = 32;
 
-	hart->csrs[MISA] = riscv_mkmisa("imasu");
-	hart->csrs[MVENDORID] = 0; 
-	hart->csrs[MARCHID] = 0; 
-	hart->csrs[MIMPID] = 0;
-	hart->csrs[MHARTID] = 0;
-	hart->csrs[MSTATUS] = 0;
+	csrs[MISA] = riscv_mkmisa("imasu");
+	csrs[MVENDORID] = 0; 
+	csrs[MARCHID] = 0; 
+	csrs[MIMPID] = 0;
+	csrs[MHARTID] = 0;
+	csrs[MSTATUS] = 0xA00000000;
 
-	hart->mode = 3;
+	mode = 3;
 	/*
 		Just for reminder the ids:
 			0 - User
@@ -73,38 +78,38 @@ void cpu_start(struct HART *hart, bool debug, uint64_t dtb_path) {
 			3 - Machine
 	*/
 
-	cpu_loop(hart,debug);
+	cpu_loop();
 }
-uint32_t cpu_fetch(struct HART *hart) {
-	if (hart->pc % 2 != 0) {
-		cpu_trap(hart,EXC_INST_ADDR_MISALIGNED,hart->pc,false);
+uint32_t HART::cpu_fetch() {
+	if (pc % 2 != 0) {
+		cpu_trap(EXC_INST_ADDR_MISALIGNED,pc,false);
 	}
 	uint32_t inst = 0;
-	std::optional<uint64_t> val = hart->mmio->load(hart,hart->pc,32);
+	std::optional<uint64_t> val = mmio->load(this,pc,32);
 	if(val.has_value()) {
 		inst = (uint32_t) *val;
 	}
-	if(hart->dbg) {
+	if(dbg) {
 		std::cout << "Next instruction: 0x";
 		printf("%.8X",inst);
 		std::cout << std::endl;
 	}
 	return inst;
 }
-void cpu_loop(struct HART *hart,bool debug) {
+void HART::cpu_loop() {
 	while(true) {
-		if(hart->stopexec) continue;
+		if(stopexec) continue;
 
-		if(hart->reservation_valid) {
-			uint64_t val = dram_load(&(hart->dram),hart->reservation_addr,hart->reservation_size);
-			if(val != hart->reservation_value) {
-				hart->reservation_valid = false;
+		if(reservation_valid) {
+			uint64_t val = dram_load(&(dram),reservation_addr,reservation_size);
+			if(val != reservation_value) {
+				reservation_valid = false;
 			}
 		}
 
-		if(debug) {
-			Device* dev = hart->mmio->devices[1];
-			dynamic_cast<PLIC*>(dev)->plic_service(hart);
+		if(dbg) {
+			Device* dev = mmio->devices[1];
+			dynamic_cast<PLIC*>(dev)->plic_service(this);
 
 			std::cout << "[dbg] ";
 			std::string line;
@@ -115,31 +120,31 @@ void cpu_loop(struct HART *hart,bool debug) {
 				break;
 			}
 			else if(line == "singlestep") {
-				hart->dbg_singlestep = !hart->dbg_singlestep;
-				std::cout << hart->dbg_singlestep << std::endl;
+				dbg_singlestep = !dbg_singlestep;
+				std::cout << dbg_singlestep << std::endl;
 			}
 			else if(line == "getall") {
 				std::cout << "--------------------------------------------------------------------------------------------------" << std::endl;
 				for(int i=0; i < 32; i++) {
-					std::cout << "x" << i << ": 0x" << uint32_to_hex(hart->regs[i]) << std::endl;
+					std::cout << "x" << i << ": 0x" << uint32_to_hex(regs[i]) << std::endl;
 				}
 				std::cout << "--------------------------------------------------------------------------------------------------" << std::endl;
-				std::cout << "mstatus: 0x" << uint32_to_hex(hart->csrs[MSTATUS]) << std::endl;
-				std::cout << "mcause: 0x" << uint32_to_hex(hart->csrs[MCAUSE]) << std::endl;
-				std::cout << "sstatus: 0x" << uint32_to_hex(hart->csrs[SSTATUS]) << std::endl;
-				std::cout << "scause: 0x" << uint32_to_hex(hart->csrs[SCAUSE]) << std::endl;
-				std::cout << "mtvec: 0x" << uint32_to_hex(hart->csrs[MTVEC]) << std::endl;
-				std::cout << "medeleg: 0x" << uint32_to_hex(hart->csrs[MEDELEG]) << std::endl;
-				std::cout << "stvec: 0x" << uint32_to_hex(hart->csrs[STVEC]) << std::endl;
-				std::cout << "sedeleg: 0x" << uint32_to_hex(hart->csrs[SEDELEG]) << std::endl;
-				std::cout << "mepc: 0x" << uint32_to_hex(hart->csrs[MEPC]) << std::endl;
-				std::cout << "mideleg: 0x" << uint32_to_hex(hart->csrs[MIDELEG]) << std::endl;
-				std::cout << "sepc: 0x" << uint32_to_hex(hart->csrs[SEPC]) << std::endl;
-				std::cout << "sideleg: 0x" << uint32_to_hex(hart->csrs[SIDELEG]) << std::endl;
+				std::cout << "mstatus: 0x" << uint32_to_hex(csrs[MSTATUS]) << std::endl;
+				std::cout << "mcause: 0x" << uint32_to_hex(csrs[MCAUSE]) << std::endl;
+				std::cout << "sstatus: 0x" << uint32_to_hex(csrs[SSTATUS]) << std::endl;
+				std::cout << "scause: 0x" << uint32_to_hex(csrs[SCAUSE]) << std::endl;
+				std::cout << "mtvec: 0x" << uint32_to_hex(csrs[MTVEC]) << std::endl;
+				std::cout << "medeleg: 0x" << uint32_to_hex(csrs[MEDELEG]) << std::endl;
+				std::cout << "stvec: 0x" << uint32_to_hex(csrs[STVEC]) << std::endl;
+				std::cout << "sedeleg: 0x" << uint32_to_hex(csrs[SEDELEG]) << std::endl;
+				std::cout << "mepc: 0x" << uint32_to_hex(csrs[MEPC]) << std::endl;
+				std::cout << "mideleg: 0x" << uint32_to_hex(csrs[MIDELEG]) << std::endl;
+				std::cout << "sepc: 0x" << uint32_to_hex(csrs[SEPC]) << std::endl;
+				std::cout << "sideleg: 0x" << uint32_to_hex(csrs[SIDELEG]) << std::endl;
 				std::cout << "--------------------------------------------------------------------------------------------------" << std::endl;
 			}
 			else if(line == "getpc") {
-				std::cout << hart->pc << std::endl;
+				std::cout << pc << std::endl;
 			}
 			else if(line.rfind("bp",0) == 0) {
 				std::string ignore;
@@ -151,7 +156,7 @@ void cpu_loop(struct HART *hart,bool debug) {
 					std::cout << "Specify a instruction address" << std::endl;
 					continue;
 				} else {
-					hart->breakpoint = std::stoul(count);
+					breakpoint = std::stoul(count);
 				}
 			}
 			else if(line.rfind("memd",0) == 0) {
@@ -161,9 +166,9 @@ void cpu_loop(struct HART *hart,bool debug) {
 				std::getline(iss, ignore, ' ');
 				std::getline(iss, count, ' ');
 				if(count == "" || count == " ")
-					count = std::to_string(hart->pc);
+					count = std::to_string(pc);
 				for(uint64_t i=std::stoul(count); i < std::stoul(count) + 1024; i+=1) {
-					std::cout << " 0x" << uint8_to_hex(hart->dram.mmap->load(i,8));
+					std::cout << " 0x" << uint8_to_hex(dram.mmap->load(i,8));
 					if(i%4 == 0) {
 						std::cout << std::endl;
 					}
@@ -171,23 +176,23 @@ void cpu_loop(struct HART *hart,bool debug) {
 			}
 			else if(line.rfind("runinst",0) == 0) {
 				std::string ignore;
-                std::string ins;
-                std::istringstream iss(line);
-                std::getline(iss, ignore, ' ');
-                std::getline(iss, ins, ' ');
+				std::string ins;
+				std::istringstream iss(line);
+				std::getline(iss, ignore, ' ');
+				std::getline(iss, ins, ' ');
 				uint32_t inst = std::stoul(ins);
 				if(ins == "" || ins == " " || inst == 0) {
 					std::cout << "Specify a instruction number" << std::endl;
 					continue;
 				} else {
-            		cpu_execute(hart,inst);
+					HART::cpu_execute(inst);
 				}
 			}
 			else if(line.rfind("test",0) == 0) {
-				hart->mmio->store(hart,0x10000000, 8, 'A');
+				mmio->store(this,0x10000000, 8, 'A');
 			}
 			else if(line.rfind("run", 0) == 0) {
-				if(hart->dbg_singlestep) {
+				if(dbg_singlestep) {
 					std::string ignore;
 					std::string count;
 					std::istringstream iss(line);
@@ -196,84 +201,84 @@ void cpu_loop(struct HART *hart,bool debug) {
 					if(count == "" || count == " ")
 						count = "1";
 					for(int i = 0; i < std::stoi(count); ++i) {
-						if(hart->stopexec) continue;
-						uint32_t inst = cpu_fetch(hart);
-            			cpu_execute(hart,inst);
-						if(hart->pc == hart->breakpoint && hart->breakpoint != 0) break;
+						if(stopexec) continue;
+						uint32_t inst = cpu_fetch();
+						cpu_execute(inst);
+						if(pc == breakpoint && breakpoint != 0) break;
 					}
 				} else {
 					while(true) {
-						if(hart->stopexec) continue;
-						uint32_t inst = cpu_fetch(hart);
-            			if(inst == 0) break;
-            			cpu_execute(hart,inst);
-						if(hart->pc == hart->breakpoint && hart->breakpoint != 0) break;
+						if(stopexec) continue;
+						uint32_t inst = cpu_fetch();
+						if(inst == 0) break;
+						cpu_execute(inst);
+						if(pc == breakpoint && breakpoint != 0) break;
 					}
 				}
 			}
 			else if(line.rfind("getmem8",0) == 0) {
 				std::string ignore;
-                std::string reg;
-                std::istringstream iss(line);
-                std::getline(iss, ignore, ' ');
-                std::getline(iss, reg, ' ');
+				std::string reg;
+				std::istringstream iss(line);
+				std::getline(iss, ignore, ' ');
+				std::getline(iss, reg, ' ');
 				if(reg == "" || reg == " " || std::stoul(reg) < 0) {
 					std::cout << "Specify a memory address" << std::endl;
 					continue;
 				} else {
-					std::cout << hart->dram.mmap->load(std::stoul(reg),8) << std::endl;
+					std::cout << dram.mmap->load(std::stoul(reg),8) << std::endl;
 				}
 			}
 			else if(line.rfind("getmem16",0) == 0) {
 				std::string ignore;
-                std::string reg;
-                std::istringstream iss(line);
-                std::getline(iss, ignore, ' ');
-                std::getline(iss, reg, ' ');
+				std::string reg;
+				std::istringstream iss(line);
+				std::getline(iss, ignore, ' ');
+				std::getline(iss, reg, ' ');
 				if(reg == "" || reg == " " || std::stoul(reg) < 0) {
 					std::cout << "Specify a memory address" << std::endl;
 					continue;
 				} else {
-					std::cout << hart->dram.mmap->load(std::stoul(reg),16) << std::endl;
+					std::cout << dram.mmap->load(std::stoul(reg),16) << std::endl;
 				}
 			}
 			else if(line.rfind("getmem32",0) == 0) {
 				std::string ignore;
-                std::string reg;
-                std::istringstream iss(line);
-                std::getline(iss, ignore, ' ');
-                std::getline(iss, reg, ' ');
+				std::string reg;
+				std::istringstream iss(line);
+				std::getline(iss, ignore, ' ');
+				std::getline(iss, reg, ' ');
 				if(reg == "" || reg == " " || std::stoul(reg) < 0) {
 					std::cout << "Specify a memory address" << std::endl;
 					continue;
 				} else {
-					std::cout << hart->dram.mmap->load(std::stoul(reg),32) << std::endl;
+					std::cout << dram.mmap->load(std::stoul(reg),32) << std::endl;
 				}
 			}
 			else if(line.rfind("getmem64",0) == 0) {
 				std::string ignore;
-                std::string reg;
-                std::istringstream iss(line);
-                std::getline(iss, ignore, ' ');
-                std::getline(iss, reg, ' ');
+				std::string reg;
+				std::istringstream iss(line);
+				std::getline(iss, ignore, ' ');
+				std::getline(iss, reg, ' ');
 				if(reg == "" || reg == " " || std::stoul(reg) < 0) {
 					std::cout << "Specify a memory address" << std::endl;
 					continue;
 				} else {
-					std::cout << hart->dram.mmap->load(std::stoul(reg),64) << std::endl;
+					std::cout << dram.mmap->load(std::stoul(reg),64) << std::endl;
 				}
 			}
 			else if(line.rfind("getreg",0) == 0) {
 				std::string ignore;
-                std::string reg;
-                std::istringstream iss(line);
-                std::getline(iss, ignore, ' ');
-                std::getline(iss, reg, ' ');
+				std::string reg;
+				std::istringstream iss(line);
+				std::getline(iss, ignore, ' ');
+				std::getline(iss, reg, ' ');
 				if(reg == "" || reg == " " || std::stoi(reg) < 0 || std::stoi(reg) > 31) {
 					std::cout << "Specify a register from 0 to 31" << std::endl;
 					continue;
 				} else {
-					std::cout << "Register x" << std::stoi(reg) << ": " << hart->regs[std::stoi(reg)] << "; " << (int64_t)hart->regs[std::stoi(reg)] << std::endl;
+					std::cout << "Register x" << std::stoi(reg) << ": " << regs[std::stoi(reg)] << "; " << (int64_t)regs[std::stoi(reg)] << "; 0x" << uint_to_hex(regs[std::stoi(reg)]) << std::endl;
 				}
 			}
 			else if(line.rfind("setreg",0) == 0) {
@@ -285,23 +290,23 @@ void cpu_loop(struct HART *hart,bool debug) {
 				std::getline(iss, reg, ' ');
 				std::getline(iss, value, ' ');
 				if(reg == "" || reg == " " || std::stoi(reg) < 0 || std::stoi(reg) > 31) {
-                    std::cout << "Specify a register from 0 to 31" << std::endl;
-                    continue;
-                } else {
-					hart->regs[std::stoi(reg)] = std::stoi(value);
+					std::cout << "Specify a register from 0 to 31" << std::endl;
+					continue;
+				} else {
+					regs[std::stoi(reg)] = std::stoi(value);
 				}
 			}
 			else if(line.rfind("getcsr",0) == 0) {
 				std::string ignore;
-                std::string reg;
-                std::istringstream iss(line);
-                std::getline(iss, ignore, ' ');
-                std::getline(iss, reg, ' ');
+				std::string reg;
+				std::istringstream iss(line);
+				std::getline(iss, ignore, ' ');
+				std::getline(iss, reg, ' ');
 				if(reg == "" || reg == " " || std::stoi(reg) < 0 || std::stoi(reg) > 1971) {
 					std::cout << "Specify a csr from 0 to 1971" << std::endl;
 					continue;
 				} else {
-					std::cout << "CSR " << std::stoi(reg) << ": " << hart->csrs[std::stoi(reg)] << std::endl;
+					std::cout << "CSR " << std::stoi(reg) << ": " << csrs[std::stoi(reg)] << std::endl;
 				}
 			}
 			else if(line.rfind("setcsr",0) == 0) {
@@ -316,318 +321,337 @@ void cpu_loop(struct HART *hart,bool debug) {
 					std::cout << "Specify a csr from 0 to 1971" << std::endl;
 					continue;
 				} else {
-					hart->csrs[std::stoi(reg)] = std::stoi(value);
+					csrs[std::stoi(reg)] = std::stoi(value);
 				}
 			}
 			else {
 				std::cout << "No such command." << std::endl;
 			}
 		} else {
-			Device* dev = hart->mmio->devices[1];
-			dynamic_cast<PLIC*>(dev)->plic_service(hart);
-			uint32_t inst = cpu_fetch(hart);
+			Device* dev = mmio->devices[1];
+			dynamic_cast<PLIC*>(dev)->plic_service(this);
+			uint32_t inst = cpu_fetch();
 			if(inst == 0) {
-				cpu_trap(hart,EXC_ILLEGAL_INSTRUCTION,inst,false);
+				cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false);
 			} else
-				cpu_execute(hart,inst);
+				cpu_execute(inst);
 		}
 	}
 }
-void cpu_execute(struct HART *hart, uint32_t inst) {
+void HART::cpu_execute(uint32_t inst) {
 	int OP = inst & 3;
 	bool increase = true;
+	void (*fn)(HART*, uint32_t);
 
-	if(OP == 3) {
-		int opcode = inst & 0x7f;
-		int funct3 = (inst >> 12) & 0x7;
-		int amo_funct5 = (inst >> 27) & 0x1F;
-		int funct7 = (inst >> 25) & 0x7f;
-		int funct6 = (inst >> 26);
-		int imm = (inst >> 20);
-		switch(opcode) {
-			case FENCE:
-				exec_FENCE_I(hart,inst); break;
-			case R_TYPE:
-				switch(funct3) {
-					case ADDSUB:
-						switch(funct7) {
-							case ADD: exec_ADD(hart,inst); break;
-							case 1: exec_MUL(hart,inst); break;
-							case SUB: exec_SUB(hart,inst); break;
-						}; break;
-					case XOR: 
-						switch(funct7) {
-							case 0: exec_XOR(hart,inst); break;
-							case 1: exec_DIV(hart,inst); break;
-						};  break;
-					case OR: 
-						switch(funct7) {
-							case 0: exec_OR(hart,inst); break;
-							case 1: exec_REM(hart,inst); break;
-						};  break;
-					case AND: 
-						switch(funct7) {
-							case 0: exec_AND(hart,inst); break;
-							case 1: exec_REMU(hart,inst); break;
-						};  break;
-					case SLL: 
-						switch(funct7) {
-							case 0: exec_SLL(hart,inst); break;
-							case 1: exec_MULH(hart,inst); break;
-						}; break;
-					case SR:
-						switch(funct7) {
-							case SRL: exec_SRL(hart,inst); break;
-							case SRA: exec_SRA(hart,inst); break;
-							case 1: exec_DIVU(hart,inst); break;
-						}; break;
-					case SLT: 
-						switch(funct7) {
-							case 0: exec_SLT(hart,inst); break;
-							case 1: exec_MULHSU(hart,inst); break;
-						};  break;
-					case SLTU: 
-						switch(funct7) {
-							case 0: exec_SLTU(hart,inst); break;
-							case 1: exec_MULHU(hart,inst); break;
-						};  break;
-				}; break;
-			case R_TYPE64:
-				switch(funct3) {
-					case ADDSUB:
-						switch(funct7) {
-							case ADD: exec_ADDW(hart,inst); break;
-							case SUB: exec_SUBW(hart,inst); break;
-							case 1: exec_MULW(hart,inst); break;
-						}; break;
-					case SLL: exec_SLLW(hart,inst); break;
-					case SR:
-						switch(funct7) {
-							case SRL: exec_SRLW(hart,inst); break;
-							case SRA: exec_SRAW(hart,inst); break;
-							case 1: exec_DIVUW(hart,inst); break;
-						}; break;
-					case XOR: exec_DIVW(hart,inst); break;
-					case OR: exec_REMW(hart,inst); break;
-					case AND: exec_REMUW(hart,inst); break;
-				}; break;
-			case AMO:
-				switch(funct3) {
-					case AMO_W: 
-						switch(amo_funct5) {
-							case AMOADD: exec_AMOADD_W(hart,inst); break;
-							case AMOSWAP: exec_AMOSWAP_W(hart,inst); break;
-							case LR: exec_LR_W(hart,inst); break;
-							case SC: exec_SC_W(hart,inst); break;
-							case AMOXOR: exec_AMOXOR_W(hart,inst); break;
-							case AMOOR: exec_AMOOR_W(hart,inst); break;
-							case AMOAND: exec_AMOAND_W(hart,inst); break;
-							case AMOMIN: exec_AMOMIN_W(hart,inst); break;
-							case AMOMAX: exec_AMOMAX_W(hart,inst); break;
-							case AMOMINU: exec_AMOMINU_W(hart,inst); break;
-							case AMOMAXU: exec_AMOMAXU_W(hart,inst); break;
-						}; break;
-					case AMO_D: 
-						switch(amo_funct5) {
-							case AMOADD: exec_AMOADD_D(hart,inst); break;
-							case AMOSWAP: exec_AMOSWAP_D(hart,inst); break;
-							case LR: exec_LR_D(hart,inst); break;
-							case SC: exec_SC_D(hart,inst); break;
-							case AMOXOR: exec_AMOXOR_D(hart,inst); break;
-							case AMOOR: exec_AMOOR_D(hart,inst); break;
-							case AMOAND: exec_AMOAND_D(hart,inst); break;
-							case AMOMIN: exec_AMOMIN_D(hart,inst); break;
-							case AMOMAX: exec_AMOMAX_D(hart,inst); break;
-							case AMOMINU: exec_AMOMINU_D(hart,inst); break;
-							case AMOMAXU: exec_AMOMAXU_D(hart,inst); break;
-						}; break;
-				}; break;
-			case I_TYPE:
-				switch(funct3) {
-					case ADDI: exec_ADDI(hart,inst); break;
-					case XORI: exec_XORI(hart,inst); break;
-					case ORI: exec_ORI(hart,inst); break;
-					case ANDI: exec_ANDI(hart,inst); break;
-					case SLLI: exec_SLLI(hart,inst); break;
-					case SRI:
-						/*switch(funct7) {
-							case SRLI: exec_SRLI(hart,inst); break;
-							case SRAI: exec_SRAI(hart,inst); break;
-						}; break;*/
-						switch(funct6) {
-							case SRLI: exec_SRLI(hart,inst); break;
-							case SRAI: exec_SRAI(hart,inst); break;
-						}; break;
-					case SLTI: exec_SLTI(hart,inst); break;
-					case SLTIU: exec_SLTIU(hart,inst); break;
-				}; break;
-			case I_TYPE64:
-				switch(funct3) {
-					case ADDI: exec_ADDIW(hart,inst); break;
-					case SLLI: exec_SLLIW(hart,inst); break;
-					case SRI:
-						switch(funct7) {
-							case SRLI: exec_SRLIW(hart,inst); break;
-							case SRAIW: exec_SRAIW(hart,inst); break;
-						}; break;
-				}; break;
-			case LOAD_TYPE:
-				switch(funct3) {
-					case LB: exec_LB(hart,inst); break;
-					case LH: exec_LH(hart,inst); break;
-					case LW: exec_LW(hart,inst); break;
-					case LD: exec_LD(hart,inst); break;
-					case LBU: exec_LBU(hart,inst); break;
-					case LHU: exec_LHU(hart,inst); break;
-					case LWU: exec_LWU(hart,inst); break;
-				}; break;
-			case S_TYPE:
-				switch(funct3) {
-					case SB: exec_SB(hart,inst); break;
-					case SH: exec_SH(hart,inst); break;
-					case SW: exec_SW(hart,inst); break;
-					case SD: exec_SD(hart,inst); break;
-				}; break;
-			case B_TYPE:
-				switch(funct3) {
-					case BEQ: exec_BEQ(hart,inst); break;
-					case BNE: exec_BNE(hart,inst); break;
-					case BLT: exec_BLT(hart,inst); break;
-					case BGE: exec_BGE(hart,inst); break;
-					case BLTU: exec_BLTU(hart,inst); break;
-					case BGEU: exec_BGEU(hart,inst); break;
-				}; break;
-			case JAL: exec_JAL(hart,inst); increase = false; break;
-			case JALR: exec_JALR(hart,inst); increase = false; break;
-			case LUI: exec_LUI(hart,inst); break;
-			case AUIPC: exec_AUIPC(hart,inst); break;
-			case ECALL: 
-				switch(funct3) {
-					case CSRRW: exec_CSRRW(hart,inst); break;
-					case CSRRS: exec_CSRRS(hart,inst); break;
-					case CSRRC: exec_CSRRC(hart,inst); break;
-					case CSRRWI: exec_CSRRWI(hart,inst); break;
-					case CSRRSI: exec_CSRRSI(hart,inst); break;
-					case CSRRCI: exec_CSRRCI(hart,inst); break;
-					case 0:
-						switch(imm) {
-							case 0: exec_ECALL(hart,inst); break;
-							case 1: exec_EBREAK(hart,inst); break;
-							case 261: exec_WFI(hart,inst); break;
-							case 258: exec_SRET(hart,inst); increase = false; break;
-							case 770: exec_MRET(hart,inst); increase = false; break;
-						}; break;
-				}; break;
+	auto it = instr_cache.find(inst);
 
-			default: cpu_trap(hart,EXC_ILLEGAL_INSTRUCTION,inst,false); break;
-		}
-		if(increase) hart->pc += 4;
+	if(it != instr_cache.end()) {
+		auto [fn, increase] = instr_cache[inst];
+		fn(this,inst);
+		if(increase) {pc += (OP == 3 ? 4 : 2);}
 	} else {
-		int funct2 = (inst >> 5) & 0x3;
-		int funct3 = (inst >> 13) & 0x7;
-		int funct4 = (inst >> 12) & 0xF;
-		int funct5 = (inst >> 10) & 0x3;
-		int funct6 = (inst >> 10) & 0x1F;
-		switch(OP) {
-			case 0: {
-				switch(funct3) {
-					case 0: exec_C_ADDI4SPN(hart,inst); break;
-					case 2: exec_C_LW(hart,inst); break;
-					case 3: exec_C_LD(hart,inst); break;
-					case 6: exec_C_SW(hart,inst); break;
-					case 7: exec_C_SD(hart,inst); break;
-				}
-			}; break;
-			case 1: {
-				switch(funct3) {
-					case 0: {
-						if(inst == 0x1) {
-							exec_C_NOP(hart,inst);
-						} else {
-							exec_C_ADDI(hart,inst);
-						}
-					}; break;
-					case 1: 
-						{
-							// exec_C_JAL(hart,inst); increase = false;
-							// Uncomment this if u planning making a fully working 32-bit arch
-							exec_C_ADDIW(hart,inst);
-						} break;
-					case 2: exec_C_LI(hart,inst); break;
-					case 3: {
-						uint64_t rd = get_bits(inst,11,7);
-						if(rd == 2) {
-							exec_C_ADDI16SP(hart,inst);
-						} else {
-							exec_C_LUI(hart,inst);
-						}
-					}; break;
-					case 4: {
-						if(funct6 == 35) {
-							switch(funct2) {
-								case 0: exec_C_SUB(hart,inst); break;
-								case 1: exec_C_XOR(hart,inst); break;
-								case 2: exec_C_OR(hart,inst); break;
-								case 3: exec_C_AND(hart,inst); break;
-							}
-						} else if(funct6 == 39) {
-							switch(funct2) {
-								case 0: exec_C_SUBW(hart,inst); break;
-								case 1: exec_C_ADDW(hart,inst); break;
-							}
-						} else {
-							switch(funct5) {
-								case 0: exec_C_SRLI(hart,inst); break;
-								case 1: exec_C_SRAI(hart,inst); break;
-								case 2: exec_C_ANDI(hart,inst); break;
-							}
-						}
-					}; break;
-					case 5: exec_C_J(hart,inst); increase = false; break;
-					case 6: exec_C_BEQZ(hart,inst); break;
-					case 7: exec_C_BNEZ(hart,inst); break;
-				}
-			}; break;
-			case 2: {
-				switch(funct3) {
-					case 0: exec_C_SLLI(hart,inst); break;
-					case 2: exec_C_LWSP(hart,inst); break;
-					case 3: exec_C_LDSP(hart,inst); break;
-					case 4: {
-						switch(funct4) {
-							case 8: {
-								uint64_t i = get_bits(inst,6,2);
-								switch(i) {
-									case 0: exec_C_JR(hart,inst); increase = false; break;
-									default: exec_C_MV(hart,inst); break;
-								}
+		if(OP == 3) {
+			int opcode = inst & 0x7f;
+			int funct3 = (inst >> 12) & 0x7;
+			int amo_funct5 = (inst >> 27) & 0x1F;
+			int funct7 = (inst >> 25) & 0x7f;
+			int funct6 = (inst >> 26);
+			int imm = (inst >> 20);
+			switch(opcode) {
+				case FENCE:
+					fn = exec_FENCE_I; break;
+				case R_TYPE:
+					switch(funct3) {
+						case ADDSUB:
+							switch(funct7) {
+								case ADD: fn = exec_ADD; break;
+								case 1: fn = exec_MUL; break;
+								case SUB: fn = exec_SUB; break;
 							}; break;
-							case 9: {
-								uint64_t i = get_bits(inst,6,2);
-								uint64_t i1 = get_bits(inst,11,7);
-								if(i == 0 && i1 == 0) {
-									exec_C_EBREAK(hart,inst);
-								} else if(i == 0 && i1 != 0) {
-									exec_C_JALR(hart,inst); increase = false;
-								} else if(i != 0 && i1 != 0) {
-									exec_C_ADD(hart,inst);
-								}
+						case XOR: 
+							switch(funct7) {
+								case 0: fn = exec_XOR; break;
+								case 1: fn = exec_DIV; break;
+							};  break;
+						case OR: 
+							switch(funct7) {
+								case 0: fn = exec_OR; break;
+								case 1: fn = exec_REM; break;
+							};  break;
+						case AND: 
+							switch(funct7) {
+								case 0: fn = exec_AND; break;
+								case 1: fn = exec_REMU; break;
+							};  break;
+						case SLL: 
+							switch(funct7) {
+								case 0: fn = exec_SLL; break;
+								case 1: fn = exec_MULH; break;
 							}; break;
-						}
+						case SR:
+							switch(funct7) {
+								case SRL: fn = exec_SRL; break;
+								case SRA: fn = exec_SRA; break;
+								case 1: fn = exec_DIVU; break;
+							}; break;
+						case SLT: 
+							switch(funct7) {
+								case 0: fn = exec_SLT; break;
+								case 1: fn = exec_MULHSU; break;
+							};  break;
+						case SLTU: 
+							switch(funct7) {
+								case 0: fn = exec_SLTU; break;
+								case 1: fn = exec_MULHU; break;
+							};  break;
 					}; break;
-					case 6: exec_C_SWSP(hart,inst); break;
-					case 7: exec_C_SDSP(hart,inst); break;
-				}
-			}; break;
-			default: cpu_trap(hart,EXC_ILLEGAL_INSTRUCTION,inst,false); break;
+				case R_TYPE64:
+					switch(funct3) {
+						case ADDSUB:
+							switch(funct7) {
+								case ADD: fn = exec_ADDW; break;
+								case SUB: fn = exec_SUBW; break;
+								case 1: fn = exec_MULW; break;
+							}; break;
+						case SLL: fn = exec_SLLW; break;
+						case SR:
+							switch(funct7) {
+								case SRL: fn = exec_SRLW; break;
+								case SRA: fn = exec_SRAW; break;
+								case 1: fn = exec_DIVUW; break;
+							}; break;
+						case XOR: fn = exec_DIVW; break;
+						case OR: fn = exec_REMW; break;
+						case AND: fn = exec_REMUW; break;
+					}; break;
+				case AMO:
+					switch(funct3) {
+						case AMO_W: 
+							switch(amo_funct5) {
+								case AMOADD: fn = exec_AMOADD_W; break;
+								case AMOSWAP: fn = exec_AMOSWAP_W; break;
+								case LR: fn = exec_LR_W; break;
+								case SC: fn = exec_SC_W; break;
+								case AMOXOR: fn = exec_AMOXOR_W; break;
+								case AMOOR: fn = exec_AMOOR_W; break;
+								case AMOAND: fn = exec_AMOAND_W; break;
+								case AMOMIN: fn = exec_AMOMIN_W; break;
+								case AMOMAX: fn = exec_AMOMAX_W; break;
+								case AMOMINU: fn = exec_AMOMINU_W; break;
+								case AMOMAXU: fn = exec_AMOMAXU_W; break;
+							}; break;
+						case AMO_D: 
+							switch(amo_funct5) {
+								case AMOADD: fn = exec_AMOADD_D; break;
+								case AMOSWAP: fn = exec_AMOSWAP_D; break;
+								case LR: fn = exec_LR_D; break;
+								case SC: fn = exec_SC_D; break;
+								case AMOXOR: fn = exec_AMOXOR_D; break;
+								case AMOOR: fn = exec_AMOOR_D; break;
+								case AMOAND: fn = exec_AMOAND_D; break;
+								case AMOMIN: fn = exec_AMOMIN_D; break;
+								case AMOMAX: fn = exec_AMOMAX_D; break;
+								case AMOMINU: fn = exec_AMOMINU_D; break;
+								case AMOMAXU: fn = exec_AMOMAXU_D; break;
+							}; break;
+					}; break;
+				case I_TYPE:
+					switch(funct3) {
+						case ADDI: fn = exec_ADDI; break;
+						case XORI: fn = exec_XORI; break;
+						case ORI: fn = exec_ORI; break;
+						case ANDI: fn = exec_ANDI; break;
+						case SLLI: fn = exec_SLLI; break;
+						case SRI:
+							/*switch(funct7) {
+								case SRLI: fn = exec_SRLI; break;
+								case SRAI: fn = exec_SRAI; break;
+							}; break;*/
+							switch(funct6) {
+								case SRLI: fn = exec_SRLI; break;
+								case SRAI: fn = exec_SRAI; break;
+							}; break;
+						case SLTI: fn = exec_SLTI; break;
+						case SLTIU: fn = exec_SLTIU; break;
+					}; break;
+				case I_TYPE64:
+					switch(funct3) {
+						case ADDI: fn = exec_ADDIW; break;
+						case SLLI: fn = exec_SLLIW; break;
+						case SRI:
+							switch(funct7) {
+								case SRLI: fn = exec_SRLIW; break;
+								case SRAIW: fn = exec_SRAIW; break;
+							}; break;
+					}; break;
+				case LOAD_TYPE:
+					switch(funct3) {
+						case LB: fn = exec_LB; break;
+						case LH: fn = exec_LH; break;
+						case LW: fn = exec_LW; break;
+						case LD: fn = exec_LD; break;
+						case LBU: fn = exec_LBU; break;
+						case LHU: fn = exec_LHU; break;
+						case LWU: fn = exec_LWU; break;
+					}; break;
+				case S_TYPE:
+					switch(funct3) {
+						case SB: fn = exec_SB; break;
+						case SH: fn = exec_SH; break;
+						case SW: fn = exec_SW; break;
+						case SD: fn = exec_SD; break;
+					}; break;
+				case B_TYPE:
+					switch(funct3) {
+						case BEQ: fn = exec_BEQ; break;
+						case BNE: fn = exec_BNE; break;
+						case BLT: fn = exec_BLT; break;
+						case BGE: fn = exec_BGE; break;
+						case BLTU: fn = exec_BLTU; break;
+						case BGEU: fn = exec_BGEU; break;
+					}; break;
+				case JAL: fn = exec_JAL; increase = false; break;
+				case JALR: fn = exec_JALR; increase = false; break;
+				case LUI: fn = exec_LUI; break;
+				case AUIPC: fn = exec_AUIPC; break;
+				case ECALL: 
+					switch(funct3) {
+						case CSRRW: fn = exec_CSRRW; break;
+						case CSRRS: fn = exec_CSRRS; break;
+						case CSRRC: fn = exec_CSRRC; break;
+						case CSRRWI: fn = exec_CSRRWI; break;
+						case CSRRSI: fn = exec_CSRRSI; break;
+						case CSRRCI: fn = exec_CSRRCI; break;
+						case 0:
+							switch(imm) {
+								case 0: fn = exec_ECALL; increase = false; break;
+								case 1: fn = exec_EBREAK; break;
+								case 261: fn = exec_WFI; break;
+								case 258: fn = exec_SRET; increase = false; break;
+								case 770: fn = exec_MRET; increase = false; break;
+							}; break;
+					}; break;
+
+				default: cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false); break;
+			}
+			//if(increase) pc += 4;
+		} else {
+			int funct2 = (inst >> 5) & 0x3;
+			int funct3 = (inst >> 13) & 0x7;
+			int funct4 = (inst >> 12) & 0xF;
+			int funct5 = (inst >> 10) & 0x3;
+			int funct6 = (inst >> 10) & 0x1F;
+			switch(OP) {
+				case 0: {
+					switch(funct3) {
+						case 0: fn = exec_C_ADDI4SPN; break;
+						case 2: fn = exec_C_LW; break;
+						case 3: fn = exec_C_LD; break;
+						case 6: fn = exec_C_SW; break;
+						case 7: fn = exec_C_SD; break;
+					}
+				}; break;
+				case 1: {
+					switch(funct3) {
+						case 0: {
+							if(inst == 0x1) {
+								fn = exec_C_NOP;
+							} else {
+								fn = exec_C_ADDI;
+							}
+						}; break;
+						case 1: 
+							{
+								// fn = exec_C_JAL; increase = false;
+								// Uncomment this if u planning making a fully working 32-bit arch
+								fn = exec_C_ADDIW;
+							} break;
+						case 2: fn = exec_C_LI; break;
+						case 3: {
+							uint64_t rd = get_bits(inst,11,7);
+							if(rd == 2) {
+								fn = exec_C_ADDI16SP;
+							} else {
+								fn = exec_C_LUI;
+							}
+						}; break;
+						case 4: {
+							if(funct6 == 35) {
+								switch(funct2) {
+									case 0: fn = exec_C_SUB; break;
+									case 1: fn = exec_C_XOR; break;
+									case 2: fn = exec_C_OR; break;
+									case 3: fn = exec_C_AND; break;
+								}
+							} else if(funct6 == 39) {
+								switch(funct2) {
+									case 0: fn = exec_C_SUBW; break;
+									case 1: fn = exec_C_ADDW; break;
+								}
+							} else {
+								switch(funct5) {
+									case 0: fn = exec_C_SRLI; break;
+									case 1: fn = exec_C_SRAI; break;
+									case 2: fn = exec_C_ANDI; break;
+								}
+							}
+						}; break;
+						case 5: fn = exec_C_J; increase = false; break;
+						case 6: fn = exec_C_BEQZ; break;
+						case 7: fn = exec_C_BNEZ; break;
+					}
+				}; break;
+				case 2: {
+					switch(funct3) {
+						case 0: fn = exec_C_SLLI; break;
+						case 2: fn = exec_C_LWSP; break;
+						case 3: fn = exec_C_LDSP; break;
+						case 4: {
+							switch(funct4) {
+								case 8: {
+									uint64_t i = get_bits(inst,6,2);
+									switch(i) {
+										case 0: fn = exec_C_JR; increase = false; break;
+										default: fn = exec_C_MV; break;
+									}
+								}; break;
+								case 9: {
+									uint64_t i = get_bits(inst,6,2);
+									uint64_t i1 = get_bits(inst,11,7);
+									if(i == 0 && i1 == 0) {
+										fn = exec_C_EBREAK;
+									} else if(i == 0 && i1 != 0) {
+										fn = exec_C_JALR; increase = false;
+									} else if(i != 0 && i1 != 0) {
+										fn = exec_C_ADD;
+									}
+								}; break;
+							}
+						}; break;
+						case 6: fn = exec_C_SWSP; break;
+						case 7: fn = exec_C_SDSP; break;
+					}
+				}; break;
+				default: cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false); break;
+			}
+			//if(increase) pc += 2;
 		}
-		if(increase) hart->pc += 2;
+
+		if(fn != NULL) {
+			auto it1 = instr_cache.find(inst);
+			if(it1 == instr_cache.end()) {
+				instr_cache[inst] = std::make_tuple(fn, increase);
+			}
+
+			fn(this,inst);
+			if(increase) {pc += (OP == 3 ? 4 : 2);}
+		}	
 	}
 
-	hart->csrs[CYCLE] += 1;
-	hart->regs[0] = 0;
+	csrs[CYCLE] += 1;
+	regs[0] = 0;
 }
-uint64_t cpu_readfile(struct HART *hart,std::string path, uint64_t addr, bool bigendian) {
+uint64_t HART::cpu_readfile(std::string path, uint64_t addr, bool bigendian) {
     std::ifstream file(path, std::ios::binary | std::ios::ate);
     if (!file.is_open()) {
         std::cout << "File open error: " << path << std::endl;
@@ -641,12 +665,12 @@ uint64_t cpu_readfile(struct HART *hart,std::string path, uint64_t addr, bool bi
         for (std::streamsize i = 0; i < size; ++i) {
             uint8_t byte;
             file.read(reinterpret_cast<char*>(&byte), 1);
-            hart->dram.mmap->store(addr + i, 8, byte);
+            dram.mmap->store(addr + i, 8, byte);
         }
 		if (bigendian) {
 			for(uint64_t i = 0; i < size; i += 4) {
-				uint32_t val = hart->dram.mmap->load(addr+i,32);
-				hart->dram.mmap->store(addr+i,32,switch_endian(val));
+				uint32_t val = dram.mmap->load(addr+i,32);
+				dram.mmap->store(addr+i,32,switch_endian(val));
 			}	
 		}
     } catch (const std::out_of_range&) {
@@ -686,23 +710,23 @@ static inline int cause_to_mipbit(int cause) {
     }
 }
 
-void cpu_trap(struct HART *hart, uint64_t cause, uint64_t tval, bool is_interrupt) {
-	if(hart->dbg) {
+void HART::cpu_trap(uint64_t cause, uint64_t tval, bool is_interrupt) {
+	if(dbg) {
 		std::cout << (is_interrupt ? "INTERRUPT" : "EXCEPTION") << " " << cause << "   " << tval << std::endl;
 	}
 
     // current mode
-    uint64_t cur_mode = hart->mode; // 0=U,1=S,2=H,3=M
+    uint64_t cur_mode = mode; // 0=U,1=S,2=H,3=M
 
-	if(is_interrupt && hart->stopexec) {
-		uint64_t tw = (hart->csrs[MSTATUS] & (1<<21)) >> 21;
+	if(is_interrupt && stopexec) {
+		uint64_t tw = (csrs[MSTATUS] & (1<<21)) >> 21;
 		if(cur_mode == 0) {
-			hart->stopexec = false;
-			cpu_trap(hart,EXC_ILLEGAL_INSTRUCTION,cur_mode,false);
+			stopexec = false;
+			cpu_trap(EXC_ILLEGAL_INSTRUCTION,cur_mode,false);
 		} else {
 			if(tw == 1 && cur_mode == 1) {
-				hart->stopexec = false;
-				cpu_trap(hart,EXC_ILLEGAL_INSTRUCTION,cur_mode,false);
+				stopexec = false;
+				cpu_trap(EXC_ILLEGAL_INSTRUCTION,cur_mode,false);
 			}
 		}
 
@@ -710,8 +734,8 @@ void cpu_trap(struct HART *hart, uint64_t cause, uint64_t tval, bool is_interrup
 	}
 
     // Read delegation registers
-    uint64_t medeleg = hart->csrs[MEDELEG];
-    uint64_t mideleg = hart->csrs[MIDELEG];
+    uint64_t medeleg = csrs[MEDELEG];
+    uint64_t mideleg = csrs[MIDELEG];
 
     // Decide whether to delegate to S-mode:
     bool can_delegate_to_s = (cur_mode != 3); // only traps from U or S can be delegated
@@ -726,43 +750,43 @@ void cpu_trap(struct HART *hart, uint64_t cause, uint64_t tval, bool is_interrup
 
     if (delegate_to_s) {
         // Supervisor trap handling (write sepc/scause/stval, update sstatus, jump to stvec)
-        hart->csrs[SEPC] = hart->pc;
-        hart->csrs[SCAUSE] = mcause_encode(is_interrupt, cause);
-        hart->csrs[STVAL] = tval;
+        csrs[SEPC] = pc;
+        csrs[SCAUSE] = mcause_encode(is_interrupt, cause);
+        csrs[STVAL] = tval;
 
         // Update sstatus: SPIE <- SIE; SIE <- 0; SPP <- old privilege (0 for U, 1 for S)
-        uint64_t sstatus = hart->csrs[SSTATUS];
+        uint64_t sstatus = csrs[SSTATUS];
         uint64_t old_sie = (sstatus >> SSTATUS_SIE_BIT) & 1ULL;
         // clear SPIE, SPP, SIE
         sstatus &= ~((1ULL<<SSTATUS_SPIE_BIT) | (1ULL<<SSTATUS_SPP_BIT) | (1ULL<<SSTATUS_SIE_BIT));
         if (old_sie) sstatus |= (1ULL<<SSTATUS_SPIE_BIT);
         if (cur_mode == 1) sstatus |= (1ULL<<SSTATUS_SPP_BIT); // set SPP if came from S; else leave 0 for U
-        hart->csrs[SSTATUS] = sstatus;
+        csrs[SSTATUS] = sstatus;
 
         // Switch to S-mode
-        hart->mode = 1;
+        mode = 1;
 
         // Compute target PC from stvec
-        uint64_t stvec = hart->csrs[STVEC];
+        uint64_t stvec = csrs[STVEC];
         uint64_t mode = stvec & TVEC_MODE_MASK;
         uint64_t base = stvec & TVEC_BASE_MASK;
         if (mode == 0) {
-            hart->pc = base;
+            pc = base;
         } else if (mode == 1 && is_interrupt) {
             // vectored only for interrupts
-            hart->pc = base + 4 * cause;
+            pc = base + 4 * cause;
         } else {
-            hart->pc = base; // fallback
+            pc = base; // fallback
         }
 
     } else {
         // Machine trap handling (write mepc/mcause/mtval, update mstatus, jump to mtvec)
-        hart->csrs[MEPC] = hart->pc;
-        hart->csrs[MCAUSE] = mcause_encode(is_interrupt, cause);
-        hart->csrs[MTVAL] = tval;
+        csrs[MEPC] = pc;
+        csrs[MCAUSE] = mcause_encode(is_interrupt, cause);
+        csrs[MTVAL] = tval;
 
         // Update mstatus: MPIE <- MIE; MIE <- 0; MPP <- cur_mode
-        uint64_t mstatus = hart->csrs[MSTATUS];
+        uint64_t mstatus = csrs[MSTATUS];
         uint64_t old_mie = (mstatus >> MSTATUS_MIE_BIT) & 1ULL;
         // clear MPIE, MPP, MIE
         mstatus &= ~((1ULL<<MSTATUS_MPIE_BIT) | MSTATUS_MPP_MASK | (1ULL<<MSTATUS_MIE_BIT));
@@ -772,35 +796,35 @@ void cpu_trap(struct HART *hart, uint64_t cause, uint64_t tval, bool is_interrup
         else if (cur_mode == 1) mpp = 1ULL;
         else if (cur_mode == 3) mpp = 3ULL;
         mstatus |= ((mpp << MSTATUS_MPP_SHIFT) & MSTATUS_MPP_MASK);
-        hart->csrs[MSTATUS] = mstatus;
+        csrs[MSTATUS] = mstatus;
 
         // Switch to M-mode
-        hart->mode = 3;
+        mode = 3;
 
         // Compute target PC from mtvec
-        uint64_t mtvec = hart->csrs[MTVEC];
+        uint64_t mtvec = csrs[MTVEC];
         uint64_t mode = mtvec & TVEC_MODE_MASK;
         uint64_t base = mtvec & TVEC_BASE_MASK;
         if (mode == 0) {
-            hart->pc = base;
+            pc = base;
         } else if (mode == 1 && is_interrupt) {
-            hart->pc = base + 4 * cause;
+            pc = base + 4 * cause;
         } else {
-            hart->pc = base;
+            pc = base;
         }
     }
 }
 
 
 // Those functions existing just for header files btw
-uint64_t h_cpu_csr_read(struct HART *hart, uint64_t addr) {
-	return hart->csrs[addr];
+uint64_t HART::h_cpu_csr_read(uint64_t addr) {
+	return csrs[addr];
 }
 
-void h_cpu_csr_write(struct HART *hart, uint64_t addr, uint64_t value) {
-	hart->csrs[addr] = value;
+void HART::h_cpu_csr_write(uint64_t addr, uint64_t value) {
+	csrs[addr] = value;
 }
 
-uint8_t h_cpu_id(struct HART *hart) {
-	return hart->id;
+uint8_t HART::h_cpu_id() {
+	return id;
 }
