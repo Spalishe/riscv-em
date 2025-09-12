@@ -5,11 +5,11 @@
 // R-Type
 
 void exec_ADDW(struct HART *hart, uint32_t inst) {
-	hart->regs[rd(inst)] = (int64_t) ((int32_t) hart->regs[rs1(inst)] + (int32_t) hart->regs[rs2(inst)]);
-	hart->print_d("{0x%.8X} [ADDW] rs1: %в; rs2: %d; rd: %d",hart->pc,rs1(inst),rs2(inst),rd(inst));
+	hart->regs[rd(inst)] = (int32_t) ((int32_t) hart->regs[rs1(inst)] + (int32_t) hart->regs[rs2(inst)]);
+	hart->print_d("{0x%.8X} [ADDW] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1(inst),rs2(inst),rd(inst));
 }
 void exec_SUBW(struct HART *hart, uint32_t inst) {
-	hart->regs[rd(inst)] = (int64_t) ((int32_t) hart->regs[rs1(inst)] - (int32_t) hart->regs[rs2(inst)]);
+	hart->regs[rd(inst)] = (int32_t) ((int32_t) hart->regs[rs1(inst)] - (int32_t) hart->regs[rs2(inst)]);
 	hart->print_d("{0x%.8X} [SUBW] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1(inst),rs2(inst),rd(inst));
 }
 void exec_SLLW(struct HART *hart, uint32_t inst) {
@@ -27,7 +27,7 @@ void exec_SRAW(struct HART *hart, uint32_t inst) {
 
 // I-Type
 void exec_ADDIW(struct HART *hart, uint32_t inst) {
-    hart->regs[rd(inst)] = (int64_t) ((int32_t)hart->regs[rs1(inst)] + (int32_t) imm_I(inst));
+    hart->regs[rd(inst)] = (int32_t) ((int32_t)hart->regs[rs1(inst)] + (int32_t) imm_I(inst));
 	hart->print_d("{0x%.8X} [ADDIW] rs1: %d; rd: %d; imm: int %d uint %u",hart->pc,rs1(inst),rd(inst),(int64_t) imm_I(inst), imm_I(inst));
 }
 void exec_SLLIW(struct HART *hart, uint32_t inst) {

@@ -26,6 +26,7 @@ void exec_SRET(struct HART *hart, uint32_t inst) {
     hart->csrs[SSTATUS] = bit_set_to(hart->csrs[SSTATUS],8,false);
     hart->pc = hart->csrs[SEPC];
 
+    hart->trap_active = false;
     hart->print_d("{0x%.8X} [SRET] ahh returned from exc",hart->pc);
 }
 void exec_MRET(struct HART *hart, uint32_t inst) {
@@ -48,6 +49,7 @@ void exec_MRET(struct HART *hart, uint32_t inst) {
     hart->csrs[SSTATUS] = bit_set_to(hart->csrs[SSTATUS],12,false);
 
     hart->pc = hart->csrs[MEPC];
-
+    
+    hart->trap_active = false;
     hart->print_d("{0x%.8X} [MRET] ahh returned from exc",hart->pc);
 }

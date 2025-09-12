@@ -47,6 +47,7 @@ void HART::cpu_start(bool debug, uint64_t dtb_path) {
 	regs[0] = 0x00;
 	//regs[2] = 0x1000;
 	pc      = DRAM_BASE;
+	virt_pc = pc;
 	dbg_singlestep = false;
 	dbg     = debug;
 
@@ -81,11 +82,12 @@ void HART::cpu_start(bool debug, uint64_t dtb_path) {
 	cpu_loop();
 }
 uint32_t HART::cpu_fetch() {
-	if (pc % 2 != 0) {
-		cpu_trap(EXC_INST_ADDR_MISALIGNED,pc,false);
+	uint64_t upc = (block_enabled ? virt_pc : pc);
+	if (upc % 2 != 0) {
+		cpu_trap(EXC_INST_ADDR_MISALIGNED,upc,false);
 	}
 	uint32_t inst = 0;
-	std::optional<uint64_t> val = mmio->load(this,pc,32);
+	std::optional<uint64_t> val = mmio->load(this,upc,32);
 	if(val.has_value()) {
 		inst = (uint32_t) *val;
 	}
@@ -341,315 +343,382 @@ void HART::cpu_loop() {
 void HART::cpu_execute(uint32_t inst) {
 	int OP = inst & 3;
 	bool increase = true;
+	bool junction = false;
 	void (*fn)(HART*, uint32_t);
 
-	auto it = instr_cache.find(inst);
+	auto it1 = instr_block_cache.find(pc);
 
-	if(it != instr_cache.end()) {
-		auto [fn, increase] = instr_cache[inst];
-		fn(this,inst);
-		if(increase) {pc += (OP == 3 ? 4 : 2);}
+	if(it1 != instr_block_cache.end()) {
+		for(auto &in : instr_block_cache[pc]) {
+			auto [fn_b, inst_b] = in;
+			if(trap_active) {trap_active = false;}
+			fn_b(this,inst_b);
+			if(trap_active) {trap_active = false; break;}
+			pc += ((inst_b & 3) == 3 ? 4 : 2);
+			csrs[CYCLE] += 1;
+			regs[0] = 0;
+		}
+		virt_pc = pc;
 	} else {
-		if(OP == 3) {
-			int opcode = inst & 0x7f;
-			int funct3 = (inst >> 12) & 0x7;
-			int amo_funct5 = (inst >> 27) & 0x1F;
-			int funct7 = (inst >> 25) & 0x7f;
-			int funct6 = (inst >> 26);
-			int imm = (inst >> 20);
-			switch(opcode) {
-				case FENCE:
-					fn = exec_FENCE_I; break;
-				case R_TYPE:
-					switch(funct3) {
-						case ADDSUB:
-							switch(funct7) {
-								case ADD: fn = exec_ADD; break;
-								case 1: fn = exec_MUL; break;
-								case SUB: fn = exec_SUB; break;
-							}; break;
-						case XOR: 
-							switch(funct7) {
-								case 0: fn = exec_XOR; break;
-								case 1: fn = exec_DIV; break;
-							};  break;
-						case OR: 
-							switch(funct7) {
-								case 0: fn = exec_OR; break;
-								case 1: fn = exec_REM; break;
-							};  break;
-						case AND: 
-							switch(funct7) {
-								case 0: fn = exec_AND; break;
-								case 1: fn = exec_REMU; break;
-							};  break;
-						case SLL: 
-							switch(funct7) {
-								case 0: fn = exec_SLL; break;
-								case 1: fn = exec_MULH; break;
-							}; break;
-						case SR:
-							switch(funct7) {
-								case SRL: fn = exec_SRL; break;
-								case SRA: fn = exec_SRA; break;
-								case 1: fn = exec_DIVU; break;
-							}; break;
-						case SLT: 
-							switch(funct7) {
-								case 0: fn = exec_SLT; break;
-								case 1: fn = exec_MULHSU; break;
-							};  break;
-						case SLTU: 
-							switch(funct7) {
-								case 0: fn = exec_SLTU; break;
-								case 1: fn = exec_MULHU; break;
-							};  break;
-					}; break;
-				case R_TYPE64:
-					switch(funct3) {
-						case ADDSUB:
-							switch(funct7) {
-								case ADD: fn = exec_ADDW; break;
-								case SUB: fn = exec_SUBW; break;
-								case 1: fn = exec_MULW; break;
-							}; break;
-						case SLL: fn = exec_SLLW; break;
-						case SR:
-							switch(funct7) {
-								case SRL: fn = exec_SRLW; break;
-								case SRA: fn = exec_SRAW; break;
-								case 1: fn = exec_DIVUW; break;
-							}; break;
-						case XOR: fn = exec_DIVW; break;
-						case OR: fn = exec_REMW; break;
-						case AND: fn = exec_REMUW; break;
-					}; break;
-				case AMO:
-					switch(funct3) {
-						case AMO_W: 
-							switch(amo_funct5) {
-								case AMOADD: fn = exec_AMOADD_W; break;
-								case AMOSWAP: fn = exec_AMOSWAP_W; break;
-								case LR: fn = exec_LR_W; break;
-								case SC: fn = exec_SC_W; break;
-								case AMOXOR: fn = exec_AMOXOR_W; break;
-								case AMOOR: fn = exec_AMOOR_W; break;
-								case AMOAND: fn = exec_AMOAND_W; break;
-								case AMOMIN: fn = exec_AMOMIN_W; break;
-								case AMOMAX: fn = exec_AMOMAX_W; break;
-								case AMOMINU: fn = exec_AMOMINU_W; break;
-								case AMOMAXU: fn = exec_AMOMAXU_W; break;
-							}; break;
-						case AMO_D: 
-							switch(amo_funct5) {
-								case AMOADD: fn = exec_AMOADD_D; break;
-								case AMOSWAP: fn = exec_AMOSWAP_D; break;
-								case LR: fn = exec_LR_D; break;
-								case SC: fn = exec_SC_D; break;
-								case AMOXOR: fn = exec_AMOXOR_D; break;
-								case AMOOR: fn = exec_AMOOR_D; break;
-								case AMOAND: fn = exec_AMOAND_D; break;
-								case AMOMIN: fn = exec_AMOMIN_D; break;
-								case AMOMAX: fn = exec_AMOMAX_D; break;
-								case AMOMINU: fn = exec_AMOMINU_D; break;
-								case AMOMAXU: fn = exec_AMOMAXU_D; break;
-							}; break;
-					}; break;
-				case I_TYPE:
-					switch(funct3) {
-						case ADDI: fn = exec_ADDI; break;
-						case XORI: fn = exec_XORI; break;
-						case ORI: fn = exec_ORI; break;
-						case ANDI: fn = exec_ANDI; break;
-						case SLLI: fn = exec_SLLI; break;
-						case SRI:
-							/*switch(funct7) {
-								case SRLI: fn = exec_SRLI; break;
-								case SRAI: fn = exec_SRAI; break;
-							}; break;*/
-							switch(funct6) {
-								case SRLI: fn = exec_SRLI; break;
-								case SRAI: fn = exec_SRAI; break;
-							}; break;
-						case SLTI: fn = exec_SLTI; break;
-						case SLTIU: fn = exec_SLTIU; break;
-					}; break;
-				case I_TYPE64:
-					switch(funct3) {
-						case ADDI: fn = exec_ADDIW; break;
-						case SLLI: fn = exec_SLLIW; break;
-						case SRI:
-							switch(funct7) {
-								case SRLI: fn = exec_SRLIW; break;
-								case SRAIW: fn = exec_SRAIW; break;
-							}; break;
-					}; break;
-				case LOAD_TYPE:
-					switch(funct3) {
-						case LB: fn = exec_LB; break;
-						case LH: fn = exec_LH; break;
-						case LW: fn = exec_LW; break;
-						case LD: fn = exec_LD; break;
-						case LBU: fn = exec_LBU; break;
-						case LHU: fn = exec_LHU; break;
-						case LWU: fn = exec_LWU; break;
-					}; break;
-				case S_TYPE:
-					switch(funct3) {
-						case SB: fn = exec_SB; break;
-						case SH: fn = exec_SH; break;
-						case SW: fn = exec_SW; break;
-						case SD: fn = exec_SD; break;
-					}; break;
-				case B_TYPE:
-					switch(funct3) {
-						case BEQ: fn = exec_BEQ; break;
-						case BNE: fn = exec_BNE; break;
-						case BLT: fn = exec_BLT; break;
-						case BGE: fn = exec_BGE; break;
-						case BLTU: fn = exec_BLTU; break;
-						case BGEU: fn = exec_BGEU; break;
-					}; break;
-				case JAL: fn = exec_JAL; increase = false; break;
-				case JALR: fn = exec_JALR; increase = false; break;
-				case LUI: fn = exec_LUI; break;
-				case AUIPC: fn = exec_AUIPC; break;
-				case ECALL: 
-					switch(funct3) {
-						case CSRRW: fn = exec_CSRRW; break;
-						case CSRRS: fn = exec_CSRRS; break;
-						case CSRRC: fn = exec_CSRRC; break;
-						case CSRRWI: fn = exec_CSRRWI; break;
-						case CSRRSI: fn = exec_CSRRSI; break;
-						case CSRRCI: fn = exec_CSRRCI; break;
-						case 0:
-							switch(imm) {
-								case 0: fn = exec_ECALL; increase = false; break;
-								case 1: fn = exec_EBREAK; break;
-								case 261: fn = exec_WFI; break;
-								case 258: fn = exec_SRET; increase = false; break;
-								case 770: fn = exec_MRET; increase = false; break;
-							}; break;
-					}; break;
+		auto it = instr_cache.find(inst);
 
-				default: cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false); break;
+		if(it != instr_cache.end()) {
+			auto [fn, incr, j] = instr_cache[inst];
+			if(block_enabled) {
+				if(!j) {
+					instr_block.push_back(std::make_tuple(fn,inst));
+					virt_pc += (OP == 3 ? 4 : 2);
+				} else {
+					if(instr_block.size() > 0) {
+						auto cp = instr_block;
+						instr_block_cache[pc] = cp;
+						for(auto &in : instr_block) {
+							auto [fn_b, inst_b] = in;
+							if(trap_active) {trap_active = false;}
+							fn_b(this,inst_b);
+							if(trap_active) {trap_active = false; break;}
+							pc += ((inst_b & 3) == 3 ? 4 : 2);
+							csrs[CYCLE] += 1;
+							regs[0] = 0;
+						}
+						instr_block.clear();
+					}
+					fn(this,inst);
+					if(incr) {pc += (OP == 3 ? 4 : 2);}
+					virt_pc = pc;
+				}
+			} else {
+				fn(this,inst);
+				if(incr) {pc += (OP == 3 ? 4 : 2);}
 			}
-			//if(increase) pc += 4;
 		} else {
-			int funct2 = (inst >> 5) & 0x3;
-			int funct3 = (inst >> 13) & 0x7;
-			int funct4 = (inst >> 12) & 0xF;
-			int funct5 = (inst >> 10) & 0x3;
-			int funct6 = (inst >> 10) & 0x1F;
-			switch(OP) {
-				case 0: {
-					switch(funct3) {
-						case 0: fn = exec_C_ADDI4SPN; break;
-						case 2: fn = exec_C_LW; break;
-						case 3: fn = exec_C_LD; break;
-						case 6: fn = exec_C_SW; break;
-						case 7: fn = exec_C_SD; break;
-					}
-				}; break;
-				case 1: {
-					switch(funct3) {
-						case 0: {
-							if(inst == 0x1) {
-								fn = exec_C_NOP;
-							} else {
-								fn = exec_C_ADDI;
-							}
-						}; break;
-						case 1: 
-							{
-								// fn = exec_C_JAL; increase = false;
-								// Uncomment this if u planning making a fully working 32-bit arch
-								fn = exec_C_ADDIW;
-							} break;
-						case 2: fn = exec_C_LI; break;
-						case 3: {
-							uint64_t rd = get_bits(inst,11,7);
-							if(rd == 2) {
-								fn = exec_C_ADDI16SP;
-							} else {
-								fn = exec_C_LUI;
-							}
-						}; break;
-						case 4: {
-							if(funct6 == 35) {
-								switch(funct2) {
-									case 0: fn = exec_C_SUB; break;
-									case 1: fn = exec_C_XOR; break;
-									case 2: fn = exec_C_OR; break;
-									case 3: fn = exec_C_AND; break;
-								}
-							} else if(funct6 == 39) {
-								switch(funct2) {
-									case 0: fn = exec_C_SUBW; break;
-									case 1: fn = exec_C_ADDW; break;
-								}
-							} else {
-								switch(funct5) {
-									case 0: fn = exec_C_SRLI; break;
-									case 1: fn = exec_C_SRAI; break;
-									case 2: fn = exec_C_ANDI; break;
-								}
-							}
-						}; break;
-						case 5: fn = exec_C_J; increase = false; break;
-						case 6: fn = exec_C_BEQZ; break;
-						case 7: fn = exec_C_BNEZ; break;
-					}
-				}; break;
-				case 2: {
-					switch(funct3) {
-						case 0: fn = exec_C_SLLI; break;
-						case 2: fn = exec_C_LWSP; break;
-						case 3: fn = exec_C_LDSP; break;
-						case 4: {
-							switch(funct4) {
-								case 8: {
-									uint64_t i = get_bits(inst,6,2);
-									switch(i) {
-										case 0: fn = exec_C_JR; increase = false; break;
-										default: fn = exec_C_MV; break;
-									}
+			if(OP == 3) {
+				int opcode = inst & 0x7f;
+				int funct3 = (inst >> 12) & 0x7;
+				int amo_funct5 = (inst >> 27) & 0x1F;
+				int funct7 = (inst >> 25) & 0x7f;
+				int funct6 = (inst >> 26);
+				int imm = (inst >> 20);
+				switch(opcode) {
+					case FENCE:
+						fn = exec_FENCE_I; junction = true; break;
+					case R_TYPE:
+						switch(funct3) {
+							case ADDSUB:
+								switch(funct7) {
+									case ADD: fn = exec_ADD; break;
+									case 1: fn = exec_MUL; break;
+									case SUB: fn = exec_SUB; break;
 								}; break;
-								case 9: {
-									uint64_t i = get_bits(inst,6,2);
-									uint64_t i1 = get_bits(inst,11,7);
-									if(i == 0 && i1 == 0) {
-										fn = exec_C_EBREAK;
-									} else if(i == 0 && i1 != 0) {
-										fn = exec_C_JALR; increase = false;
-									} else if(i != 0 && i1 != 0) {
-										fn = exec_C_ADD;
-									}
+							case XOR: 
+								switch(funct7) {
+									case 0: fn = exec_XOR; break;
+									case 1: fn = exec_DIV; break;
+								};  break;
+							case OR: 
+								switch(funct7) {
+									case 0: fn = exec_OR; break;
+									case 1: fn = exec_REM; break;
+								};  break;
+							case AND: 
+								switch(funct7) {
+									case 0: fn = exec_AND; break;
+									case 1: fn = exec_REMU; break;
+								};  break;
+							case SLL: 
+								switch(funct7) {
+									case 0: fn = exec_SLL; break;
+									case 1: fn = exec_MULH; break;
 								}; break;
-							}
+							case SR:
+								switch(funct7) {
+									case SRL: fn = exec_SRL; break;
+									case SRA: fn = exec_SRA; break;
+									case 1: fn = exec_DIVU; break;
+								}; break;
+							case SLT: 
+								switch(funct7) {
+									case 0: fn = exec_SLT; break;
+									case 1: fn = exec_MULHSU; break;
+								};  break;
+							case SLTU: 
+								switch(funct7) {
+									case 0: fn = exec_SLTU; break;
+									case 1: fn = exec_MULHU; break;
+								};  break;
 						}; break;
-						case 6: fn = exec_C_SWSP; break;
-						case 7: fn = exec_C_SDSP; break;
-					}
-				}; break;
-				default: cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false); break;
+					case R_TYPE64:
+						switch(funct3) {
+							case ADDSUB:
+								switch(funct7) {
+									case ADD: fn = exec_ADDW; break;
+									case SUB: fn = exec_SUBW; break;
+									case 1: fn = exec_MULW; break;
+								}; break;
+							case SLL: fn = exec_SLLW; break;
+							case SR:
+								switch(funct7) {
+									case SRL: fn = exec_SRLW; break;
+									case SRA: fn = exec_SRAW; break;
+									case 1: fn = exec_DIVUW; break;
+								}; break;
+							case XOR: fn = exec_DIVW; break;
+							case OR: fn = exec_REMW; break;
+							case AND: fn = exec_REMUW; break;
+						}; break;
+					case AMO:
+						switch(funct3) {
+							case AMO_W: 
+								switch(amo_funct5) {
+									case AMOADD: fn = exec_AMOADD_W; break;
+									case AMOSWAP: fn = exec_AMOSWAP_W; break;
+									case LR: fn = exec_LR_W; break;
+									case SC: fn = exec_SC_W; break;
+									case AMOXOR: fn = exec_AMOXOR_W; break;
+									case AMOOR: fn = exec_AMOOR_W; break;
+									case AMOAND: fn = exec_AMOAND_W; break;
+									case AMOMIN: fn = exec_AMOMIN_W; break;
+									case AMOMAX: fn = exec_AMOMAX_W; break;
+									case AMOMINU: fn = exec_AMOMINU_W; break;
+									case AMOMAXU: fn = exec_AMOMAXU_W; break;
+								}; break;
+							case AMO_D: 
+								switch(amo_funct5) {
+									case AMOADD: fn = exec_AMOADD_D; break;
+									case AMOSWAP: fn = exec_AMOSWAP_D; break;
+									case LR: fn = exec_LR_D; break;
+									case SC: fn = exec_SC_D; break;
+									case AMOXOR: fn = exec_AMOXOR_D; break;
+									case AMOOR: fn = exec_AMOOR_D; break;
+									case AMOAND: fn = exec_AMOAND_D; break;
+									case AMOMIN: fn = exec_AMOMIN_D; break;
+									case AMOMAX: fn = exec_AMOMAX_D; break;
+									case AMOMINU: fn = exec_AMOMINU_D; break;
+									case AMOMAXU: fn = exec_AMOMAXU_D; break;
+								}; break;
+						}; break;
+					case I_TYPE:
+						switch(funct3) {
+							case ADDI: fn = exec_ADDI; break;
+							case XORI: fn = exec_XORI; break;
+							case ORI: fn = exec_ORI; break;
+							case ANDI: fn = exec_ANDI; break;
+							case SLLI: fn = exec_SLLI; break;
+							case SRI:
+								/*switch(funct7) {
+									case SRLI: fn = exec_SRLI; break;
+									case SRAI: fn = exec_SRAI; break;
+								}; break;*/
+								switch(funct6) {
+									case SRLI: fn = exec_SRLI; break;
+									case SRAI: fn = exec_SRAI; break;
+								}; break;
+							case SLTI: fn = exec_SLTI; break;
+							case SLTIU: fn = exec_SLTIU; break;
+						}; break;
+					case I_TYPE64:
+						switch(funct3) {
+							case ADDI: fn = exec_ADDIW; break;
+							case SLLI: fn = exec_SLLIW; break;
+							case SRI:
+								switch(funct7) {
+									case SRLI: fn = exec_SRLIW; break;
+									case SRAIW: fn = exec_SRAIW; break;
+								}; break;
+						}; break;
+					case LOAD_TYPE:
+						switch(funct3) {
+							case LB: fn = exec_LB; break;
+							case LH: fn = exec_LH; break;
+							case LW: fn = exec_LW; break;
+							case LD: fn = exec_LD; break;
+							case LBU: fn = exec_LBU; break;
+							case LHU: fn = exec_LHU; break;
+							case LWU: fn = exec_LWU; break;
+						}; break;
+					case S_TYPE:
+						switch(funct3) {
+							case SB: fn = exec_SB; break;
+							case SH: fn = exec_SH; break;
+							case SW: fn = exec_SW; break;
+							case SD: fn = exec_SD; break;
+						}; break;
+					case B_TYPE:
+						switch(funct3) {
+							case BEQ: fn = exec_BEQ; junction = true; break;
+							case BNE: fn = exec_BNE; junction = true; break;
+							case BLT: fn = exec_BLT; junction = true; break;
+							case BGE: fn = exec_BGE; junction = true; break;
+							case BLTU: fn = exec_BLTU; junction = true; break;
+							case BGEU: fn = exec_BGEU; junction = true; break;
+						}; break;
+					case JAL: fn = exec_JAL; increase = false; junction = true; break;
+					case JALR: fn = exec_JALR; increase = false; junction = true; break;
+					case LUI: fn = exec_LUI; break;
+					case AUIPC: fn = exec_AUIPC; break;
+					case ECALL: 
+						switch(funct3) {
+							case CSRRW: fn = exec_CSRRW; break;
+							case CSRRS: fn = exec_CSRRS; break;
+							case CSRRC: fn = exec_CSRRC; break;
+							case CSRRWI: fn = exec_CSRRWI; break;
+							case CSRRSI: fn = exec_CSRRSI; break;
+							case CSRRCI: fn = exec_CSRRCI; break;
+							case 0:
+								switch(imm) {
+									case 0: fn = exec_ECALL; increase = false; junction = true; break;
+									case 1: fn = exec_EBREAK; junction = true; break;
+									case 261: fn = exec_WFI; junction = true; break;
+									case 258: fn = exec_SRET; increase = false; junction = true; break;
+									case 288: fn = exec_SFENCE_VMA; break;
+									case 770: fn = exec_MRET; increase = false; junction = true; break;
+								}; break;
+						}; break;
+
+					default: cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false); break;
+				}
+				//if(increase) pc += 4;
+			} else {
+				int funct2 = (inst >> 5) & 0x3;
+				int funct3 = (inst >> 13) & 0x7;
+				int funct4 = (inst >> 12) & 0xF;
+				int funct5 = (inst >> 10) & 0x3;
+				int funct6 = (inst >> 10) & 0x1F;
+				switch(OP) {
+					case 0: {
+						switch(funct3) {
+							case 0: fn = exec_C_ADDI4SPN; break;
+							case 2: fn = exec_C_LW; break;
+							case 3: fn = exec_C_LD; break;
+							case 6: fn = exec_C_SW; break;
+							case 7: fn = exec_C_SD; break;
+						}
+					}; break;
+					case 1: {
+						switch(funct3) {
+							case 0: {
+								if(inst == 0x1) {
+									fn = exec_C_NOP;
+								} else {
+									fn = exec_C_ADDI;
+								}
+							}; break;
+							case 1: 
+								{
+									// fn = exec_C_JAL; increase = false; junction = true;
+									// Uncomment this if u planning making a fully working 32-bit arch
+									fn = exec_C_ADDIW;
+								} break;
+							case 2: fn = exec_C_LI; break;
+							case 3: {
+								uint64_t rd = get_bits(inst,11,7);
+								if(rd == 2) {
+									fn = exec_C_ADDI16SP;
+								} else {
+									fn = exec_C_LUI;
+								}
+							}; break;
+							case 4: {
+								if(funct6 == 35) {
+									switch(funct2) {
+										case 0: fn = exec_C_SUB; break;
+										case 1: fn = exec_C_XOR; break;
+										case 2: fn = exec_C_OR; break;
+										case 3: fn = exec_C_AND; break;
+									}
+								} else if(funct6 == 39) {
+									switch(funct2) {
+										case 0: fn = exec_C_SUBW; break;
+										case 1: fn = exec_C_ADDW; break;
+									}
+								} else {
+									switch(funct5) {
+										case 0: fn = exec_C_SRLI; break;
+										case 1: fn = exec_C_SRAI; break;
+										case 2: fn = exec_C_ANDI; break;
+									}
+								}
+							}; break;
+							case 5: fn = exec_C_J; increase = false; junction = true; break;
+							case 6: fn = exec_C_BEQZ; break;
+							case 7: fn = exec_C_BNEZ; break;
+						}
+					}; break;
+					case 2: {
+						switch(funct3) {
+							case 0: fn = exec_C_SLLI; break;
+							case 2: fn = exec_C_LWSP; break;
+							case 3: fn = exec_C_LDSP; break;
+							case 4: {
+								switch(funct4) {
+									case 8: {
+										uint64_t i = get_bits(inst,6,2);
+										switch(i) {
+											case 0: fn = exec_C_JR; increase = false; junction = true; break;
+											default: fn = exec_C_MV; break;
+										}
+									}; break;
+									case 9: {
+										uint64_t i = get_bits(inst,6,2);
+										uint64_t i1 = get_bits(inst,11,7);
+										if(i == 0 && i1 == 0) {
+											fn = exec_C_EBREAK; junction = true;
+										} else if(i == 0 && i1 != 0) {
+											fn = exec_C_JALR; increase = false; junction = true;
+										} else if(i != 0 && i1 != 0) {
+											fn = exec_C_ADD;
+										}
+									}; break;
+								}
+							}; break;
+							case 6: fn = exec_C_SWSP; break;
+							case 7: fn = exec_C_SDSP; break;
+						}
+					}; break;
+					default: cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false); break;
+				}
+				//if(increase) pc += 2;
 			}
-			//if(increase) pc += 2;
+
+			if(fn != NULL) {
+				auto it1 = instr_cache.find(inst);
+				if(it1 == instr_cache.end()) {
+					instr_cache[inst] = std::make_tuple(fn, increase,junction);
+				}
+
+				if(block_enabled) {
+					if(!junction) {
+						instr_block.push_back(std::make_tuple(fn,inst));
+						virt_pc += (OP == 3 ? 4 : 2);
+					} else {
+						if(instr_block.size() > 0) {
+							auto cp = instr_block;
+							instr_block_cache[pc] = cp;
+							for(auto &in : instr_block) {
+								auto [fn_b, inst_b] = in;
+								if(trap_active) {trap_active = false;}
+								fn_b(this,inst_b);
+								if(trap_active) {trap_active = false; break;}
+								pc += ((inst_b & 3) == 3 ? 4 : 2);
+								csrs[CYCLE] += 1;
+								regs[0] = 0;
+							}
+							instr_block.clear();
+						}
+						fn(this,inst);
+						if(increase) {pc += (OP == 3 ? 4 : 2);}
+						virt_pc = pc;
+					}
+				} else {
+					fn(this,inst);
+					if(increase) {pc += (OP == 3 ? 4 : 2);}
+				}
+			}	
 		}
 
-		if(fn != NULL) {
-			auto it1 = instr_cache.find(inst);
-			if(it1 == instr_cache.end()) {
-				instr_cache[inst] = std::make_tuple(fn, increase);
-			}
-
-			fn(this,inst);
-			if(increase) {pc += (OP == 3 ? 4 : 2);}
-		}	
+		csrs[CYCLE] += 1;
+		regs[0] = 0;
 	}
-
-	csrs[CYCLE] += 1;
-	regs[0] = 0;
 }
 uint64_t HART::cpu_readfile(std::string path, uint64_t addr, bool bigendian) {
     std::ifstream file(path, std::ios::binary | std::ios::ate);
@@ -711,6 +780,8 @@ static inline int cause_to_mipbit(int cause) {
 }
 
 void HART::cpu_trap(uint64_t cause, uint64_t tval, bool is_interrupt) {
+	trap_active = true;
+	instr_block.clear(); // Trap changes PC so yea
 	if(dbg) {
 		std::cout << (is_interrupt ? "INTERRUPT" : "EXCEPTION") << " " << cause << "   " << tval << std::endl;
 	}

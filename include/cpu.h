@@ -15,6 +15,7 @@ struct HART {
     MMIO* mmio;
     uint64_t regs[32];
     uint64_t pc;
+    uint64_t virt_pc;
     uint64_t csrs[4069];
     uint8_t mode;
 
@@ -23,9 +24,16 @@ struct HART {
 	uint64_t breakpoint;
 	uint8_t id;
 
-    std::unordered_map<uint32_t, std::tuple<void(*)(HART*, uint32_t), bool>> instr_cache;
+    std::unordered_map<uint32_t, std::tuple<void(*)(HART*, uint32_t), bool, bool>> instr_cache;
+    
+    bool block_enabled = true;
+
+    std::vector<std::tuple<void(*)(HART*, uint32_t), uint32_t>> instr_block; // instruction function, instruction itself
+    std::unordered_map<uint64_t, std::vector<std::tuple<void(*)(HART*, uint32_t), uint32_t>>> instr_block_cache; // as key put PC
     
 	bool stopexec;
+
+    bool trap_active;
 
 	uint64_t reservation_addr;
 	uint64_t reservation_value;
