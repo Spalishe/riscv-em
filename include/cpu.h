@@ -26,12 +26,22 @@ struct HART {
 	uint64_t breakpoint;
 	uint8_t id;
 
-    std::unordered_map<uint32_t, std::tuple<void(*)(HART*, uint32_t), bool, bool>> instr_cache;
+    struct CACHE_Instr {
+        void (*fn)(HART*, uint32_t);
+        bool incr;
+        bool j;
+    };
+    struct CACHE_InstrBl {
+        void (*fn)(HART*, uint32_t);
+        uint32_t inst;
+    };
+
+    std::unordered_map<uint32_t, CACHE_Instr> instr_cache;
     
     bool block_enabled = true;
 
-    std::vector<std::tuple<void(*)(HART*, uint32_t), uint32_t>> instr_block; // instruction function, instruction itself
-    std::unordered_map<uint64_t, std::vector<std::tuple<void(*)(HART*, uint32_t), uint32_t>>> instr_block_cache; // as key put PC
+    std::vector<CACHE_InstrBl> instr_block; // instruction function, instruction itself
+    std::unordered_map<uint64_t, std::vector<CACHE_InstrBl>> instr_block_cache; // as key put PC
     
 	bool stopexec;
 

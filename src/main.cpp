@@ -8,11 +8,14 @@
 #include "../include/devices/uart.hpp"
 #include "../include/devices/virtio.hpp"
 #include "../include/devices/dtb.hpp"
+#include "../include/devices/syscon.hpp"
+#include "../include/devices/pci.hpp"
 
 #include "../include/memory_map.h"
 #include "../include/libfdt.hpp"
 #include <string>
 #include <vector>
+#include <random>
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -86,21 +89,18 @@ int main(int argc, char* argv[]) {
 				int i = 0;
 				struct dirent *ep;     
 				dp = opendir ("./tests");
-				if (dp != NULL)
-				{
-					while (ep = readdir (dp))
-					i++;
-					(void) closedir (dp);
-				}
-				else {
+				if (dp == NULL) {
 					std::cerr << "[TESTING] Couldn't open the \"tests\" directory" << std::endl;
 					return 1;
 				}
-				std::cout << "[TESTING] CPU will iterate over " << i << " files" << std::endl;
 				
 				using recursive_directory_iterator = std::filesystem::recursive_directory_iterator;
-				for (const auto& dirEntry : recursive_directory_iterator("./tests"))
+				for (const auto& dirEntry : recursive_directory_iterator("./tests")) {
 					testing_files.push_back(dirEntry.path());
+					i += 1;
+				}
+
+				std::cout << "[TESTING] CPU will iterate over " << i << " files" << std::endl;
 			}
 
 			else if (arg == "--kernel" || arg == "-k") {
@@ -175,6 +175,18 @@ int main(int argc, char* argv[]) {
 			// FDT /chosen node
 			struct fdt_node* chosen = fdt_node_create("chosen");
 			fdt_node_add_prop_str(chosen, "bootargs", "console=ttyS0");
+			std::vector<uint32_t> rngseed;
+			std::random_device rd;
+			std::mt19937 gen(rd());
+			
+			std::uniform_int_distribution<int32_t> dist(
+				std::numeric_limits<int32_t>::min(),
+				std::numeric_limits<int32_t>::max()
+    		);
+			for(int i=0; i < 16; i++) {
+				rngseed.push_back(dist(gen));
+			}
+			fdt_node_add_prop_cells(chosen, "rng-seed", rngseed,rngseed.size());
 			fdt_node_add_child(fdt, chosen);
 
 			// FDT /memory node
@@ -192,9 +204,14 @@ int main(int argc, char* argv[]) {
 
 				fdt_node_add_prop_str(cpu, "device_type", "cpu");
 				fdt_node_add_prop_u32(cpu, "reg", i);
+				fdt_node_add_prop_u32(cpu, "riscv,cbop-block-size", 0x40);
+				fdt_node_add_prop_u32(cpu, "riscv,cboz-block-size", 0x40);
+				fdt_node_add_prop_u32(cpu, "riscv,cbom-block-size", 0x40);
+
 				fdt_node_add_prop(cpu, "compatible", "riscv\0", 6);
 				fdt_node_add_prop(cpu, "status", "okay\0", 5);
 				fdt_node_add_prop(cpu, "riscv,isa", "rv64ima_zicsr_zifencei\0", 23);
+				fdt_node_add_prop_str(cpu, "mmu-type", "riscv,none");
 				
 				struct fdt_node* clic = fdt_node_create("interrupt-controller");
 				fdt_node_add_prop_u32(clic, "#interrupt-cells", 1);
@@ -211,6 +228,15 @@ int main(int argc, char* argv[]) {
 			for(uint32_t i=0; i < 1; i++) {
 				fdt_node_get_phandle(fdt_node_find_reg(fdt_node_find(fdt,"cpus"),"cpu",i));
 				fdt_node_get_phandle(fdt_node_find(fdt_node_find_reg(fdt_node_find(fdt,"cpus"),"cpu",i),"interrupt-controller"));
+			}
+
+			// FDT cpu-map
+			struct fdt_node* cpu_map = fdt_node_create("cpu-map");
+			struct fdt_node* cluster0 = fdt_node_create("cluster0");
+			for(uint32_t i=0; i < 1; i++) {
+				std::string text = "core" + std::to_string(i);
+				struct fdt_node* core = fdt_node_create(text.c_str());
+				fdt_node_add_prop_u32(core,"cpu",fdt_node_get_phandle(fdt_node_find_reg(fdt_node_find(fdt,"cpus"),"cpu",i)));
 			}
 
 			// FDT /soc node
@@ -230,6 +256,14 @@ int main(int argc, char* argv[]) {
 		PLIC* plic = new PLIC(0x0C000000,0x400000,hart->dram,64,(dtb_has ? NULL : fdt),1);
 		mmio->add(plic);
 
+		memmap.add_region(0x100000, 0x100);
+		SYSCON* syscon = new SYSCON(0x100000,0x100,hart->dram,(dtb_has ? NULL : fdt));
+		mmio->add(syscon);
+
+		memmap.add_region(0x30000000, 0x10000000);
+		PCI* pci = new PCI(0x30000000,0x10000000,hart->dram,(dtb_has ? NULL : fdt));
+		mmio->add(pci);
+		
 		memmap.add_region(0x10000000, 0x100);
 		UART* uart = new UART(0x10000000,hart->dram,plic,1,(dtb_has ? NULL : fdt),1);
 		mmio->add(uart);
@@ -299,10 +333,10 @@ int main(int argc, char* argv[]) {
 				hart->cpu_readfile(val, DRAM_BASE,false);
 				int out = hart->cpu_start_testing();
 				if(out != 0) {
-					std::cout << "[TESTING] [\033[31mFAIL\033[0m] A0 = " << out << std::endl;	
+					std::cout << "[\033[31mFAIL\033[0m] A0 = " << out << std::endl;	
 					failed.push_back(val);
 				} else {
-					std::cout << "[TESTING] [\033[32mSUCCESS\033[0m]" << std::endl;	
+					std::cout << "[\033[32mSUCCESS\033[0m]" << std::endl;	
 					succeded += 1;
 				}
 			}

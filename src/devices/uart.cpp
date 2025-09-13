@@ -11,7 +11,7 @@ UART::UART(uint64_t base, DRAM& ram, PLIC* plic, int irq_num, fdt_node* fdt, uin
         fdt_node_add_prop_u32(uart_fdt, "clock-frequency", 20000000);
         fdt_node_add_prop_u32(uart_fdt, "fifo-size", 16);
         fdt_node_add_prop_str(uart_fdt, "status", "okay");
-        fdt_node_add_prop_u32(uart_fdt, "interrupt-parent", fdt_node_get_phandle(fdt_node_find(fdt_node_find(fdt,"soc"),"plic")));
+        fdt_node_add_prop_u32(uart_fdt, "interrupt-parent", fdt_node_get_phandle(fdt_node_find_reg(fdt_node_find(fdt,"soc"),"plic",0x0C000000)));
         fdt_node_add_prop_u32(uart_fdt, "interrupts", irq_num);
         fdt_node_add_child(fdt_node_find(fdt,"soc"), uart_fdt);
 

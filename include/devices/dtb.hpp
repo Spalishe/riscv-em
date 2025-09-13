@@ -1,3 +1,5 @@
+#pragma once
+
 #include "mmio.h"
 
 struct DTB : public Device {

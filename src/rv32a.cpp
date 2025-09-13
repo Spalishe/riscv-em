@@ -63,7 +63,7 @@ void exec_AMOSWAP_W(struct HART *hart, uint32_t inst) {
 
     std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint32_t a, uint32_t b){ return b; }); 
     if(val.has_value()) {
-        hart->regs[rd(inst)] = *val;
+        hart->regs[rd(inst)] = (uint64_t)(int64_t)(int32_t) *val;
     }
 
     hart->print_d("{0x%.8X} [AMOSWAP.W] rd: %d; rs1: %d; rs2: %d",hart->pc,rd(inst),rs1(inst),rs2(inst));
@@ -74,7 +74,7 @@ void exec_AMOADD_W(struct HART *hart, uint32_t inst) {
 
     std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint32_t a, uint32_t b){ return a+b; }); 
     if(val.has_value()) {
-        hart->regs[rd(inst)] = *val;
+        hart->regs[rd(inst)] = (uint64_t)(int64_t)(int32_t) *val;
     }
 
     hart->print_d("{0x%.8X} [AMOADD.W] rd: %d; rs1: %d; rs2: %d",hart->pc,rd(inst),rs1(inst),rs2(inst));
@@ -85,7 +85,7 @@ void exec_AMOXOR_W(struct HART *hart, uint32_t inst) {
 
     std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint32_t a, uint32_t b){ return a^b; }); 
     if(val.has_value()) {
-        hart->regs[rd(inst)] = *val;
+        hart->regs[rd(inst)] = (uint64_t)(int64_t)(int32_t) *val;
     }
 
     hart->print_d("{0x%.8X} [AMOXOR.W] rd: %d; rs1: %d; rs2: %d",hart->pc,rd(inst),rs1(inst),rs2(inst));
@@ -96,7 +96,7 @@ void exec_AMOAND_W(struct HART *hart, uint32_t inst) {
 
     std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint32_t a, uint32_t b){ return a&b; }); 
     if(val.has_value()) {
-        hart->regs[rd(inst)] = *val;
+        hart->regs[rd(inst)] = (uint64_t)(int64_t)(int32_t) *val;
     }
 
     hart->print_d("{0x%.8X} [AMOAND.W] rd: %d; rs1: %d; rs2: %d",hart->pc,rd(inst),rs1(inst),rs2(inst));
@@ -107,7 +107,7 @@ void exec_AMOOR_W(struct HART *hart, uint32_t inst) {
 
     std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint32_t a, uint32_t b){ return a|b; }); 
     if(val.has_value()) {
-        hart->regs[rd(inst)] = *val;
+        hart->regs[rd(inst)] = (uint64_t)(int64_t)(int32_t) *val;
     }
 
     hart->print_d("{0x%.8X} [AMOOR.W] rd: %d; rs1: %d; rs2: %d",hart->pc,rd(inst),rs1(inst),rs2(inst));
@@ -118,7 +118,7 @@ void exec_AMOMIN_W(struct HART *hart, uint32_t inst) {
 
     std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint32_t a, uint32_t b){ return std::min(int32_t(a), int32_t(b)); }); 
     if(val.has_value()) {
-        hart->regs[rd(inst)] = *val;
+        hart->regs[rd(inst)] = (uint64_t)(int64_t)(int32_t) *val;
     }
 
     hart->print_d("{0x%.8X} [AMOMIN.W] rd: %d; rs1: %d; rs2: %d",hart->pc,rd(inst),rs1(inst),rs2(inst));
@@ -140,7 +140,7 @@ void exec_AMOMINU_W(struct HART *hart, uint32_t inst) {
 
     std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint32_t a, uint32_t b){ return std::min(uint32_t(a), uint32_t(b)); }); 
     if(val.has_value()) {
-        hart->regs[rd(inst)] = *val;
+        hart->regs[rd(inst)] = (uint64_t)(int64_t)(int32_t)  *val;
     }
 
     hart->print_d("{0x%.8X} [AMOMINU.W] rd: %d; rs1: %d; rs2: %d",hart->pc,rd(inst),rs1(inst),rs2(inst));
@@ -151,7 +151,7 @@ void exec_AMOMAXU_W(struct HART *hart, uint32_t inst) {
 
     std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint32_t a, uint32_t b){ return std::max(uint32_t(a), uint32_t(b)); }); 
     if(val.has_value()) {
-        hart->regs[rd(inst)] = *val;
+        hart->regs[rd(inst)] = (uint64_t)(int64_t)(int32_t) *val;
     }
 
     hart->print_d("{0x%.8X} [AMOMAXU.W] rd: %d; rs1: %d; rs2: %d",hart->pc,rd(inst),rs1(inst),rs2(inst));

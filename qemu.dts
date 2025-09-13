@@ -1,0 +1,109 @@
+/dts-v1/;
+
+/ {
+	#address-cells = <0x02>;
+	#size-cells = <0x02>;
+	compatible = "riscv-virtio";
+	model = "riscv-virtio,qemu";
+
+	poweroff {
+		value = <0x5555>;
+		offset = <0x00>;
+		regmap = <0x04>;
+		compatible = "syscon-poweroff";
+	};
+
+	reboot {
+		value = <0x7777>;
+		offset = <0x00>;
+		regmap = <0x04>;
+		compatible = "syscon-reboot";
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x00 0x80000000 0x00 0x10000000>;
+	};
+
+	cpus {
+		#address-cells = <0x01>;
+		#size-cells = <0x00>;
+		timebase-frequency = <0x989680>;
+
+		cpu@0 {
+			phandle = <0x01>;
+			device_type = "cpu";
+			reg = <0x00>;
+			status = "okay";
+			compatible = "riscv";
+			riscv,cbop-block-size = <0x40>;
+			riscv,cboz-block-size = <0x40>;
+			riscv,cbom-block-size = <0x40>;
+			riscv,isa = "rv64imafdch_zic64b_zicbom_zicbop_zicboz_ziccamoa_ziccif_zicclsm_ziccrse_zicntr_zicsr_zifencei_zihintntl_zihintpause_zihpm_zmmul_za64rs_zaamo_zalrsc_zawrs_zfa_zca_zcd_zba_zbb_zbc_zbs_sdtrig_shcounterenw_shgatpa_shtvala_shvsatpa_shvstvala_shvstvecd_ssccptr_sscounterenw_ssstrict_sstc_sstvala_sstvecd_ssu64xl_svadu_svvptc";
+			mmu-type = "riscv,none";
+
+			interrupt-controller {
+				#interrupt-cells = <0x01>;
+				interrupt-controller;
+				compatible = "riscv,cpu-intc";
+				phandle = <0x02>;
+			};
+		};
+
+		cpu-map {
+
+			cluster0 {
+
+				core0 {
+					cpu = <0x01>;
+				};
+			};
+		};
+	};
+
+	chosen {
+		stdout-path = "/soc/uart@10000000";
+		rng-seed = <0x1ab1c519 0xc14d5118 0xb818741d 0x5dc76876 0xb030ce30 0x6ef7376b 0xc33f6ace 0x4eaea4f9>;
+	};
+
+	soc {
+		#address-cells = <0x02>;
+		#size-cells = <0x02>;
+		compatible = "simple-bus";
+		ranges;
+
+		plic@c000000 {
+			reg = <0x00 0xc000000 0x00 0x400000>;
+			compatible = "sifive,plic-1.0.0";
+			interrupt-controller;
+			#interrupt-cells = <0x01>;
+			#address-cells = <0x00>;
+			interrupts-extended = <0x02 0x0b 0x02 0x09>;
+			riscv,ndev = <0x1f>;
+			phandle = <0x03>;
+		};
+
+		test@100000 {
+			reg = <0x00 0x100000 0x00 0x100>;
+			compatible = "sifive,test1", "sifive,test0", "syscon";
+			phandle = <0x04>;
+		};
+
+		uart@10000000 {
+			reg = <0x00 0x10000000 0x00 0x100>;
+			compatible = "ns16550a";
+			clock-frequency = <0x1312d00>;
+			fifo-size = <0x10>;
+			status = "okay";
+			interrupt-parent = <0x03>;
+			interrupts = <0x01>;
+		};
+
+		clint@2000000 {
+			reg = <0x00 0x2000000 0x00 0x10000>;
+			compatible = "sifive,clint0", "riscv,clint0";
+			interrupts-extended = <0x02 0x03 0x02 0x07>;
+		};
+
+	};
+};

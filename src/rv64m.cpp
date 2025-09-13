@@ -26,7 +26,7 @@ void exec_DIVUW(struct HART *hart, uint32_t inst) {
     if(hart->regs[rs2(inst)] == 0) {
 	    hart->regs[rd(inst)] = std::numeric_limits<uint64_t>::max();
     } else {
-        hart->regs[rd(inst)] = (uint32_t)hart->regs[rs1(inst)] / (uint32_t)hart->regs[rs2(inst)];
+        hart->regs[rd(inst)] = (uint64_t)(int64_t)(int32_t)(hart->regs[rs1(inst)] / hart->regs[rs2(inst)]);
     }
 	hart->print_d("{0x%.8X} [DIVUW] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1(inst),rs2(inst),rd(inst));
 }
@@ -44,7 +44,7 @@ void exec_REMUW(struct HART *hart, uint32_t inst) {
     if(hart->regs[rs2(inst)] == 0) {
 	    hart->regs[rd(inst)] = hart->regs[rs1(inst)];
     } else {
-        hart->regs[rd(inst)] = (uint64_t)((uint32_t)hart->regs[rs1(inst)] % (uint32_t)hart->regs[rs2(inst)]);
+        hart->regs[rd(inst)] = (uint64_t)(int64_t)(int32_t)((uint32_t)hart->regs[rs1(inst)] % (uint32_t)hart->regs[rs2(inst)]);
     }
 	hart->print_d("{0x%.8X} [REMUW] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1(inst),rs2(inst),rd(inst));
 }

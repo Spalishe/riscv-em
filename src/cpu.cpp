@@ -85,6 +85,7 @@ int HART::cpu_start_testing() {
 	testing = true;
 	trap_active = false;
 	trap_notify = false;
+	block_enabled = false;
 	for(int i=0; i<32; i++) regs[i] = 0;
 	for(int i=0; i<4069; i++) csrs[i] = 0;
 	regs[0] = 0x00;
@@ -403,7 +404,7 @@ void HART::cpu_execute(uint32_t inst) {
 			auto [fn, incr, j] = instr_cache[inst];
 			if(block_enabled) {
 				if(!j) {
-					instr_block.push_back(std::make_tuple(fn,inst));
+					instr_block.push_back(CACHE_InstrBl{fn,inst});
 					virt_pc += (OP == 3 ? 4 : 2);
 				} else {
 					if(instr_block.size() > 0) {
@@ -720,12 +721,12 @@ void HART::cpu_execute(uint32_t inst) {
 			if(fn != NULL) {
 				auto it1 = instr_cache.find(inst);
 				if(it1 == instr_cache.end()) {
-					instr_cache[inst] = std::make_tuple(fn, increase,junction);
+					instr_cache[inst] = CACHE_Instr{fn, increase,junction};
 				}
 
 				if(block_enabled) {
 					if(!junction) {
-						instr_block.push_back(std::make_tuple(fn,inst));
+						instr_block.push_back(CACHE_InstrBl{fn,inst});
 						virt_pc += (OP == 3 ? 4 : 2);
 					} else {
 						if(instr_block.size() > 0) {

@@ -17,7 +17,7 @@ void exec_MULH(struct HART *hart, uint32_t inst) {
 	hart->print_d("{0x%.8X} [MULH] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1(inst),rs2(inst),rd(inst));
 }
 void exec_MULHSU(struct HART *hart, uint32_t inst) {
-    __int128_t res = (__int128_t)hart->regs[rs1(inst)] * (__int128_t)hart->regs[rs2(inst)];
+    __uint128_t res = (__uint128_t)(__int128_t)(int64_t)hart->regs[rs1(inst)] * (__uint128_t)hart->regs[rs2(inst)];
 	hart->regs[rd(inst)] = (uint64_t)(res>>64);
 	hart->print_d("{0x%.8X} [MULHSU] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1(inst),rs2(inst),rd(inst));
 }
