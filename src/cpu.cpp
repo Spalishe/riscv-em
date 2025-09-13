@@ -31,7 +31,7 @@ std::string uint_to_hex(uint64_t value) {
 }
 
 void HART::print_d(const std::string& fmt, ...) {
-	if(dbg) {
+	if(dbg && dbg_showinst) {
 		va_list args;
     	va_start(args, fmt);
 		
@@ -81,6 +81,38 @@ void HART::cpu_start(bool debug, uint64_t dtb_path) {
 
 	cpu_loop();
 }
+int HART::cpu_start_testing() {
+	testing = true;
+	trap_active = false;
+	trap_notify = false;
+	for(int i=0; i<32; i++) regs[i] = 0;
+	for(int i=0; i<4069; i++) csrs[i] = 0;
+	regs[0] = 0x00;
+	//regs[2] = 0x1000;
+	pc      = DRAM_BASE;
+	virt_pc = pc;
+
+	id = 0;
+
+	stopexec = false;
+	regs[10] = id;
+
+	reservation_valid = false;
+	reservation_value = 0;
+	reservation_addr = 0;
+	reservation_size = 32;
+
+	csrs[MISA] = riscv_mkmisa("imasu");
+	csrs[MVENDORID] = 0; 
+	csrs[MARCHID] = 0; 
+	csrs[MIMPID] = 0;
+	csrs[MHARTID] = 0;
+	csrs[MSTATUS] = 0xA00000000;
+
+	mode = 3;
+	cpu_loop();
+	return regs[10];
+}
 uint32_t HART::cpu_fetch() {
 	uint64_t upc = (block_enabled ? virt_pc : pc);
 	if (upc % 2 != 0) {
@@ -91,7 +123,7 @@ uint32_t HART::cpu_fetch() {
 	if(val.has_value()) {
 		inst = (uint32_t) *val;
 	}
-	if(dbg) {
+	if(dbg && dbg_showinst) {
 		std::cout << "Next instruction: 0x";
 		printf("%.8X",inst);
 		std::cout << std::endl;
@@ -100,6 +132,7 @@ uint32_t HART::cpu_fetch() {
 }
 void HART::cpu_loop() {
 	while(true) {
+		if(trap_active && testing) break;
 		if(stopexec) continue;
 
 		if(reservation_valid) {
@@ -124,6 +157,10 @@ void HART::cpu_loop() {
 			else if(line == "singlestep") {
 				dbg_singlestep = !dbg_singlestep;
 				std::cout << dbg_singlestep << std::endl;
+			}
+			else if(line == "showinst") {
+				dbg_showinst = !dbg_showinst;
+				std::cout << dbg_showinst << std::endl;
 			}
 			else if(line == "getall") {
 				std::cout << "--------------------------------------------------------------------------------------------------" << std::endl;
@@ -351,9 +388,9 @@ void HART::cpu_execute(uint32_t inst) {
 	if(it1 != instr_block_cache.end()) {
 		for(auto &in : instr_block_cache[pc]) {
 			auto [fn_b, inst_b] = in;
-			if(trap_active) {trap_active = false;}
+			if(trap_notify) {trap_notify = false;}
 			fn_b(this,inst_b);
-			if(trap_active) {trap_active = false; break;}
+			if(trap_notify) {trap_notify = false; break;}
 			pc += ((inst_b & 3) == 3 ? 4 : 2);
 			csrs[CYCLE] += 1;
 			regs[0] = 0;
@@ -374,9 +411,9 @@ void HART::cpu_execute(uint32_t inst) {
 						instr_block_cache[pc] = cp;
 						for(auto &in : instr_block) {
 							auto [fn_b, inst_b] = in;
-							if(trap_active) {trap_active = false;}
+							if(trap_notify) {trap_notify = false;}
 							fn_b(this,inst_b);
-							if(trap_active) {trap_active = false; break;}
+							if(trap_notify) {trap_notify = false; break;}
 							pc += ((inst_b & 3) == 3 ? 4 : 2);
 							csrs[CYCLE] += 1;
 							regs[0] = 0;
@@ -696,9 +733,9 @@ void HART::cpu_execute(uint32_t inst) {
 							instr_block_cache[pc] = cp;
 							for(auto &in : instr_block) {
 								auto [fn_b, inst_b] = in;
-								if(trap_active) {trap_active = false;}
+								if(trap_notify) {trap_notify = false;}
 								fn_b(this,inst_b);
-								if(trap_active) {trap_active = false; break;}
+								if(trap_notify) {trap_notify = false; break;}
 								pc += ((inst_b & 3) == 3 ? 4 : 2);
 								csrs[CYCLE] += 1;
 								regs[0] = 0;
@@ -781,6 +818,7 @@ static inline int cause_to_mipbit(int cause) {
 
 void HART::cpu_trap(uint64_t cause, uint64_t tval, bool is_interrupt) {
 	trap_active = true;
+	trap_notify = true;
 	instr_block.clear(); // Trap changes PC so yea
 	if(dbg) {
 		std::cout << (is_interrupt ? "INTERRUPT" : "EXCEPTION") << " " << cause << "   " << tval << std::endl;

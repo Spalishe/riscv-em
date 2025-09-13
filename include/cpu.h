@@ -19,7 +19,9 @@ struct HART {
     uint64_t csrs[4069];
     uint8_t mode;
 
+    bool testing;
     bool dbg;
+    bool dbg_showinst = true;
     bool dbg_singlestep;
 	uint64_t breakpoint;
 	uint8_t id;
@@ -34,6 +36,7 @@ struct HART {
 	bool stopexec;
 
     bool trap_active;
+    bool trap_notify;
 
 	uint64_t reservation_addr;
 	uint64_t reservation_value;
@@ -41,6 +44,7 @@ struct HART {
 	uint8_t reservation_size;
 
     void cpu_start(bool debug, uint64_t dtb_path);
+    int cpu_start_testing();
     uint32_t cpu_fetch();
     void cpu_loop();
     void cpu_execute(uint32_t inst);

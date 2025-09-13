@@ -33,10 +33,10 @@ void exec_DIVUW(struct HART *hart, uint32_t inst) {
 void exec_REMW(struct HART *hart, uint32_t inst) {
     if(hart->regs[rs2(inst)] == 0) {
 	    hart->regs[rd(inst)] = hart->regs[rs1(inst)];
-    } else if(hart->regs[rs1(inst)] == std::numeric_limits<int64_t>::min() && hart->regs[rs2(inst)] == -1) {
+    } else if(hart->regs[rs1(inst)] == std::numeric_limits<int32_t>::min() && hart->regs[rs2(inst)] == -1) {
         hart->regs[rd(inst)] = 0;
     } else {
-        hart->regs[rd(inst)] = (uint64_t)((int32_t)hart->regs[rs1(inst)] % (int32_t)hart->regs[rs2(inst)]);
+        hart->regs[rd(inst)] = (uint64_t)(int64_t)((int32_t)hart->regs[rs1(inst)] % (int32_t)hart->regs[rs2(inst)]);
     }
 	hart->print_d("{0x%.8X} [REMW] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1(inst),rs2(inst),rd(inst));
 }

@@ -14,9 +14,16 @@
 #include <string>
 #include <vector>
 
+#include <stdio.h>
+#include <sys/types.h>
+#include <dirent.h>
+#include <filesystem>
+
 /*
 	The Broken Insts:
-		- none btw
+		- MULHSU
+		- REMUW
+		- DIVUW
 	TODO:
 		-RV32F
 		-RV64F
@@ -58,6 +65,9 @@ int main(int argc, char* argv[]) {
     	std::string image_path;
 		bool image_has = false;
 
+		bool testing_enabled = false; // This must be enabled only if cpu testing required. For this to work, you need to compile https://github.com/riscv-software-src/riscv-tests
+		std::vector<std::string> testing_files;
+
 		fdt_node* fdt; 
 
 		for (int i = 1; i < argc; ++i) {
@@ -66,6 +76,31 @@ int main(int argc, char* argv[]) {
 			if (arg == "--debug") {
 				debug = true;
 				std::cout << "[DEBUG] Entered debug mode." << std::endl;
+			}
+			if (arg == "--tests") {
+				testing_enabled = true;
+				std::cout << "[TESTING] You entered testing mode." << std::endl;
+				std::cout << "[TESTING] In this mode, ./tests folder will be iterated by .bin files" << std::endl;
+				std::cout << "[TESTING] Those bin files must be tests from repository https://github.com/riscv-software-src/riscv-tests" << std::endl;
+				DIR *dp;
+				int i = 0;
+				struct dirent *ep;     
+				dp = opendir ("./tests");
+				if (dp != NULL)
+				{
+					while (ep = readdir (dp))
+					i++;
+					(void) closedir (dp);
+				}
+				else {
+					std::cerr << "[TESTING] Couldn't open the \"tests\" directory" << std::endl;
+					return 1;
+				}
+				std::cout << "[TESTING] CPU will iterate over " << i << " files" << std::endl;
+				
+				using recursive_directory_iterator = std::filesystem::recursive_directory_iterator;
+				for (const auto& dirEntry : recursive_directory_iterator("./tests"))
+					testing_files.push_back(dirEntry.path());
 			}
 
 			else if (arg == "--kernel" || arg == "-k") {
@@ -250,8 +285,37 @@ int main(int argc, char* argv[]) {
 			hart->cpu_readfile(file, DRAM_BASE,false);
 		}
 
-		
-		hart->cpu_start(debug,dtb_path_in_memory);
+		if(!testing_enabled) {
+			hart->cpu_start(debug,dtb_path_in_memory);
+		} else {
+			std::vector<std::string> failed;
+			int succeded = 0;
+			
+			for(std::string &val : testing_files) {
+				for(int i=0; i < 0x800; i++) {
+					dram_store(&hart->dram,DRAM_BASE + i, 8, 0);
+				}
+				std::cout << "[TESTING] Executing file " << val << "... ";
+				hart->cpu_readfile(val, DRAM_BASE,false);
+				int out = hart->cpu_start_testing();
+				if(out != 0) {
+					std::cout << "[TESTING] [\033[31mFAIL\033[0m] A0 = " << out << std::endl;	
+					failed.push_back(val);
+				} else {
+					std::cout << "[TESTING] [\033[32mSUCCESS\033[0m]" << std::endl;	
+					succeded += 1;
+				}
+			}
+			
+			std::cout << "[TESTING] " << succeded << " tests out of " << testing_files.size() << " passed." << std::endl;
+			if(failed.size() > 0) {
+				std::cout << "[TESTING] Failed tests:" << std::endl;
+				for(std::string &val : failed) {
+					std::cout << "[TESTING] "  << val << std::endl;
+				}
+			}
+			return 0;
+		}
 		return 0;
 	} else {
 		std::cout << "Specify a file: ./riscvem <path to binary> -k <path to kernel> -d <path to dtb file>" << std::endl;
