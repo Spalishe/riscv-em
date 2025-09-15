@@ -378,6 +378,8 @@ void HART::cpu_loop() {
 		}
 	}
 }
+
+// TODO: OPTIMIZE THIS SHIT!!!!!!!!!!!!!!!!!!!!!!!!!!
 void HART::cpu_execute(uint32_t inst) {
 	int OP = inst & 3;
 	bool increase = true;
@@ -439,7 +441,10 @@ void HART::cpu_execute(uint32_t inst) {
 				int imm = (inst >> 20);
 				switch(opcode) {
 					case FENCE:
-						fn = exec_FENCE_I; junction = true; break;
+						switch(funct3) {
+							case 1: fn = exec_FENCE_I; junction = true; break;
+							case 0: fn = exec_FENCE; junction = true; break;
+						}
 					case R_TYPE:
 						switch(funct3) {
 							case ADDSUB:

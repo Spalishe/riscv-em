@@ -23,10 +23,11 @@
 #include <filesystem>
 
 /*
+	What should i add to functionality if i want to add 2 harts:
+		- FENCE
+
 	The Broken Insts:
-		- MULHSU
-		- REMUW
-		- DIVUW
+		none
 	TODO:
 		-RV32F
 		-RV64F

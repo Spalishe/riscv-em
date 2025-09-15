@@ -107,17 +107,23 @@ void UART::write(HART* hart, uint64_t addr, uint64_t size, uint64_t value) {
     uint8_t byte_value = value & 0xFF;
 
     switch (reg) {
-        case 0: // THR (write) or DLL (if DLAB=1)
+        case 0: // THR write
             if (dlab) {
                 dll = byte_value;
             } else {
                 thr = byte_value;
                 std::putchar(thr);
                 std::fflush(stdout);
-                lsr |= 0x20; // THR empty
-                lsr &= ~0x40; // Transmission not in progress
+                
+                // TEMT (transmission in progress)
+                lsr &= ~0x40;
+                // THRE (THR empty)
+                lsr |= 0x20;
+                
                 update_iir();
                 trigger_irq();
+                
+                lsr |= 0x40; // Transmission complete
             }
             break;
             
@@ -178,7 +184,7 @@ void UART::reset() {
     fcr = 0;
     lcr = 0;
     mcr = 0;
-    lsr = 0x60; // THR empty + line idle
+    lsr = 0x60 | 0x40; // THR empty (0x20) + TEMT (0x40) + line idle
     msr = 0;
     scr = 0;
     dll = 0;

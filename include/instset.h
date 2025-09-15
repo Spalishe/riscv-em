@@ -250,3 +250,4 @@ void exec_MRET(struct HART *hart, uint32_t inst);
 //// Zifencei
 void exec_FENCE_I(struct HART *hart, uint32_t inst);
 void exec_SFENCE_VMA(struct HART *hart, uint32_t inst);
+void exec_FENCE(struct HART *hart, uint32_t inst);
