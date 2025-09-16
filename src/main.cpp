@@ -10,6 +10,15 @@
 #include "../include/devices/dtb.hpp"
 #include "../include/devices/syscon.hpp"
 #include "../include/devices/pci.hpp"
+#include "../include/devices/i2c_oc.hpp"
+#include "../include/devices/i2c_hid.hpp"
+#include "../include/devices/hid_keyboard.hpp"
+
+#include <linux/input.h>
+#include <poll.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <termios.h>
 
 #include "../include/memory_map.h"
 #include "../include/libfdt.hpp"
@@ -25,6 +34,7 @@
 /*
 	What should i add to functionality if i want to add 2 harts:
 		- FENCE
+		- CLINT Timer Update
 
 	The Broken Insts:
 		none
@@ -249,6 +259,8 @@ int main(int argc, char* argv[]) {
 			fdt_node_add_child(fdt, soc);
 		}
 
+		uint64_t irq_num = 1;
+
 		memmap.add_region(0x00000000, 1024*1024*16);
 		ROM* rom = new ROM(0,1024*1024*16,hart->dram);
 		mmio->add(rom);
@@ -266,8 +278,45 @@ int main(int argc, char* argv[]) {
 		mmio->add(pci);
 		
 		memmap.add_region(0x10000000, 0x100);
-		UART* uart = new UART(0x10000000,hart->dram,plic,1,(dtb_has ? NULL : fdt),1);
+		UART* uart = new UART(0x10000000,hart->dram,plic,irq_num,(dtb_has ? NULL : fdt),1);
 		mmio->add(uart);
+		irq_num ++;
+
+		memmap.add_region(0x10030000, 0x1000);
+		i2c_bus_t* i2c_os = new i2c_bus_t(0x10030000,hart->dram,plic,irq_num,(dtb_has ? NULL : fdt));
+		mmio->add(i2c_os);
+		irq_num ++;
+
+		hid_keyboard* kb = hid_keyboard_init(1,hart->dram,plic,irq_num,(dtb_has ? NULL : fdt),i2c_os);
+		irq_num ++;
+		bool kb_running = true;
+		std::string device = "/dev/input/event2";
+		std::thread kb_t([device,&kb_running,kb]() {
+			int fd = open(device.c_str(), O_RDONLY);
+			if (fd < 0) {
+				perror("open");
+				return;
+			}
+
+			struct pollfd pfd;
+        	pfd.fd = fd;
+        	pfd.events = POLLIN;
+
+			struct input_event ev;
+			while (kb_running) {
+				int ret = poll(&pfd, 1, 100);
+				if (ret > 0 && (pfd.revents & POLLIN)) {
+					ssize_t n = read(fd, &ev, sizeof(ev));
+					if (n == sizeof(ev) && ev.type == EV_KEY) {
+						if (ev.value)
+							hid_keyboard_press(kb, ev.code);
+						else
+							hid_keyboard_release(kb, ev.code);
+					}
+				}
+			}
+			close(fd);
+		});
 
 		memmap.add_region(0x02000000, 0x10000);
 		CLINT* clint = new CLINT(0x02000000,hart->dram,1,(dtb_has ? NULL : fdt));
@@ -278,8 +327,9 @@ int main(int argc, char* argv[]) {
 
 		if(image_has) {
 			memmap.add_region(0x10001000, 0x1000);
-			VirtioBlkDevice* virtio_blk = new VirtioBlkDevice(0x10001000,0x1000,hart->dram,plic,(dtb_has ? NULL : fdt),2,image_path);
+			VirtioBlkDevice* virtio_blk = new VirtioBlkDevice(0x10001000,0x1000,hart->dram,plic,(dtb_has ? NULL : fdt),irq_num,image_path);
 			mmio->add(virtio_blk);
+			irq_num ++;
 		}
 		
 		//memmap.add_region(dtb_path_in_memory, 0x1000);
@@ -314,6 +364,25 @@ int main(int argc, char* argv[]) {
 		if (kernel_has) {
 			std::cout << "Loading kernel: " << kernel_path << std::endl;
 			hart->cpu_readfile(kernel_path, DRAM_BASE + 0x200000,false);
+		}
+
+		static struct termios old_tio;
+		if(!debug) {
+			struct termios new_tio;
+
+			if (tcgetattr(STDIN_FILENO, &old_tio) < 0) {
+				perror("tcgetattr");
+				exit(1);
+			}
+
+			new_tio = old_tio;
+			
+			new_tio.c_lflag &= ~(ICANON | ECHO);
+
+			if (tcsetattr(STDIN_FILENO, TCSANOW, &new_tio) < 0) {
+				perror("tcsetattr");
+				exit(1);
+			}
 		}
 
 		if (!file.empty()) {
