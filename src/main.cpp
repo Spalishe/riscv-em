@@ -290,8 +290,8 @@ int main(int argc, char* argv[]) {
 		hid_keyboard* kb = hid_keyboard_init(1,hart->dram,plic,irq_num,(dtb_has ? NULL : fdt),i2c_os);
 		irq_num ++;
 		bool kb_running = true;
-		std::string device = "/dev/input/event2";
-		std::thread kb_t([device,&kb_running,kb]() {
+		/*std::string device = "/dev/input/event2";
+		std::thread kb_t([device,&kb_running,&uart,kb]() {
 			int fd = open(device.c_str(), O_RDONLY);
 			if (fd < 0) {
 				perror("open");
@@ -308,19 +308,45 @@ int main(int argc, char* argv[]) {
 				if (ret > 0 && (pfd.revents & POLLIN)) {
 					ssize_t n = read(fd, &ev, sizeof(ev));
 					if (n == sizeof(ev) && ev.type == EV_KEY) {
-						if (ev.value)
+						if (ev.value) {
 							hid_keyboard_press(kb, ev.code);
-						else
+							uart->receive_byte(ev.code);
+						} else
 							hid_keyboard_release(kb, ev.code);
 					}
 				}
 			}
 			close(fd);
+		});*/
+		std::thread kb_t([&kb_running,&uart]() {
+			struct termios oldt, newt;
+			tcgetattr(STDIN_FILENO, &oldt);
+			newt = oldt;
+			newt.c_lflag &= ~(ICANON | ECHO);
+			tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+
+			while (kb_running) {
+				fd_set fds;
+				FD_ZERO(&fds);
+				FD_SET(STDIN_FILENO, &fds);
+				
+				struct timeval tv = {0, 100000}; // 100ms timeout
+				
+				if (select(1, &fds, NULL, NULL, &tv) > 0) {
+					char c;
+					if (read(STDIN_FILENO, &c, 1) == 1) {
+						uart->receive_byte(c);
+					}
+				}
+			}
+			
+			tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
 		});
+		
 
 		memmap.add_region(0x02000000, 0x10000);
 		CLINT* clint = new CLINT(0x02000000,hart->dram,1,(dtb_has ? NULL : fdt));
-		uint64_t clint_freq = 10'000'000;
+		uint64_t clint_freq = 10'000'0;
 		if(!dtb_has) fdt_node_add_prop_u32(fdt_node_find(fdt,"cpus"), "timebase-frequency", clint_freq);
 		clint->start_timer(clint_freq,hart);
 		mmio->add(clint);
@@ -367,7 +393,7 @@ int main(int argc, char* argv[]) {
 		}
 
 		static struct termios old_tio;
-		if(!debug) {
+		if(!debug && false) { // disable for rn
 			struct termios new_tio;
 
 			if (tcgetattr(STDIN_FILENO, &old_tio) < 0) {

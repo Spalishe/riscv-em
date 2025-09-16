@@ -82,7 +82,7 @@ uint64_t UART::read(HART* hart, uint64_t addr, uint64_t size) {
             value = mcr;
             break;
             
-        case 5: // LSR (read) - CRITICAL FOR OPENSBI!
+        case 5: // LSR (read)
             value = lsr;
             break;
             

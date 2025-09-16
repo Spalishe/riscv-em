@@ -41,12 +41,10 @@ void CLINT::start_timer(uint64_t freq_hz, HART* hart) {
         auto next_time = steady_clock::now();
         while (!stop_timer) {
             next_time += period;
-            std::this_thread::sleep_for(period);
-            mtime.fetch_add(1, std::memory_order_relaxed);
+            std::this_thread::sleep_until(next_time);
+            mtime.fetch_add(1, std::memory_order_seq_cst);
+            hart->csrs[TIME] = mtime.load(std::memory_order_seq_cst);
             update_mip(hart); // You should update this for all harts
-            while (steady_clock::now() < next_time) {
-                // spin
-            }
         }
     });
 }
@@ -73,10 +71,10 @@ uint64_t CLINT::read(HART* hart, uint64_t addr, uint64_t size) {
             return mtimecmp[hart_id];
     }
     // MTIME
-    else if (off == 0xBFF8)
-        return (uint32_t)(mtime.load() & 0xFFFFFFFFULL);
-    else if (off == 0xBFFC)
-        return (uint32_t)(mtime.load() >> 32);
+
+    uint64_t current_time = mtime.load(std::memory_order_seq_cst);
+    if (off == 0xBFF8) return (uint32_t)(current_time & 0xFFFFFFFFULL);
+    if (off == 0xBFFC) return (uint32_t)(current_time >> 32);
 
     return 0;
 }

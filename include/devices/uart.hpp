@@ -1,6 +1,7 @@
 #pragma once
 
 #include "mmio.h"
+#include <queue>
 
 struct PLIC;
 
@@ -24,6 +25,8 @@ struct UART : public Device {
     PLIC* plic;
     int irq_num;
     bool dlab = false;    // Divisor Latch Access Bit (from LCR[7])
+
+    std::queue<uint8_t> rx_buffer;
 
     UART(uint64_t base, DRAM& ram, PLIC* plic, int irq_num, fdt_node* fdt, uint8_t hartcount);
 
