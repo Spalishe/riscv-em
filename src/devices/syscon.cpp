@@ -1,4 +1,5 @@
 #include "../include/devices/syscon.hpp"
+#include "../include/main.hpp"
 
 SYSCON::SYSCON(uint64_t base, uint64_t size, DRAM& ram,fdt_node* fdt)
         : Device(base, size, ram)
@@ -33,5 +34,18 @@ uint64_t SYSCON::read(HART* hart,uint64_t addr, uint64_t size) {
 }
 
 void SYSCON::write(HART* hart, uint64_t addr, uint64_t size, uint64_t val) {
-    dram_store(&ram,addr,size,val);
+    uint64_t offset = base - addr;
+    switch(offset) {
+        case 0:
+            switch(val) {
+                case 0x5555: {
+                    //Power off
+                    exit(0);
+                }; break;
+                case 0x7777: {
+                    //Reboot
+                    reset();
+                }; break;
+            }; break;
+    }
 }

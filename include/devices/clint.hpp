@@ -7,7 +7,7 @@ struct CLINT : public Device {
     std::vector<uint32_t> msip;      // one per HART, 32-bit
     std::vector<uint64_t> mtimecmp;  // one per HART, 64-bit
     std::atomic<uint64_t> mtime = 0; // global timer
-    bool stop_timer = false;
+    std::atomic<bool> stop_timer = false;
     std::thread timer_thread;
 
     CLINT(uint64_t base, DRAM& ram, uint32_t num_harts, fdt_node* fdt);
