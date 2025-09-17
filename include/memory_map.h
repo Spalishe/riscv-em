@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <vector>
 #include <stdexcept>
+#include <unordered_map>
 
 struct MemoryRegion {
     uint64_t base_addr;
@@ -26,6 +27,7 @@ struct MemoryRegion {
 
 struct MemoryMap {
     std::vector<MemoryRegion*> regions;
+    std::unordered_map<uint64_t,MemoryRegion*> cache;
 
     ~MemoryMap() {
         for(auto* r : regions) delete r;
@@ -71,8 +73,10 @@ struct MemoryMap {
 
 private:
     MemoryRegion* find_region(uint64_t addr) {
+        if(cache.find(addr) != cache.end()) {return cache[addr];}
         for(auto* r : regions) {
             if(addr >= r->base_addr && addr < r->base_addr + r->size)
+                cache[addr] = r;
                 return r;
         }
         throw std::out_of_range("Address not mapped in MemoryMap");

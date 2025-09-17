@@ -13,5 +13,6 @@ void exec_FENCE(struct HART *hart, uint32_t inst) {
 }
 
 void exec_SFENCE_VMA(struct HART *hart, uint32_t inst) {
-    hart->print_d("{0x%.8X} [SFENCE.VMA] there is no TLB cache rn; nop",hart->pc);
+    dram_cache(&hart->dram);
+    hart->print_d("{0x%.8X} [SFENCE.VMA] cleaned up memory cache",hart->pc);
 }
