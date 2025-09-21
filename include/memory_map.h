@@ -75,9 +75,10 @@ private:
     MemoryRegion* find_region(uint64_t addr) {
         if(cache.find(addr) != cache.end()) {return cache[addr];}
         for(auto* r : regions) {
-            if(addr >= r->base_addr && addr < r->base_addr + r->size)
+            if(addr >= r->base_addr && addr < r->base_addr + r->size) {
                 cache[addr] = r;
                 return r;
+            }
         }
         throw std::out_of_range("Address not mapped in MemoryMap");
     }

@@ -1,1 +1,2 @@
 void reset();
+void poweroff();

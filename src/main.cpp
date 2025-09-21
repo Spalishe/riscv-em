@@ -1,18 +1,19 @@
 #include <iostream>
 #include "../include/cpu.h"
+#include "../include/argparser.h"
 
 #include "../include/devices/mmio.h"
 #include "../include/devices/clint.hpp"
 #include "../include/devices/rom.hpp"
 #include "../include/devices/plic.hpp"
 #include "../include/devices/uart.hpp"
-#include "../include/devices/virtio.hpp"
 #include "../include/devices/dtb.hpp"
 #include "../include/devices/syscon.hpp"
 #include "../include/devices/pci.hpp"
 #include "../include/devices/i2c_oc.hpp"
 #include "../include/devices/i2c_hid.hpp"
 #include "../include/devices/hid_keyboard.hpp"
+#include "../include/devices/virtio_blk.hpp"
 
 #include <linux/input.h>
 #include <poll.h>
@@ -194,9 +195,9 @@ void add_devices_and_map() {
 	SYSCON* syscon = new SYSCON(0x1000000,0x1000,hart->dram,(dtb_has ? NULL : fdt));
 	mmio->add(syscon);
 
-	memmap.add_region(0x30000000, 0x10000000);
+	/*memmap.add_region(0x30000000, 0x10000000);
 	PCI* pci = new PCI(0x30000000,0x10000000,hart->dram,(dtb_has ? NULL : fdt));
-	mmio->add(pci);
+	mmio->add(pci);*/
 	
 	memmap.add_region(0x10000000, 0x100);
 	UART* uart = new UART(0x10000000,hart->dram,plic,irq_num,(dtb_has ? NULL : fdt),1);
@@ -210,32 +211,33 @@ void add_devices_and_map() {
 
 	hid_keyboard* kb = hid_keyboard_init(1,hart->dram,plic,irq_num,(dtb_has ? NULL : fdt),i2c_os);
 	irq_num ++;
-	kb_running = true;
-	kb_t = std::thread([&uart]() {
-		struct termios oldt, newt;
-		tcgetattr(STDIN_FILENO, &oldt);
-		newt = oldt;
-		newt.c_lflag &= ~(ICANON | ECHO);
-		tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+	if(!debug) {
+		kb_running = true;
+		kb_t = std::thread([&uart]() {
+			struct termios oldt, newt;
+			tcgetattr(STDIN_FILENO, &oldt);
+			newt = oldt;
+			newt.c_lflag &= ~(ICANON | ECHO);
+			tcsetattr(STDIN_FILENO, TCSANOW, &newt);
 
-		while (kb_running) {
-			fd_set fds;
-			FD_ZERO(&fds);
-			FD_SET(STDIN_FILENO, &fds);
-			
-			struct timeval tv = {0, 100000}; // 100ms timeout
-			
-			if (select(1, &fds, NULL, NULL, &tv) > 0) {
-				char c;
-				if (read(STDIN_FILENO, &c, 1) == 1) {
-					uart->receive_byte(c);
+			while (kb_running) {
+				fd_set fds;
+				FD_ZERO(&fds);
+				FD_SET(STDIN_FILENO, &fds);
+				
+				struct timeval tv = {0, 100000}; // 100ms timeout
+				
+				if (select(1, &fds, NULL, NULL, &tv) > 0) {
+					char c;
+					if (read(STDIN_FILENO, &c, 1) == 1) {
+						uart->receive_byte(c);
+					}
 				}
 			}
-		}
-		
-		tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
-	});
-	
+			
+			tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+		});
+	}
 
 	memmap.add_region(0x02000000, 0x10000);
 	clint = new CLINT(0x02000000,hart->dram,1,(dtb_has ? NULL : fdt));
@@ -246,10 +248,18 @@ void add_devices_and_map() {
 
 	if(image_has) {
 		memmap.add_region(0x10001000, 0x1000);
-		VirtioBlkDevice* virtio_blk = new VirtioBlkDevice(0x10001000,0x1000,hart->dram,plic,(dtb_has ? NULL : fdt),irq_num,image_path);
+		VirtIO_BLK* virtio_blk = new VirtIO_BLK(0x10001000,0x1000,hart->dram,plic,(dtb_has ? NULL : fdt),irq_num,image_path);
 		mmio->add(virtio_blk);
 		irq_num ++;
 	}
+}
+
+void poweroff() {
+	kb_running = false;
+	if (kb_t.joinable())
+		kb_t.join();
+	clint->stop_timer_thread();
+	exit(0);
 }
 
 void reset() {
@@ -305,187 +315,176 @@ void reset() {
 }
 
 int main(int argc, char* argv[]) {
-	if(argc > 1) {
-		std::vector<std::string> filtered_args;
+	Argparser::Argparser parser(argc,argv);
+	parser.setProgramName("RISC-V EM");
+	parser.addArgument("--bios", "File with Machine Level program (bootloader)",false,false,Argparser::ArgumentType::str);
 
-		for (int i = 1; i < argc; ++i) {
-			std::string arg(argv[i]);
+	parser.addArgument("--kernel", "File with Supervisor Level program",false,false,Argparser::ArgumentType::str);
+	parser.addArgument("--image", "File with Image file that will put on VirtIO-BLK",false,false,Argparser::ArgumentType::str);
 
-			if (arg == "--debug") {
-				debug = true;
-				std::cout << "[DEBUG] Entered debug mode." << std::endl;
-			}
-			if (arg == "--tests") {
-				testing_enabled = true;
-				std::cout << "[TESTING] You entered testing mode." << std::endl;
-				std::cout << "[TESTING] In this mode, ./tests folder will be iterated by .bin files" << std::endl;
-				std::cout << "[TESTING] Those bin files must be tests from repository https://github.com/riscv-software-src/riscv-tests" << std::endl;
-				DIR *dp;
-				int i = 0;
-				struct dirent *ep;     
-				dp = opendir ("./tests");
-				if (dp == NULL) {
-					std::cerr << "[TESTING] Couldn't open the \"tests\" directory" << std::endl;
-					return 1;
-				}
-				
-				using recursive_directory_iterator = std::filesystem::recursive_directory_iterator;
-				for (const auto& dirEntry : recursive_directory_iterator("./tests")) {
-					testing_files.push_back(dirEntry.path());
-					i += 1;
-				}
+	parser.addArgument("--dtb", "Use specified FDT instead of auto-generated",false,false,Argparser::ArgumentType::str);
+	parser.addArgument("--dumpdtb", "Dumps auto-generated FDT to file",false,false,Argparser::ArgumentType::str);
+	parser.addArgument("--debug", "Enables DEBUG mode", false, false, Argparser::ArgumentType::def);
+	parser.addArgument("--tests", "Enables TESTING mode(dev only)", false, false, Argparser::ArgumentType::def);
 
-				std::cout << "[TESTING] CPU will iterate over " << i << " files" << std::endl;
-			}
+	parser.parse();
 
-			else if (arg == "--kernel" || arg == "-k") {
-				kernel_has = true;
-				if (i + 1 < argc) {
-					kernel_path = argv[i + 1];
-					++i;
-				} else {
-					std::cerr << "Error: no path provided after " << arg << std::endl;
-				}
-			}
-			
-			else if (arg == "--image" || arg == "-i") {
-				image_has = true;
-				if (i + 1 < argc) {
-					image_path = argv[i + 1];
-					++i;
-				} else {
-					std::cerr << "Error: no path provided after " << arg << std::endl;
-				}
-			}
-			
-			else if (arg == "--dtb" || arg == "-d") {
-				dtb_has = true;
-				if (i + 1 < argc) {
-					dtb_path = argv[i + 1];
-					++i;
-				} else {
-					std::cerr << "Error: no path provided after " << arg << std::endl;
-				}
-			}
+	kernel_has = parser.getDefined(1);
+	if(kernel_has) 
+		kernel_path = parser.getString(1);
+		
+	image_has = parser.getDefined(2);
+	if(image_has)
+		image_path = parser.getString(2);
 
-			else if (arg == "--dumpdtb" || arg == "-dd") {
-				dtb_dump_has = true;
-				if (i + 1 < argc) {
-					dtb_dump_path = argv[i + 1];
-					++i;
-				} else {
-					std::cerr << "Error: no path provided after " << arg << std::endl;
-				}
-			}
+	dtb_has = parser.getDefined(3);
+	if(dtb_has)
+		dtb_path = parser.getString(3);
 
-			else if (arg.rfind("-",0) != 0) {
-				filtered_args.push_back(arg);
-			}
+	dtb_dump_has = parser.getDefined(4);
+	if(dtb_dump_has)
+		dtb_dump_path = parser.getString(4);
+
+	debug = parser.getDefined(5);
+	if(debug)
+		std::cout << "[DEBUG] Entered debug mode." << std::endl;
+
+	testing_enabled = parser.getDefined(6);
+	if(testing_enabled) {
+		std::cout << "[TESTING] You entered testing mode." << std::endl;
+		std::cout << "[TESTING] In this mode, ./tests folder will be iterated by .bin files" << std::endl;
+		std::cout << "[TESTING] Those bin files must be tests from repository https://github.com/riscv-software-src/riscv-tests" << std::endl;
+		DIR *dp;
+		int i = 0;
+		struct dirent *ep;     
+		dp = opendir ("./tests");
+		if (dp == NULL) {
+			std::cerr << "[TESTING] Couldn't open the \"tests\" directory" << std::endl;
+			return 1;
 		}
 		
-		if (!filtered_args.empty()) {
-			file = filtered_args[0];
-			std::cout << "Opening bootloader: " << file << std::endl;
+		using recursive_directory_iterator = std::filesystem::recursive_directory_iterator;
+		for (const auto& dirEntry : recursive_directory_iterator("./tests")) {
+			testing_files.push_back(dirEntry.path());
+			i += 1;
 		}
 
-		hart = new HART();
-		hart->dram.mmap = &memmap;
-		mmio = new MMIO(hart->dram);
-		hart->mmio = mmio;
-
-		add_devices_and_map();
-		
-		//memmap.add_region(dtb_path_in_memory, 0x1000);
-		//DTB* dtb = new DTB(dtb_path_in_memory,0x1000,hart->dram);
-		//mmio->add(dtb);
-		//commented cuz path in memory rn > 0x80000000
-
-		if(!dtb_has) {
-			size_t dtb_size = fdt_size(fdt);
-			void* buffer = malloc(dtb_size);
-
-			size_t size = fdt_serialize(fdt,buffer,0x1000,0);
-
-			if(dtb_dump_has) {
-				FILE* f = fopen(dtb_dump_path.c_str(), "wb");
-				fwrite(buffer, 1, size, f);
-				fclose(f);
-			}
-
-			uint8_t* bytes = static_cast<uint8_t*>(buffer);
-			for (size_t i = 0; i < dtb_size; ++i) {
-				dram_store(&hart->dram,dtb_path_in_memory+i,8,bytes[i]);
-			}	
-
-			free(buffer);
-		} else {
-			// places our dtb in memory
-
-			hart->cpu_readfile(dtb_path, dtb_path_in_memory, false);
-		}
-
-		if (kernel_has) {
-			std::cout << "Loading kernel: " << kernel_path << std::endl;
-			hart->cpu_readfile(kernel_path, DRAM_BASE + 0x200000,false);
-		}
-
-		static struct termios old_tio;
-		if(!debug && false) { // disable for rn
-			struct termios new_tio;
-
-			if (tcgetattr(STDIN_FILENO, &old_tio) < 0) {
-				perror("tcgetattr");
-				exit(1);
-			}
-
-			new_tio = old_tio;
-			
-			new_tio.c_lflag &= ~(ICANON | ECHO);
-
-			if (tcsetattr(STDIN_FILENO, TCSANOW, &new_tio) < 0) {
-				perror("tcsetattr");
-				exit(1);
-			}
-		}
-
-		if (!file.empty()) {
-			hart->cpu_readfile(file, DRAM_BASE,false);
-		}
-
-		if(!testing_enabled) {
-			hart->cpu_start(debug,dtb_path_in_memory);
-		} else {
-			std::vector<std::string> failed;
-			int succeded = 0;
-			
-			for(std::string &val : testing_files) {
-				for(int i=0; i < 0x800; i++) {
-					dram_store(&hart->dram,DRAM_BASE + i, 8, 0);
-				}
-				std::cout << "[TESTING] Executing file " << val << "... ";
-				hart->cpu_readfile(val, DRAM_BASE,false);
-				int out = hart->cpu_start_testing();
-				if(out != 0) {
-					std::cout << "[\033[31mFAIL\033[0m] A0 = " << out << std::endl;	
-					failed.push_back(val);
-				} else {
-					std::cout << "[\033[32mSUCCESS\033[0m]" << std::endl;	
-					succeded += 1;
-				}
-			}
-			
-			std::cout << "[TESTING] " << succeded << " tests out of " << testing_files.size() << " passed." << std::endl;
-			if(failed.size() > 0) {
-				std::cout << "[TESTING] Failed tests:" << std::endl;
-				for(std::string &val : failed) {
-					std::cout << "[TESTING] "  << val << std::endl;
-				}
-			}
-			return 0;
-		}
-		return 0;
-	} else {
-		std::cout << "Specify a file: ./riscvem <path to binary> -k <path to kernel> -d <path to dtb file>" << std::endl;
-		return 1;
+		std::cout << "[TESTING] CPU will iterate over " << i << " files" << std::endl;	
 	}
+
+	bool file_has = parser.getDefined(0);
+	if(file_has) {
+		file = parser.getString(0);
+		std::cout << "Opening bootloader: " << file << std::endl;
+	} else {
+		if(!testing_enabled && !debug) {
+			std::cerr << "--bios has not been specified" << std::endl;
+			parser.printHelp();
+			return 1;
+		}
+	}
+
+	hart = new HART();
+	hart->dram.mmap = &memmap;
+	mmio = new MMIO(hart->dram);
+	hart->mmio = mmio;
+
+	add_devices_and_map();
+	
+	//memmap.add_region(dtb_path_in_memory, 0x1000);
+	//DTB* dtb = new DTB(dtb_path_in_memory,0x1000,hart->dram);
+	//mmio->add(dtb);
+	//commented cuz path in memory rn > 0x80000000
+
+	if(!dtb_has) {
+		size_t dtb_size = fdt_size(fdt);
+		void* buffer = malloc(dtb_size);
+
+		size_t size = fdt_serialize(fdt,buffer,0x1000,0);
+
+		if(dtb_dump_has) {
+			FILE* f = fopen(dtb_dump_path.c_str(), "wb");
+			fwrite(buffer, 1, size, f);
+			fclose(f);
+		}
+
+		uint8_t* bytes = static_cast<uint8_t*>(buffer);
+		for (size_t i = 0; i < dtb_size; ++i) {
+			dram_store(&hart->dram,dtb_path_in_memory+i,8,bytes[i]);
+		}	
+
+		free(buffer);
+	} else {
+		// places our dtb in memory
+
+		hart->cpu_readfile(dtb_path, dtb_path_in_memory, false);
+	}
+
+	if (kernel_has) {
+		std::cout << "Loading kernel: " << kernel_path << std::endl;
+		hart->cpu_readfile(kernel_path, DRAM_BASE + 0x200000,false);
+	}
+
+	static struct termios old_tio;
+	if(!debug && false) { // disable for rn
+		struct termios new_tio;
+
+		if (tcgetattr(STDIN_FILENO, &old_tio) < 0) {
+			perror("tcgetattr");
+			exit(1);
+		}
+
+		new_tio = old_tio;
+		
+		new_tio.c_lflag &= ~(ICANON | ECHO);
+
+		if (tcsetattr(STDIN_FILENO, TCSANOW, &new_tio) < 0) {
+			perror("tcsetattr");
+			exit(1);
+		}
+	}
+
+	if (!file.empty()) {
+		hart->cpu_readfile(file, DRAM_BASE,false);
+	}
+
+	if(!testing_enabled) {
+		hart->cpu_start(debug,dtb_path_in_memory);
+	} else {
+		std::vector<std::string> failed;
+		int succeded = 0;
+		
+		for(std::string &val : testing_files) {
+			for(int i=0; i < 0x800; i++) {
+				dram_store(&hart->dram,DRAM_BASE + i, 8, 0);
+			}
+			std::cout << "[TESTING] Executing file " << val << "... ";
+			hart->cpu_readfile(val, DRAM_BASE,false);
+			int out = hart->cpu_start_testing();
+			if(out != 0) {
+				std::cout << "[\033[31mFAIL\033[0m] A0 = " << out << std::endl;	
+				failed.push_back(val);
+			} else {
+				std::cout << "[\033[32mSUCCESS\033[0m]" << std::endl;	
+				succeded += 1;
+			}
+		}
+		
+		std::cout << "[TESTING] " << succeded << " tests out of " << testing_files.size() << " passed." << std::endl;
+		if(failed.size() > 0) {
+			std::cout << "[TESTING] Failed tests:" << std::endl;
+			for(std::string &val : failed) {
+				std::cout << "[TESTING] "  << val << std::endl;
+			}
+		}
+		
+		kb_running = false;
+		if (kb_t.joinable())
+			kb_t.join();
+		clint->stop_timer_thread();
+		
+		exit(0);
+	}
+	return 0;
+	
 }
