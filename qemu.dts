@@ -94,7 +94,7 @@
 
 	chosen {
 		stdout-path = "/soc/serial@10000000";
-		rng-seed = <0x79c365ad 0x712cb74a 0x7e8eb95c 0xf7541c0f 0x7586b295 0x95924dcb 0xc8c63825 0xcee72c7f>;
+		rng-seed = <0x406ba82 0x9fb63ce9 0x609c2a48 0x3bf48e4d 0x85bfa19 0x8e954c71 0x7abdbc73 0xa6666247>;
 	};
 
 	soc {
@@ -213,3 +213,4 @@
 		};
 	};
 };
+

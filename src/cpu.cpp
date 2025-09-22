@@ -427,7 +427,8 @@ void HART::cpu_execute(uint32_t inst) {
 					virt_pc += (OP == 3 ? 4 : 2);
 				} else {
 					if(instr_block.size() > 0) {
-						instr_block_cache[pc] = std::move(instr_block);
+						auto cp = instr_block;
+						instr_block_cache[pc] = cp;
 						for(auto &in : instr_block) {
 							auto [fn_b, inst_b] = in;
 							if(trap_notify) {trap_notify = false;}

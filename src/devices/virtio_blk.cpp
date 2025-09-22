@@ -31,17 +31,11 @@ VirtIO_BLK::VirtIO_BLK(uint64_t base, uint64_t size, DRAM& ram_, PLIC* plic_, fd
     fdt_node_add_prop_u32(virtio_blk_node, "interrupts", irq_num);
     fdt_node_add_child(fdt_node_find(fdt,"soc"), virtio_blk_node);
 
-    // initial register values per spec
-    ram.mmap->store(base + VIRT_REG_MAGICVALUE, 32, 0x74726976); // "virt"
-    ram.mmap->store(base + VIRT_REG_VERSION, 32, 0x2); // modern interface
-    ram.mmap->store(base + VIRT_REG_DEVICEID, 32, 0x2); // block device id = 2
-    ram.mmap->store(base + VIRT_REG_VENDORID, 32, 0x554d4551); // 'QEMU'
-
-    // Device features: for minimal functionality i expose basic features:
-    // I'll expose no special features (0) to keep it simple and compatible.
-    device_features = 0;
-    ram.mmap->store(base + VIRT_REG_DEVICEFEATURES, 32, (uint32_t)(device_features & 0xFFFFFFFF));
-    ram.mmap->store(base + VIRT_REG_DEVICEFEATURES + 4, 32, (uint32_t)(device_features >> 32));
+    // Device features
+    device_features = VIRTIO_F_VERSION_1 |
+                  VIRTIO_BLK_F_SIZE_MAX |
+                  VIRTIO_BLK_F_SEG_MAX | 
+                  VIRTIO_BLK_F_BLK_SIZE;
 
     // open disk image (create if missing) -- use binary read/write
     disk.open(image_path, std::ios::in | std::ios::out | std::ios::binary);
@@ -299,7 +293,7 @@ uint64_t VirtIO_BLK::read(HART* hart, uint64_t addr, uint64_t size) {
         case VIRT_REG_MAGICVALUE: return 0x74726976;
         case VIRT_REG_VERSION: return 0x2;
         case VIRT_REG_DEVICEID: return 0x2;
-        case VIRT_REG_VENDORID: return 0x4D455652;
+        case VIRT_REG_VENDORID: return 0x4d455652;
         case VIRT_REG_DEVICEFEATURES: {
             if (device_features_sel == 0) return (uint32_t)(device_features & 0xFFFFFFFF);
             else return (uint32_t)(device_features >> 32);
@@ -324,8 +318,15 @@ uint64_t VirtIO_BLK::read(HART* hart, uint64_t addr, uint64_t size) {
         case VIRT_REG_QUEUEDEVICELOW: return (uint32_t)(queue0.used_addr & 0xFFFFFFFF);
         case VIRT_REG_QUEUEDEVICEHIGH: return (uint32_t)(queue0.used_addr >> 32);
         case VIRT_REG_CONFIGGENERATION: return config_generation;
+        case VIRT_REG_CAPACITYLOW:
+            return (uint32_t)(capacity_sectors & 0xFFFFFFFF);
+        case VIRT_REG_CAPACITYHIGH:  
+            return (uint32_t)(capacity_sectors >> 32);
+        case VIRT_REG_SIZEMAX:
+            return 0;
+        case VIRT_REG_SEGMAX:
+            return 128; // Reasonable value
         default:
-            // config space read not implemented here; could expose capacity etc.
             return 0;
     }
 }
