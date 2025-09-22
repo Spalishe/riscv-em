@@ -248,6 +248,7 @@ void add_devices_and_map() {
 
 	if(image_has) {
 		memmap.add_region(0x10001000, 0x1000);
+		std::cout << "Loading image: " << image_path << std::endl;
 		VirtIO_BLK* virtio_blk = new VirtIO_BLK(0x10001000,0x1000,hart->dram,plic,(dtb_has ? NULL : fdt),irq_num,image_path);
 		mmio->add(virtio_blk);
 		irq_num ++;
