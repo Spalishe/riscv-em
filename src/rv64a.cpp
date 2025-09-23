@@ -20,36 +20,54 @@ Copyright 2025 Spalishe
 #include "../include/csr.h"
 #include <iostream>
 
-void exec_LR_D(struct HART *hart, uint32_t inst) {
-    uint64_t addr = hart->regs[rs1(inst)];
+void exec_LR_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t rd_l = opers->s ? opers->rd : rd(inst);
+    uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
+
+    uint64_t addr = hart->regs[rs1_l];
 
     if(addr % 8 != 0) {
         hart->cpu_trap(EXC_LOAD_ADDR_MISALIGNED,addr,false);
     } else {
         std::optional<uint64_t> val = hart->mmio->load(hart,addr,64);
         if(val.has_value()) {
-            hart->regs[rd(inst)] = *val;
+            hart->regs[rd_l] = *val;
             hart->reservation_addr = addr;
             hart->reservation_size = 64;
             hart->reservation_valid = true;
             hart->reservation_value = *val;
         }
     }
-
-    hart->print_d("{0x%.8X} [LR.D] rd: %d; rs1: %d",hart->pc,rd(inst),rs1(inst));
+	
+    if(!opers->s){
+        opers->rd = rd_l;
+        opers->rs1 = rs1_l;
+        opers->s = true;
+    }
+    if(hart->dbg) hart->print_d("{0x%.8X} [LR.D] rd: %d; rs1: %d",hart->pc,rd_l,rs1_l);
 }
-void exec_SC_D(struct HART *hart, uint32_t inst) {
-    uint64_t addr = hart->regs[rs1(inst)];
+void exec_SC_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t rd_l = opers->s ? opers->rd : rd(inst);
+    uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
+    uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
+
+    uint64_t addr = hart->regs[rs1_l];
 
     if(hart->reservation_valid && hart->reservation_size == 64 && hart->reservation_addr == addr) {
-        hart->mmio->store(hart,addr, 64, hart->regs[rs2(inst)]);
-        hart->regs[rd(inst)] = 0;
+        hart->mmio->store(hart,addr, 64, hart->regs[rs2_l]);
+        hart->regs[rd_l] = 0;
     } else {
-        hart->regs[rd(inst)] = 1;
+        hart->regs[rd_l] = 1;
     }
     hart->reservation_valid = false;
-
-    hart->print_d("{0x%.8X} [SC.D] rd: %d; rs1: %d; rs2: %d",hart->pc,rd(inst),rs1(inst),rs2(inst));
+	
+    if(!opers->s){
+        opers->rd = rd_l;
+        opers->rs1 = rs1_l;
+        opers->rs2 = rs2_l;
+        opers->s = true;
+    }
+    if(hart->dbg) hart->print_d("{0x%.8X} [SC.D] rd: %d; rs1: %d; rs2: %d",hart->pc,rd_l,rs1_l,rs2_l);
 }
 
 template<typename Functor>
@@ -74,102 +92,192 @@ std::optional<uint64_t> AMO(HART* hart, uint64_t addr, uint64_t rs2, Functor op)
     return t;
 }
 
-void exec_AMOSWAP_D(struct HART *hart, uint32_t inst) {
-    uint64_t addr = hart->regs[rs1(inst)];
-    uint64_t rs2_val = hart->regs[rs2(inst)];
+void exec_AMOSWAP_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t rd_l = opers->s ? opers->rd : rd(inst);
+    uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
+    uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
+
+    uint64_t addr = hart->regs[rs1_l];
+    uint64_t rs2_val = hart->regs[rs2_l];
 
     std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint64_t a, uint64_t b){ return b; }); 
     if(val.has_value()) {
-        hart->regs[rd(inst)] = *val;
+        hart->regs[rd_l] = *val;
     }
-
-    hart->print_d("{0x%.8X} [AMOSWAP.D] rd: %d; rs1: %d; rs2: %d",hart->pc,rd(inst),rs1(inst),rs2(inst));
+	
+    if(!opers->s){
+        opers->rd = rd_l;
+        opers->rs1 = rs1_l;
+        opers->rs2 = rs2_l;
+        opers->s = true;
+    }
+    if(hart->dbg) hart->print_d("{0x%.8X} [AMOSWAP.D] rd: %d; rs1: %d; rs2: %d",hart->pc,rd_l,rs1_l,rs2_l);
 }
-void exec_AMOADD_D(struct HART *hart, uint32_t inst) {
-    uint64_t addr = hart->regs[rs1(inst)];
-    uint64_t rs2_val = hart->regs[rs2(inst)];
+void exec_AMOADD_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t rd_l = opers->s ? opers->rd : rd(inst);
+    uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
+    uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
+
+    uint64_t addr = hart->regs[rs1_l];
+    uint64_t rs2_val = hart->regs[rs2_l];
 
     std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint64_t a, uint64_t b){ return a+b; }); 
     if(val.has_value()) {
-        hart->regs[rd(inst)] = *val;
+        hart->regs[rd_l] = *val;
     }
-
-    hart->print_d("{0x%.8X} [AMOADD.D] rd: %d; rs1: %d; rs2: %d",hart->pc,rd(inst),rs1(inst),rs2(inst));
+	
+    if(!opers->s){
+        opers->rd = rd_l;
+        opers->rs1 = rs1_l;
+        opers->rs2 = rs2_l;
+        opers->s = true;
+    }
+    if(hart->dbg) hart->print_d("{0x%.8X} [AMOADD.D] rd: %d; rs1: %d; rs2: %d",hart->pc,rd_l,rs1_l,rs2_l);
 }
-void exec_AMOXOR_D(struct HART *hart, uint32_t inst) {
-    uint64_t addr = hart->regs[rs1(inst)];
-    uint64_t rs2_val = hart->regs[rs2(inst)];
+void exec_AMOXOR_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t rd_l = opers->s ? opers->rd : rd(inst);
+    uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
+    uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
+
+    uint64_t addr = hart->regs[rs1_l];
+    uint64_t rs2_val = hart->regs[rs2_l];
 
     std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint64_t a, uint64_t b){ return a^b; }); 
     if(val.has_value()) {
-        hart->regs[rd(inst)] = *val;
+        hart->regs[rd_l] = *val;
     }
-
-    hart->print_d("{0x%.8X} [AMOXOR.D] rd: %d; rs1: %d; rs2: %d",hart->pc,rd(inst),rs1(inst),rs2(inst));
+	
+    if(!opers->s){
+        opers->rd = rd_l;
+        opers->rs1 = rs1_l;
+        opers->rs2 = rs2_l;
+        opers->s = true;
+    }
+    if(hart->dbg) hart->print_d("{0x%.8X} [AMOXOR.D] rd: %d; rs1: %d; rs2: %d",hart->pc,rd_l,rs1_l,rs2_l);
 }
-void exec_AMOAND_D(struct HART *hart, uint32_t inst) {
-    uint64_t addr = hart->regs[rs1(inst)];
-    uint64_t rs2_val = hart->regs[rs2(inst)];
+void exec_AMOAND_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t rd_l = opers->s ? opers->rd : rd(inst);
+    uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
+    uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
+
+    uint64_t addr = hart->regs[rs1_l];
+    uint64_t rs2_val = hart->regs[rs2_l];
 
     std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint64_t a, uint64_t b){ return a&b; }); 
     if(val.has_value()) {
-        hart->regs[rd(inst)] = *val;
+        hart->regs[rd_l] = *val;
     }
-
-    hart->print_d("{0x%.8X} [AMOAND.D] rd: %d; rs1: %d; rs2: %d",hart->pc,rd(inst),rs1(inst),rs2(inst));
+	
+    if(!opers->s){
+        opers->rd = rd_l;
+        opers->rs1 = rs1_l;
+        opers->rs2 = rs2_l;
+        opers->s = true;
+    }
+    if(hart->dbg) hart->print_d("{0x%.8X} [AMOAND.D] rd: %d; rs1: %d; rs2: %d",hart->pc,rd_l,rs1_l,rs2_l);
 }
-void exec_AMOOR_D(struct HART *hart, uint32_t inst) {
-    uint64_t addr = hart->regs[rs1(inst)];
-    uint64_t rs2_val = hart->regs[rs2(inst)];
+void exec_AMOOR_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t rd_l = opers->s ? opers->rd : rd(inst);
+    uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
+    uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
+
+    uint64_t addr = hart->regs[rs1_l];
+    uint64_t rs2_val = hart->regs[rs2_l];
 
     std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint64_t a, uint64_t b){ return a|b; }); 
     if(val.has_value()) {
-        hart->regs[rd(inst)] = *val;
+        hart->regs[rd_l] = *val;
     }
-
-    hart->print_d("{0x%.8X} [AMOOR.D] rd: %d; rs1: %d; rs2: %d",hart->pc,rd(inst),rs1(inst),rs2(inst));
+	
+    if(!opers->s){
+        opers->rd = rd_l;
+        opers->rs1 = rs1_l;
+        opers->rs2 = rs2_l;
+        opers->s = true;
+    }
+    if(hart->dbg) hart->print_d("{0x%.8X} [AMOOR.D] rd: %d; rs1: %d; rs2: %d",hart->pc,rd_l,rs1_l,rs2_l);
 }
-void exec_AMOMIN_D(struct HART *hart, uint32_t inst) {
-    uint64_t addr = hart->regs[rs1(inst)];
-    uint64_t rs2_val = hart->regs[rs2(inst)];
+void exec_AMOMIN_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t rd_l = opers->s ? opers->rd : rd(inst);
+    uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
+    uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
+
+    uint64_t addr = hart->regs[rs1_l];
+    uint64_t rs2_val = hart->regs[rs2_l];
 
     std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint64_t a, uint64_t b){ return std::min(int64_t(a), int64_t(b)); }); 
     if(val.has_value()) {
-        hart->regs[rd(inst)] = *val;
+        hart->regs[rd_l] = *val;
     }
-
-    hart->print_d("{0x%.8X} [AMOMIN.D] rd: %d; rs1: %d; rs2: %d",hart->pc,rd(inst),rs1(inst),rs2(inst));
+	
+    if(!opers->s){
+        opers->rd = rd_l;
+        opers->rs1 = rs1_l;
+        opers->rs2 = rs2_l;
+        opers->s = true;
+    }
+    if(hart->dbg) hart->print_d("{0x%.8X} [AMOMIN.D] rd: %d; rs1: %d; rs2: %d",hart->pc,rd_l,rs1_l,rs2_l);
 }
-void exec_AMOMAX_D(struct HART *hart, uint32_t inst) {
-    uint64_t addr = hart->regs[rs1(inst)];
-    uint64_t rs2_val = hart->regs[rs2(inst)];
+void exec_AMOMAX_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t rd_l = opers->s ? opers->rd : rd(inst);
+    uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
+    uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
+
+    uint64_t addr = hart->regs[rs1_l];
+    uint64_t rs2_val = hart->regs[rs2_l];
 
     std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint64_t a, uint64_t b){ return std::max(int64_t(a), int64_t(b)); }); 
     if(val.has_value()) {
-        hart->regs[rd(inst)] = *val;
+        hart->regs[rd_l] = *val;
     }
-
-    hart->print_d("{0x%.8X} [AMOMAX.D] rd: %d; rs1: %d; rs2: %d",hart->pc,rd(inst),rs1(inst),rs2(inst));
+	
+    if(!opers->s){
+        opers->rd = rd_l;
+        opers->rs1 = rs1_l;
+        opers->rs2 = rs2_l;
+        opers->s = true;
+    }
+    if(hart->dbg) hart->print_d("{0x%.8X} [AMOMAX.D] rd: %d; rs1: %d; rs2: %d",hart->pc,rd_l,rs1_l,rs2_l);
 }
-void exec_AMOMINU_D(struct HART *hart, uint32_t inst) {
-    uint64_t addr = hart->regs[rs1(inst)];
-    uint64_t rs2_val = hart->regs[rs2(inst)];
+void exec_AMOMINU_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t rd_l = opers->s ? opers->rd : rd(inst);
+    uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
+    uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
+
+    uint64_t addr = hart->regs[rs1_l];
+    uint64_t rs2_val = hart->regs[rs2_l];
 
     std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint64_t a, uint64_t b){ return std::min(a,b); }); 
     if(val.has_value()) {
-        hart->regs[rd(inst)] = *val;
+        hart->regs[rd_l] = *val;
     }
-
-    hart->print_d("{0x%.8X} [AMOMINU.D] rd: %d; rs1: %d; rs2: %d",hart->pc,rd(inst),rs1(inst),rs2(inst));
+	
+    if(!opers->s){
+        opers->rd = rd_l;
+        opers->rs1 = rs1_l;
+        opers->rs2 = rs2_l;
+        opers->s = true;
+    }
+    if(hart->dbg) hart->print_d("{0x%.8X} [AMOMINU.D] rd: %d; rs1: %d; rs2: %d",hart->pc,rd_l,rs1_l,rs2_l);
 }
-void exec_AMOMAXU_D(struct HART *hart, uint32_t inst) {
-    uint64_t addr = hart->regs[rs1(inst)];
-    uint64_t rs2_val = hart->regs[rs2(inst)];
+void exec_AMOMAXU_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t rd_l = opers->s ? opers->rd : rd(inst);
+    uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
+    uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
+
+    uint64_t addr = hart->regs[rs1_l];
+    uint64_t rs2_val = hart->regs[rs2_l];
 
     std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint64_t a, uint64_t b){ return std::max(a,b); }); 
     if(val.has_value()) {
-        hart->regs[rd(inst)] = *val;
+        hart->regs[rd_l] = *val;
     }
-
-    hart->print_d("{0x%.8X} [AMOMAXU.D] rd: %d; rs1: %d; rs2: %d",hart->pc,rd(inst),rs1(inst),rs2(inst));
+	
+    if(!opers->s){
+        opers->rd = rd_l;
+        opers->rs1 = rs1_l;
+        opers->rs2 = rs2_l;
+        opers->s = true;
+    }
+    if(hart->dbg) hart->print_d("{0x%.8X} [AMOMAXU.D] rd: %d; rs1: %d; rs2: %d",hart->pc,rd_l,rs1_l,rs2_l);
 }

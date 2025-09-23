@@ -20,16 +20,15 @@ Copyright 2025 Spalishe
 #include "../include/csr.h"
 #include <iostream>
 
-void exec_FENCE_I(struct HART *hart, uint32_t inst) {
-    hart->instr_cache.clear();
+void exec_FENCE_I(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     hart->instr_block_cache.clear();
-    hart->print_d("{0x%.8X} [FENCE.I] uhh i cant figure out how fence memory btw so i just clear cache",hart->pc);
+    if(hart->dbg) hart->print_d("{0x%.8X} [FENCE.I] uhh i cant figure out how fence memory btw so i just clear cache",hart->pc);
 }
-void exec_FENCE(struct HART *hart, uint32_t inst) {
-    hart->print_d("{0x%.8X} [FENCE] there is only 1 hart so its nop rn",hart->pc);
+void exec_FENCE(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    if(hart->dbg) hart->print_d("{0x%.8X} [FENCE] there is only 1 hart so its nop rn",hart->pc);
 }
 
-void exec_SFENCE_VMA(struct HART *hart, uint32_t inst) {
+void exec_SFENCE_VMA(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     dram_cache(&hart->dram);
-    hart->print_d("{0x%.8X} [SFENCE.VMA] cleaned up memory cache",hart->pc);
+    if(hart->dbg) hart->print_d("{0x%.8X} [SFENCE.VMA] cleaned up memory cache",hart->pc);
 }

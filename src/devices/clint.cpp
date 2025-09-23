@@ -57,7 +57,6 @@ void CLINT::start_timer(uint64_t freq_hz, HART* hart) {
         auto period = nanoseconds(1'000'000'000ULL / freq_hz);
         auto next_time = steady_clock::now();
         while (!stop_timer) {
-            if(this == NULL || hart == NULL) break;
             next_time += period;
             std::this_thread::sleep_until(next_time);
             mtime.fetch_add(1, std::memory_order_seq_cst);

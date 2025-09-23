@@ -20,7 +20,7 @@ Copyright 2025 Spalishe
 #include "../include/csr.h"
 #include <iostream>
 
-void exec_C_LDSP(struct HART *hart, uint32_t inst) {
+void exec_C_LDSP(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rd = get_bits(inst,11,7);
 
     uint64_t imm = (get_bits(inst, 12, 12) << 5) | (( get_bits(inst, 6, 4)) << 2) + (((inst >> 2) & 3) * 64);
@@ -31,9 +31,9 @@ void exec_C_LDSP(struct HART *hart, uint32_t inst) {
 		hart->regs[rd] = *val;
 	}
     
-	hart->print_d("{0x%.8X} [C.LDSP] rd: %d; imm: int %d uint %u",hart->pc,rd,(int64_t) imm,imm);
+	if(hart->dbg) hart->print_d("{0x%.8X} [C.LDSP] rd: %d; imm: int %d uint %u",hart->pc,rd,(int64_t) imm,imm);
 }
-void exec_C_SDSP(struct HART *hart, uint32_t inst) {
+void exec_C_SDSP(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rs2 = get_bits(inst,7,2);
 
     uint64_t imm = (( get_bits(inst, 13, 9)) << 2) + (get_bits(inst,8,7) * 64);
@@ -41,9 +41,9 @@ void exec_C_SDSP(struct HART *hart, uint32_t inst) {
 
 	hart->mmio->store(hart,(hart->regs[2]+imm),64,hart->regs[rs2]);
     
-	hart->print_d("{0x%.8X} [C.SDSP] rd: %d; imm: int %d uint %u",hart->pc,rd,(int64_t) imm, imm);
+	if(hart->dbg) hart->print_d("{0x%.8X} [C.SDSP] rd: %d; imm: int %d uint %u",hart->pc,rd,(int64_t) imm, imm);
 }
-void exec_C_LD(struct HART *hart, uint32_t inst) {
+void exec_C_LD(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rd = 8+get_bits(inst,5,3);
     uint64_t rs1 = 8+get_bits(inst,9,7);
 
@@ -58,9 +58,9 @@ void exec_C_LD(struct HART *hart, uint32_t inst) {
 		hart->regs[rd] = *val;
 	}
     
-	hart->print_d("{0x%.8X} [C.LD] rs1 %d; rd: %d; imm: int %d uint %u",hart->pc,rs1,rd,(int64_t) imm, imm);
+	if(hart->dbg) hart->print_d("{0x%.8X} [C.LD] rs1 %d; rd: %d; imm: int %d uint %u",hart->pc,rs1,rd,(int64_t) imm, imm);
 }
-void exec_C_SD(struct HART *hart, uint32_t inst) {
+void exec_C_SD(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rs2 = 8+get_bits(inst,5,3);
     uint64_t rs1 = 8+get_bits(inst,9,7);
 
@@ -72,9 +72,9 @@ void exec_C_SD(struct HART *hart, uint32_t inst) {
 
 	hart->mmio->store(hart,(hart->regs[rs1]+imm),64,hart->regs[rs2]);
     
-	hart->print_d("{0x%.8X} [C.SD] rs1 %d; rs2: %d; imm: int %d uint %u",hart->pc,rs1,rs2,(int64_t) imm, imm);
+	if(hart->dbg) hart->print_d("{0x%.8X} [C.SD] rs1 %d; rs2: %d; imm: int %d uint %u",hart->pc,rs1,rs2,(int64_t) imm, imm);
 }
-void exec_C_ADDIW(struct HART *hart, uint32_t inst) {
+void exec_C_ADDIW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rd = get_bits(inst,7,11);
 
     uint64_t imm = (get_bits(inst, 12, 12) << 5) | get_bits(inst, 6, 2);
@@ -82,21 +82,21 @@ void exec_C_ADDIW(struct HART *hart, uint32_t inst) {
 
 	hart->regs[rd] += (int32_t) imm;
     
-	hart->print_d("{0x%.8X} [C.ADDIW] rd: %d; imm: int %d uint %u",hart->pc,rd,(int64_t) imm, imm);
+	if(hart->dbg) hart->print_d("{0x%.8X} [C.ADDIW] rd: %d; imm: int %d uint %u",hart->pc,rd,(int64_t) imm, imm);
 }
-void exec_C_SUBW(struct HART *hart, uint32_t inst) {
+void exec_C_SUBW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rd = 8+get_bits(inst,5,3);
     uint64_t rs2 = 8+get_bits(inst,9,7);
 
 	hart->regs[rd] -= (int32_t) hart->regs[rs2];
     
-	hart->print_d("{0x%.8X} [C.SUBW] rd %d; rs2: %d",hart->pc,rd,rs2);
+	if(hart->dbg) hart->print_d("{0x%.8X} [C.SUBW] rd %d; rs2: %d",hart->pc,rd,rs2);
 }
-void exec_C_ADDW(struct HART *hart, uint32_t inst) {
+void exec_C_ADDW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rd = get_bits(inst,11,7);
     uint64_t rs2 = get_bits(inst,6,2);
 
     hart->regs[rd] += (int32_t) hart->regs[rs2];
     
-	hart->print_d("{0x%.8X} [C.ADDW] rd: %d; rs2: %d",hart->pc,rd,rs2);
+	if(hart->dbg) hart->print_d("{0x%.8X} [C.ADDW] rd: %d; rs2: %d",hart->pc,rd,rs2);
 }

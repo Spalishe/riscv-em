@@ -27,6 +27,22 @@ Copyright 2025 Spalishe
 
 struct MMIO;
 
+struct HART;
+
+struct CACHE_DecodedOperands {
+    CACHE_DecodedOperands() {}
+    bool s = false;
+    uint8_t rd, rs1, rs2;
+    uint32_t imm;
+};
+struct CACHE_Instr {
+    void (*fn)(HART*, uint32_t, CACHE_DecodedOperands* opers);
+    bool incr;
+    bool j;
+    uint32_t inst;
+    CACHE_DecodedOperands oprs;
+};
+
 struct HART {
     DRAM dram;
     MMIO* mmio;
@@ -42,23 +58,11 @@ struct HART {
     bool dbg_singlestep;
 	uint64_t breakpoint;
 	uint8_t id;
-
-    struct CACHE_Instr {
-        void (*fn)(HART*, uint32_t);
-        bool incr;
-        bool j;
-    };
-    struct CACHE_InstrBl {
-        void (*fn)(HART*, uint32_t);
-        uint32_t inst;
-    };
-
-    std::unordered_map<uint32_t, CACHE_Instr> instr_cache;
     
     bool block_enabled = true;
 
-    std::vector<CACHE_InstrBl> instr_block; // instruction function, instruction itself
-    std::unordered_map<uint64_t, std::vector<CACHE_InstrBl>> instr_block_cache; // as key put PC
+    std::vector<CACHE_Instr> instr_block; // instruction function, instruction itself
+    std::unordered_map<uint64_t, std::vector<CACHE_Instr>> instr_block_cache; // as key put PC
     
 	bool stopexec;
 
