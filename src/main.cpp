@@ -58,6 +58,7 @@ Copyright 2025 Spalishe
 	The Broken Insts:
 		none
 	TODO:
+		-MMU
 		-RV32F
 		-RV64F
 		-RV32F for RV32C
