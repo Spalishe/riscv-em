@@ -10,6 +10,8 @@ file(GLOB SOURCES "src/*.cpp")
 file(GLOB DEVICE_SOURCES "src/devices/*.cpp")
 
 add_executable(riscvem ${SOURCES} ${DEVICE_SOURCES})
+find_package(LLVM REQUIRED CONFIG)
+target_link_libraries(riscvem PRIVATE LLVM)
 
 set(CMAKE_CXX_FLAGS_DEBUG "-O3 -march=native -g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -g")

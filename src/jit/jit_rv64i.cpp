@@ -14,10 +14,7 @@ Copyright 2025 Spalishe
    limitations under the License.
 
 */
-#pragma once
 
-#include "memory_map.h"
+#include "../../include/cpu.h"
 
-void reset();
-void poweroff();
-extern MemoryMap memmap;
+void jit_ADD(HART* hart) {}

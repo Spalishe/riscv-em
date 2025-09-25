@@ -100,3 +100,391 @@ void exec_C_ADDW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers)
     
 	if(hart->dbg) hart->print_d("{0x%.8X} [C.ADDW] rd: %d; rs2: %d",hart->pc,rd,rs2);
 }
+
+/// RV32C
+
+
+void exec_C_LWSP(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t rd = opers->s ? opers->rd : get_bits(inst,11,7);
+
+    uint64_t imm = opers->s ? opers->imm : sext((get_bits(inst, 12, 12) << 5) | (( get_bits(inst, 6, 4)) << 2) + (((inst >> 2) & 3) * 64),9);
+
+	std::optional<uint64_t> val = hart->mmio->load(hart,(hart->regs[2]+imm),32);
+	if(val.has_value()) {
+		hart->regs[rd] = (int64_t)(int32_t) *val;
+	}
+    
+    if(!opers->s){
+        opers->rd = rd;
+        opers->imm = imm;
+        opers->s = true;
+    }
+	if(hart->dbg) hart->print_d("{0x%.8X} [C.LWSP] rd: %d; imm: int %d uint %u",hart->pc,rd,(int64_t) imm,imm);
+}
+void exec_C_SWSP(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t rs2 = opers->s ? opers->rs2 : get_bits(inst,7,2);
+
+    uint64_t imm = opers->s ? opers->imm : sext((( get_bits(inst, 13, 9)) << 2) + (get_bits(inst,8,7) * 64),9);
+    
+	hart->mmio->store(hart,(hart->regs[2]+imm),32,hart->regs[rs2]);
+    
+    if(!opers->s){
+        opers->rs2 = rs2;
+        opers->imm = imm;
+        opers->s = true;
+    }
+	if(hart->dbg) hart->print_d("{0x%.8X} [C.SWSP] rd: %d; imm: int %d uint %u",hart->pc,rd,(int64_t) imm, imm);
+}
+void exec_C_LW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t rd = opers->s ? opers->rd : 8+get_bits(inst,5,3);
+    uint64_t rs1 = opers->s ? opers->rs1 : 8+get_bits(inst,9,7);
+
+    uint64_t imm = opers->s ? opers->imm : (get_bits(inst,5,5) * 64 + (get_bits(inst,6,6) | (get_bits(inst,12,10) << 1)));
+
+	std::optional<uint64_t> val = hart->mmio->load(hart,(hart->regs[rs1]+imm),32);
+	if(val.has_value()) {
+		hart->regs[rd] = (int64_t)(int32_t) *val;
+	}
+    
+    if(!opers->s){
+        opers->rd = rd;
+        opers->rs1 = rs1;
+        opers->imm = imm;
+        opers->s = true;
+    }
+	if(hart->dbg) hart->print_d("{0x%.8X} [C.LW] rs1 %d; rd: %d; imm: int %d uint %u",hart->pc,rs1,rd,(int64_t) imm, imm);
+}
+void exec_C_SW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t rs2 = opers->s ? opers->rs2 : 8+get_bits(inst,5,3);
+    uint64_t rs1 = opers->s ? opers->rs1 : 8+get_bits(inst,9,7);
+
+    uint64_t imm = opers->s ? opers->imm : (get_bits(inst,5,5) * 64 + (get_bits(inst,6,6) | (get_bits(inst,12,10) << 1)));
+
+	hart->mmio->store(hart,(hart->regs[rs1]+imm),32,hart->regs[rs2]);
+    
+    if(!opers->s){
+        opers->rs1 = rs1;
+        opers->rs2 = rs2;
+        opers->imm = imm;
+        opers->s = true;
+    }
+	if(hart->dbg) hart->print_d("{0x%.8X} [C.SW] rs1 %d; rs2: %d; imm: int %d uint %u",hart->pc,rs1,rs2,(int64_t) imm, imm);
+}
+void exec_C_J(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t imm = opers->s ? opers->imm : ((get_bits(inst, 12, 12) << 11) |
+        (get_bits(inst, 11, 11) << 4)  |
+        (get_bits(inst, 10, 9) << 8)   |
+        (get_bits(inst, 8, 8) << 10)   |
+        (get_bits(inst, 7, 7) << 6)    |
+        (get_bits(inst, 6, 6) << 7)    |
+        (get_bits(inst, 5, 3) << 1)    |
+        (get_bits(inst, 2, 2) << 5));
+
+    hart->pc = hart->pc + imm;
+
+    if(!opers->s){
+        opers->imm = imm;
+        opers->s = true;
+    }
+	if(hart->dbg) hart->print_d("{0x%.8X} [C.J] offset: %d",hart->pc,imm);
+}
+void exec_C_JAL(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t imm = opers->s ? opers->imm : ((get_bits(inst, 12, 12) << 11) |
+        (get_bits(inst, 11, 11) << 4)  |
+        (get_bits(inst, 10, 9) << 8)   |
+        (get_bits(inst, 8, 8) << 10)   |
+        (get_bits(inst, 7, 7) << 6)    |
+        (get_bits(inst, 6, 6) << 7)    |
+        (get_bits(inst, 5, 3) << 1)    |
+        (get_bits(inst, 2, 2) << 5));
+
+	hart->regs[1] = hart->pc + 4;
+    hart->pc = hart->pc + imm;
+    
+    if(!opers->s){
+        opers->imm = imm;
+        opers->s = true;
+    }
+	if(hart->dbg) hart->print_d("{0x%.8X} [C.JAL] offset: %d",hart->pc,imm);
+}
+void exec_C_JR(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t rs1 = opers->s ? opers->rs1 : get_bits(inst,11,7);
+
+    hart->pc = hart->regs[rs1];
+    
+    if(!opers->s){
+        opers->rs1 = rs1;
+        opers->s = true;
+    }
+	if(hart->dbg) hart->print_d("{0x%.8X} [C.JR] rs1: %d",hart->pc,rs1);
+}
+void exec_C_JALR(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t rs1 = opers->s ? opers->rs1 : get_bits(inst,11,7);
+
+	hart->regs[1] = hart->pc + 4;
+    hart->pc = hart->regs[rs1];
+    
+    if(!opers->s){
+        opers->rs1 = rs1;
+        opers->s = true;
+    }
+	if(hart->dbg) hart->print_d("{0x%.8X} [C.JALR] rs1: %d",hart->pc,rs1);
+}
+void exec_C_BEQZ(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t rs1 = opers->s ? opers->rs1 : 8+get_bits(inst,11,7);
+    uint64_t imm = opers->s ? opers->imm : sext((get_bits(inst, 12, 12) << 8) |
+        (get_bits(inst, 6, 5) << 6)   |
+        (get_bits(inst, 11, 10) << 3) |
+        (get_bits(inst, 4, 3) << 1)   |
+        (get_bits(inst, 2, 2) << 5),9);
+
+	if ((int64_t) hart->regs[rs1] == 0)
+		hart->pc = hart->pc + (int64_t) imm - 4;
+    
+    if(!opers->s){
+        opers->rs1 = rs1;
+        opers->imm = imm;
+        opers->s = true;
+    }
+	if(hart->dbg) hart->print_d("{0x%.8X} [C.BEQZ] rs1: %d; imm: int %d uint %u",hart->pc,rs1, (int64_t) imm, imm);
+}
+void exec_C_BNEZ(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t rs1 = opers->s ? opers->rs1 : 8+get_bits(inst,11,7);
+    uint64_t imm = opers->s ? opers->imm : sext((get_bits(inst, 12, 12) << 8) |
+        (get_bits(inst, 6, 5) << 6)   |
+        (get_bits(inst, 11, 10) << 3) |
+        (get_bits(inst, 4, 3) << 1)   |
+        (get_bits(inst, 2, 2) << 5),9);
+
+	if ((int64_t) hart->regs[rs1] != 0)
+		hart->pc = hart->pc + (int64_t) imm - 4;
+    
+    if(!opers->s){
+        opers->rs1 = rs1;
+        opers->imm = imm;
+        opers->s = true;
+    }
+	if(hart->dbg) hart->print_d("{0x%.8X} [C.BNEZ] rs1: %d; imm: int %d uint %u",hart->pc,rs1, (int64_t) imm, imm);
+}
+void exec_C_LI(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t rd = opers->s ? opers->rd : get_bits(inst,7,11);
+
+    uint64_t imm = opers->s ? opers->imm : sext((get_bits(inst, 12, 12) << 5) | get_bits(inst, 6, 2),6);
+
+	hart->regs[rd] = (uint64_t) imm;
+    
+    if(!opers->s){
+        opers->rd = rd;
+        opers->imm = imm;
+        opers->s = true;
+    }
+	if(hart->dbg) hart->print_d("{0x%.8X} [C.LI] rd: %d; imm: int %d uint %u",hart->pc,rd,(int64_t) imm, imm);
+}
+void exec_C_LUI(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t rd = opers->s ? opers->rd : get_bits(inst,7,11);
+
+    uint64_t imm = opers->s ? opers->imm : sext((get_bits(inst, 12, 12) << 5) | get_bits(inst, 6, 2),6);
+
+	hart->regs[rd] = (uint64_t) imm << 12;
+    
+    if(!opers->s){
+        opers->rd = rd;
+        opers->imm = imm;
+        opers->s = true;
+    }
+	if(hart->dbg) hart->print_d("{0x%.8X} [C.LUI] rd: %d; imm: int %d uint %u",hart->pc,rd,(int64_t) imm, imm);
+}
+void exec_C_ADDI(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t rd = opers->s ? opers->rd : get_bits(inst,7,11);
+
+    uint64_t imm = opers->s ? opers->imm : sext((get_bits(inst, 12, 12) << 5) | get_bits(inst, 6, 2),6);
+
+	hart->regs[rd] += (int64_t) imm;
+    
+    if(!opers->s){
+        opers->rd = rd;
+        opers->imm = imm;
+        opers->s = true;
+    }
+	if(hart->dbg) hart->print_d("{0x%.8X} [C.ADDI] rd: %d; imm: int %d uint %u",hart->pc,rd,(int64_t) imm, imm);
+}
+void exec_C_ADDI16SP(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t imm = opers->s ? opers->imm : sext((get_bits(inst, 6, 6) |
+        (get_bits(inst, 2, 2) << 1) |
+        (get_bits(inst, 6, 6) << 2) |
+        (get_bits(inst, 3, 3) << 3) |
+        (get_bits(inst, 4, 4) << 4) | 
+        (get_bits(inst, 12, 12) << 5)) << 4,10);
+
+	hart->regs[2] += (int64_t) imm;
+    
+    if(!opers->s){
+        opers->imm = imm;
+        opers->s = true;
+    }
+	if(hart->dbg) hart->print_d("{0x%.8X} [C.ADDI16SP] imm: int %d uint %u",hart->pc,(int64_t) imm, imm);
+}
+void exec_C_ADDI4SPN(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t rd = opers->s ? opers->rd : 8+get_bits(inst,5,3);
+
+    uint64_t imm = opers->s ? opers->imm : ((get_bits(inst, 6, 6) << 4) | (get_bits(inst, 2, 2) << 5) | (get_bits(inst, 5, 5) << 6) | (get_bits(inst, 3, 3) << 7) | (get_bits(inst, 4, 4) << 8) | (get_bits(inst, 12, 12) << 9));
+    int64_t immv = sext(imm,10);
+
+	hart->regs[rd] = hart->regs[2] + immv;
+    
+    if(!opers->s){
+        opers->rd = rd;
+        opers->imm = imm;
+        opers->s = true;
+    }
+	if(hart->dbg) hart->print_d("{0x%.8X} [C.ADDI4SPN] rd: %d; imm: int %d uint %u",hart->pc,rd,immv, imm);
+}
+void exec_C_SLLI(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t rd = opers->s ? opers->rd : get_bits(inst,7,11);
+
+    uint64_t imm = opers->s ? opers->rd : ((get_bits(inst, 12, 12) << 5) | (( get_bits(inst, 6, 4)) << 2) + (((inst >> 2) & 3) * 64));
+
+	hart->regs[rd] <<= imm;
+    
+    if(!opers->s){
+        opers->rd = rd;
+        opers->imm = imm;
+        opers->s = true;
+    }
+	if(hart->dbg) hart->print_d("{0x%.8X} [C.SLLI] rd: %d; imm: int %d uint %u",hart->pc,rd,(int64_t) imm, imm);
+}
+void exec_C_SRLI(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t rd = opers->s ? opers->rd : 8+get_bits(inst,11,7);
+    uint64_t imm = opers->s ? opers->imm : sext((get_bits(inst, 12, 12) << 8) |
+        (get_bits(inst, 6, 5) << 6)   |
+        (get_bits(inst, 11, 10) << 3) |
+        (get_bits(inst, 4, 3) << 1)   |
+        (get_bits(inst, 2, 2) << 5),9);
+
+	hart->regs[rd] >>= imm;
+    
+    if(!opers->s){
+        opers->rd = rd;
+        opers->imm = imm;
+        opers->s = true;
+    }
+	if(hart->dbg) hart->print_d("{0x%.8X} [C.SRLI] rd: %d; imm: int %d uint %u",hart->pc,rd, (int64_t) imm, imm);
+}
+void exec_C_SRAI(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t rd = opers->s ? opers->rd : 8+get_bits(inst,11,7);
+    uint64_t imm = opers->s ? opers->imm : ((get_bits(inst, 12, 12) << 8) |
+        (get_bits(inst, 6, 5) << 6)   |
+        (get_bits(inst, 11, 10) << 3) |
+        (get_bits(inst, 4, 3) << 1)   |
+        (get_bits(inst, 2, 2) << 5),9);
+
+	hart->regs[rd] = (int32_t)hart->regs[rd] >> imm;
+    
+    if(!opers->s){
+        opers->rd = rd;
+        opers->imm = imm;
+        opers->s = true;
+    }
+	if(hart->dbg) hart->print_d("{0x%.8X} [C.SRAI] rd: %d; imm: int %d uint %u",hart->pc,rd, (int64_t) imm, imm);
+}
+void exec_C_ANDI(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t rd = opers->s ? opers->rd : 8+get_bits(inst,11,7);
+    uint64_t imm = opers->s ? opers->imm : sext((get_bits(inst, 12, 12) << 8) |
+        (get_bits(inst, 6, 5) << 6)   |
+        (get_bits(inst, 11, 10) << 3) |
+        (get_bits(inst, 4, 3) << 1)   |
+        (get_bits(inst, 2, 2) << 5),9);
+
+	hart->regs[rd] &= imm;
+    
+    if(!opers->s){
+        opers->rd = rd;
+        opers->imm = imm;
+        opers->s = true;
+    }
+	if(hart->dbg) hart->print_d("{0x%.8X} [C.ANDI] rd: %d; imm: int %d uint %u",hart->pc,rd, (int64_t) imm, imm);
+}
+void exec_C_MV(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t rd = opers->s ? opers->rd : get_bits(inst,11,7);
+    uint64_t rs2 = opers->s ? opers->rs2 : get_bits(inst,6,2);
+
+    hart->regs[rd] = hart->regs[rs2];
+    
+    if(!opers->s){
+        opers->rd = rd;
+        opers->rs2 = rs2;
+        opers->s = true;
+    }
+	if(hart->dbg) hart->print_d("{0x%.8X} [C.MV] rd: %d; rs2: %d",hart->pc,rd,rs2);
+}
+void exec_C_ADD(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t rd = opers->s ? opers->rd : get_bits(inst,11,7);
+    uint64_t rs2 = opers->s ? opers->rs2 : get_bits(inst,6,2);
+
+    hart->regs[rd] += hart->regs[rs2];
+    
+    if(!opers->s){
+        opers->rd = rd;
+        opers->rs2 = rs2;
+        opers->s = true;
+    }
+	if(hart->dbg) hart->print_d("{0x%.8X} [C.ADD] rd: %d; rs2: %d",hart->pc,rd,rs2);
+}
+void exec_C_AND(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t rd = opers->s ? opers->rd : 8+get_bits(inst,5,3);
+    uint64_t rs2 = opers->s ? opers->rs2 : 8+get_bits(inst,9,7);
+
+	hart->regs[rd] &= hart->regs[rs2];
+    
+    if(!opers->s){
+        opers->rd = rd;
+        opers->rs2 = rs2;
+        opers->s = true;
+    }
+	if(hart->dbg) hart->print_d("{0x%.8X} [C.AND] rd %d; rs2: %d",hart->pc,rd,rs2);
+}
+void exec_C_OR(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t rd = opers->s ? opers->rd : 8+get_bits(inst,5,3);
+    uint64_t rs2 = opers->s ? opers->rs2 : 8+get_bits(inst,9,7);
+
+	hart->regs[rd] |= hart->regs[rs2];
+    
+    if(!opers->s){
+        opers->rd = rd;
+        opers->rs2 = rs2;
+        opers->s = true;
+    }
+	if(hart->dbg) hart->print_d("{0x%.8X} [C.OR] rd %d; rs2: %d",hart->pc,rd,rs2);
+}
+void exec_C_XOR(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t rd = opers->s ? opers->rd : 8+get_bits(inst,5,3);
+    uint64_t rs2 = opers->s ? opers->rs2 : 8+get_bits(inst,9,7);
+
+	hart->regs[rd] ^= hart->regs[rs2];
+    
+    if(!opers->s){
+        opers->rd = rd;
+        opers->rs2 = rs2;
+        opers->s = true;
+    }
+	if(hart->dbg) hart->print_d("{0x%.8X} [C.XOR] rd %d; rs2: %d",hart->pc,rd,rs2);
+}
+void exec_C_SUB(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+    uint64_t rd = opers->s ? opers->rd : 8+get_bits(inst,5,3);
+    uint64_t rs2 = opers->s ? opers->rs2 : 8+get_bits(inst,9,7);
+
+	hart->regs[rd] -= hart->regs[rs2];
+    
+    if(!opers->s){
+        opers->rd = rd;
+        opers->rs2 = rs2;
+        opers->s = true;
+    }
+	if(hart->dbg) hart->print_d("{0x%.8X} [C.SUB] rd %d; rs2: %d",hart->pc,rd,rs2);
+}
+void exec_C_NOP(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+	if(hart->dbg) hart->print_d("{0x%.8X} [C.NOP] why the fuck we actually logging nops?",hart->pc);
+}
+void exec_C_EBREAK(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+	hart->cpu_trap(EXC_BREAKPOINT,hart->pc,false);
+}
