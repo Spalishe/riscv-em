@@ -8,8 +8,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 file(GLOB SOURCES "src/*.cpp")
 file(GLOB DEVICE_SOURCES "src/devices/*.cpp")
+file(GLOB JIT_SOURCES "src/jit/*.cpp")
 
-add_executable(riscvem ${SOURCES} ${DEVICE_SOURCES})
+add_executable(riscvem ${SOURCES} ${DEVICE_SOURCES} ${JIT_SOURCES})
 find_package(LLVM REQUIRED CONFIG)
 target_link_libraries(riscvem PRIVATE LLVM)
 

@@ -14,12 +14,7 @@ Copyright 2025 Spalishe
    limitations under the License.
 
 */
+
 #pragma once
 
-#include "memory_map.h"
-#include "devices/mmio.h"
-
-void reset();
-void poweroff();
-extern MemoryMap memmap;
-extern MMIO* mmio;
+extern int jit_init();

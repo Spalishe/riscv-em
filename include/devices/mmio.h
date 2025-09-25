@@ -55,6 +55,6 @@ struct MMIO {
     }
 
     std::optional<uint64_t> load(HART* hart, uint64_t addr, uint64_t size);
-    void store(HART* hart, uint64_t addr, uint64_t size, uint64_t value);
+    bool store(HART* hart, uint64_t addr, uint64_t size, uint64_t value);
 };
 

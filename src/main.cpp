@@ -41,6 +41,7 @@ Copyright 2025 Spalishe
 #include "../include/memory_map.h"
 #include "../include/libfdt.hpp"
 #include "../include/main.hpp"
+#include "../include/jit_h.hpp"
 #include <string>
 #include <vector>
 #include <random>
@@ -347,6 +348,8 @@ int main(int argc, char* argv[]) {
 	parser.addArgument("--tests", "Enables TESTING mode(dev only)", false, false, Argparser::ArgumentType::def);
 
 	parser.parse();
+
+	jit_init();
 
 	kernel_has = parser.getDefined(1);
 	if(kernel_has) 

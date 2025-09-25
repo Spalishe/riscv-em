@@ -14,12 +14,19 @@ Copyright 2025 Spalishe
    limitations under the License.
 
 */
+
 #pragma once
 
-#include "memory_map.h"
-#include "devices/mmio.h"
+#include "llvm/ExecutionEngine/Orc/LLJIT.h"
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Module.h"
+#include "llvm/Support/TargetSelect.h"
 
-void reset();
-void poweroff();
-extern MemoryMap memmap;
-extern MMIO* mmio;
+extern llvm::StructType* hartStructTy;
+extern llvm::StructType* optStructTy;
+extern llvm::FunctionCallee loadFunc;
+extern llvm::FunctionCallee storeFunc;
+extern llvm::FunctionCallee trapFunc;
+
+extern LLVMContext context;
