@@ -29,4 +29,4 @@ extern llvm::FunctionCallee loadFunc;
 extern llvm::FunctionCallee storeFunc;
 extern llvm::FunctionCallee trapFunc;
 
-extern LLVMContext context;
+extern llvm::LLVMContext context;
