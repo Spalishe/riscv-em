@@ -20,7 +20,7 @@ Copyright 2025 Spalishe
 #include "../include/csr.h"
 #include <iostream>
 
-void exec_WFI(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+void exec_WFI(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
     if(hart->dbg) hart->print_d("{0x%.8X} [WFI] waiting for interrupt...",hart->pc);
     hart->stopexec = true;
 }
@@ -32,7 +32,7 @@ inline bool bit_check(uint64_t number, uint64_t n) {
     return (number >> n) & (uint64_t)1;
 }
 
-void exec_SRET(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+void exec_SRET(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
     if(hart->mode != 0) {
         hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,hart->mode,false);
         return;
@@ -46,7 +46,7 @@ void exec_SRET(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     hart->trap_active = false;
     if(hart->dbg) hart->print_d("{0x%.8X} [SRET] ahh returned from exc",hart->pc);
 }
-void exec_MRET(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
+void exec_MRET(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
     if(get_bits(hart->csrs[MSTATUS],12,11) != 3) {
         hart->csrs[MSTATUS] = bit_set_to(hart->csrs[MSTATUS],17,false);
     }

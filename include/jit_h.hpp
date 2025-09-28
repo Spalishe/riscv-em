@@ -16,5 +16,19 @@ Copyright 2025 Spalishe
 */
 
 #pragma once
+#include "cpu.h"
+
+struct HART;
 
 extern int jit_init();
+
+using BlockFn = void(*)(HART*);
+BlockFn jit_create_block(HART* hart, std::vector<CACHE_Instr>& instrs);
+
+struct OptUInt64 {
+    bool has_value;
+    uint64_t value;
+};
+
+extern bool dram_jit_store(HART* hart, uint64_t addr, uint64_t size, uint64_t value);
+extern OptUInt64 dram_jit_load(HART* hart, uint64_t addr, uint64_t size);

@@ -103,6 +103,8 @@ bool image_has = false;
 bool testing_enabled = false; // This must be enabled only if cpu testing required. For this to work, you need to compile https://github.com/riscv-software-src/riscv-tests
 std::vector<std::string> testing_files;
 
+bool nojit = false;
+
 fdt_node* fdt; 
 
 HART* hart;
@@ -331,7 +333,7 @@ void reset() {
 		hart->cpu_readfile(file, DRAM_BASE,false);
 	}
 
-	hart->cpu_start(debug,dtb_path_in_memory);
+	hart->cpu_start(debug,dtb_path_in_memory,nojit);
 }
 
 int main(int argc, char* argv[]) {
@@ -346,10 +348,9 @@ int main(int argc, char* argv[]) {
 	parser.addArgument("--dumpdtb", "Dumps auto-generated FDT to file",false,false,Argparser::ArgumentType::str);
 	parser.addArgument("--debug", "Enables DEBUG mode", false, false, Argparser::ArgumentType::def);
 	parser.addArgument("--tests", "Enables TESTING mode(dev only)", false, false, Argparser::ArgumentType::def);
+	parser.addArgument("--nojit", "Disables JIT(for debugging, SLOW)", false, false, Argparser::ArgumentType::def);
 
 	parser.parse();
-
-	jit_init();
 
 	kernel_has = parser.getDefined(1);
 	if(kernel_has) 
@@ -393,6 +394,8 @@ int main(int argc, char* argv[]) {
 
 		std::cout << "[TESTING] CPU will iterate over " << i << " files" << std::endl;	
 	}
+	nojit = parser.getDefined(7);
+	if(!nojit) jit_init();
 
 	bool file_has = parser.getDefined(0);
 	if(file_has) {
@@ -471,7 +474,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	if(!testing_enabled) {
-		hart->cpu_start(debug,dtb_path_in_memory);
+		hart->cpu_start(debug,dtb_path_in_memory,nojit);
 	} else {
 		std::vector<std::string> failed;
 		int succeded = 0;

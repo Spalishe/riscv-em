@@ -25,6 +25,8 @@ Copyright 2025 Spalishe
 #include <unordered_map>
 #include <tuple>
 
+#include "llvm/IR/IRBuilder.h"
+
 struct MMIO;
 
 struct HART;
@@ -34,18 +36,21 @@ struct CACHE_DecodedOperands {
     bool s = false;
     uint8_t rd, rs1, rs2;
     uint32_t imm;
+
+    llvm::FunctionCallee loadFunc;
+    llvm::FunctionCallee storeFunc;
 };
 struct CACHE_Instr {
-    void (*fn)(HART*, uint32_t, CACHE_DecodedOperands* opers);
+    void (*fn)(HART*, uint32_t, CACHE_DecodedOperands*, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>*);
     bool incr;
     bool j;
     uint32_t inst;
     CACHE_DecodedOperands oprs;
 };
 
+using BlockFn = void(*)(HART*);
+
 struct HART {
-    DRAM dram;
-    MMIO* mmio;
     uint64_t regs[32];
     uint64_t pc;
     uint64_t virt_pc;
@@ -59,10 +64,12 @@ struct HART {
 	uint64_t breakpoint;
 	uint8_t id;
     
+    bool jit_enabled = true;
     bool block_enabled = true;
 
     std::vector<CACHE_Instr> instr_block; // instruction function, instruction itself
     std::unordered_map<uint64_t, std::vector<CACHE_Instr>> instr_block_cache; // as key put PC
+    std::unordered_map<uint64_t, BlockFn> instr_block_cache_jit; // as key put PC
     
 	bool stopexec;
 
@@ -73,8 +80,10 @@ struct HART {
 	uint64_t reservation_value;
 	bool reservation_valid;
 	uint8_t reservation_size;
+    DRAM dram;
+    MMIO* mmio;
 
-    void cpu_start(bool debug, uint64_t dtb_path);
+    void cpu_start(bool debug, uint64_t dtb_path, bool nojit);
     int cpu_start_testing();
     uint32_t cpu_fetch();
     void cpu_loop();

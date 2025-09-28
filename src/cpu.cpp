@@ -23,6 +23,7 @@ Copyright 2025 Spalishe
 #include "../include/opcodes.h"
 #include "../include/instset.h"
 #include "../include/csr.h"
+#include "../include/jit_h.hpp"
 #include "../include/devices/plic.hpp"
 #include <cstdio>
 #include <cstdarg>
@@ -58,7 +59,7 @@ void HART::print_d(const std::string& fmt, ...) {
 	}
 }
 
-void HART::cpu_start(bool debug, uint64_t dtb_path) {
+void HART::cpu_start(bool debug, uint64_t dtb_path, bool nojit) {
 	for(int i=0; i<32; i++) regs[i] = 0;
 	for(int i=0; i<4069; i++) csrs[i] = 0;
 	regs[0] = 0x00;
@@ -69,6 +70,8 @@ void HART::cpu_start(bool debug, uint64_t dtb_path) {
 	dbg     = debug;
 
 	id = 0;
+
+	jit_enabled = !nojit;
 
 	stopexec = false;
 	regs[10] = id;
@@ -102,7 +105,9 @@ int HART::cpu_start_testing() {
 	testing = true;
 	trap_active = false;
 	trap_notify = false;
-	block_enabled = false;
+	//block_enabled = false;
+	instr_block_cache_jit.clear();
+	instr_block.clear();
 	for(int i=0; i<32; i++) regs[i] = 0;
 	for(int i=0; i<4069; i++) csrs[i] = 0;
 	regs[0] = 0x00;
@@ -359,8 +364,8 @@ void HART::cpu_loop() {
 				std::istringstream iss(line);
 				std::getline(iss, ignore, ' ');
 				std::getline(iss, reg, ' ');
-				if(reg == "" || reg == " " || std::stoi(reg) < 0 || std::stoi(reg) > 1971) {
-					std::cout << "Specify a csr from 0 to 1971" << std::endl;
+				if(reg == "" || reg == " " || std::stoi(reg) < 0 || std::stoi(reg) > 4096) {
+					std::cout << "Specify a csr from 0 to 4096" << std::endl;
 					continue;
 				} else {
 					std::cout << "CSR " << std::stoi(reg) << ": " << csrs[std::stoi(reg)] << std::endl;
@@ -374,8 +379,8 @@ void HART::cpu_loop() {
 				std::getline(iss, ignore, ' ');
 				std::getline(iss, reg, ' ');
 				std::getline(iss, value, ' ');
-				if(reg == "" || reg == " " || std::stoi(reg) < 0 || std::stoi(reg) > 1971) {
-					std::cout << "Specify a csr from 0 to 1971" << std::endl;
+				if(reg == "" || reg == " " || std::stoi(reg) < 0 || std::stoi(reg) > 4096) {
+					std::cout << "Specify a csr from 0 to 4096" << std::endl;
 					continue;
 				} else {
 					csrs[std::stoi(reg)] = std::stoi(value);
@@ -403,13 +408,16 @@ void HART::cpu_execute(uint32_t inst) {
 	void (*fn)(HART*, uint32_t);
 
 	auto it1 = instr_block_cache.find(pc);
-
-	if(it1 != instr_block_cache.end()) {
+	auto it2 = instr_block_cache_jit.find(pc);
+	if(jit_enabled && it2 != instr_block_cache_jit.end()) {
+		instr_block_cache_jit[pc](this);
+		virt_pc = pc;
+	} else if(!jit_enabled && it1 != instr_block_cache.end()) {
 		for(auto &in : instr_block_cache[pc]) {
 			auto [fn_b, __1,__2,inst_b,oprs] = in;
 			(void)__1; (void)__2; // unused
 			if(trap_notify) {trap_notify = false;}
-			fn_b(this,inst_b,&oprs);
+			fn_b(this,inst_b,&oprs,NULL);
 			if(trap_notify) {trap_notify = false; break;}
 			pc += ((inst_b & 3) == 3 ? 4 : 2);
 			csrs[CYCLE] += 1;
@@ -426,30 +434,39 @@ void HART::cpu_execute(uint32_t inst) {
 			} else {
 				if(instr_block.size() > 0) {
 					auto cp = instr_block;
-					instr_block_cache[pc] = cp;
-					for(auto &in : instr_block) {
-						auto [fn_b, __1,__2,inst_b,oprs] = in;
-						(void)__1; (void)__2; // unused
-						if(trap_notify) {trap_notify = false;}
-						fn_b(this,inst_b,&oprs);
-						if(trap_notify) {trap_notify = false; break;}
-						pc += ((inst_b & 3) == 3 ? 4 : 2);
-						csrs[CYCLE] += 1;
-						regs[0] = 0;
+					if(jit_enabled) {
+						BlockFn jfn = jit_create_block(this,cp);
+						instr_block_cache_jit[pc] = jfn;
+						jfn(this);
+					} else {
+						instr_block_cache[pc] = cp;
+						for(auto &in : instr_block) {
+							auto [fn_b, __1,__2,inst_b,oprs] = in;
+							(void)__1; (void)__2; // unused
+							if(trap_notify) {trap_notify = false;}
+							fn_b(this,inst_b,&oprs,NULL);
+							if(trap_notify) {trap_notify = false; break;}
+							pc += ((inst_b & 3) == 3 ? 4 : 2);
+							csrs[CYCLE] += 1;
+							regs[0] = 0;
+						}
 					}
 					instr_block.clear();
 				}
-				fn(this,inst,&oprs);
+				fn(this,inst,&oprs,NULL);
 				if(incr) {pc += (OP == 3 ? 4 : 2);}
 				virt_pc = pc;
+
+				csrs[CYCLE] += 1;
+				regs[0] = 0;
 			}
 		} else {
-			fn(this,inst,&oprs);
+			fn(this,inst,&oprs,NULL);
 			if(incr) {pc += (OP == 3 ? 4 : 2);}
-		}
 
-		csrs[CYCLE] += 1;
-		regs[0] = 0;
+			csrs[CYCLE] += 1;
+			regs[0] = 0;
+		}
 	}
 }
 uint64_t HART::cpu_readfile(std::string path, uint64_t addr, bool bigendian) {

@@ -86,7 +86,7 @@ CACHE_Instr parse_instruction(struct HART* hart, uint32_t inst) {
 	int OP = inst & 3;
 	bool increase = true;
 	bool junction = false;
-	void (*fn)(HART*, uint32_t, CACHE_DecodedOperands* opers);
+	void (*fn)(HART*, uint32_t, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*,llvm::Function*,llvm::Value*>*);
 
 	auto it1 = instr_cache.find(inst);
     if(it1 != instr_cache.end()) {
