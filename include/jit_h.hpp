@@ -21,6 +21,7 @@ Copyright 2025 Spalishe
 struct HART;
 
 extern int jit_init();
+extern void jit_reset();
 
 using BlockFn = void(*)(HART*);
 BlockFn jit_create_block(HART* hart, std::vector<CACHE_Instr>& instrs);
@@ -29,6 +30,17 @@ struct OptUInt64 {
     bool has_value;
     uint64_t value;
 };
+struct DRAMJITSTORE_ARGS {
+    uint64_t hart;
+    uint64_t addr;
+    uint64_t size;
+    uint64_t value;
+};
+struct DRAMJITLOAD_ARGS {
+    uint64_t hart;
+    uint64_t addr;
+    uint64_t size;
+};
 
-extern bool dram_jit_store(HART* hart, uint64_t addr, uint64_t size, uint64_t value);
-extern OptUInt64 dram_jit_load(HART* hart, uint64_t addr, uint64_t size);
+extern "C" bool dram_jit_store(DRAMJITSTORE_ARGS* args);
+extern "C" OptUInt64 dram_jit_load(DRAMJITLOAD_ARGS* args);

@@ -486,6 +486,7 @@ int main(int argc, char* argv[]) {
 			std::cout << "[TESTING] Executing file " << val << "... ";
 			hart->cpu_readfile(val, DRAM_BASE,false);
 			int out = hart->cpu_start_testing();
+			jit_reset();
 			if(out != 0) {
 				std::cout << "[\033[31mFAIL\033[0m] A0 = " << out << std::endl;	
 				failed.push_back(val);

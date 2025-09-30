@@ -18,7 +18,10 @@ Copyright 2025 Spalishe
 #include "../../include/jit_h.hpp"
 #include "../../include/cpu.h"
 #include "../../include/main.hpp"
+#include <llvm/ExecutionEngine/Orc/LLJIT.h>
+#include <llvm/ExecutionEngine/Orc/ExecutionUtils.h>
 #include <tuple>
+#include <stdio.h>
 
 using namespace llvm;
 using namespace llvm::orc;
@@ -34,12 +37,30 @@ llvm::FunctionCallee loadFunc;
 llvm::FunctionCallee storeFunc;
 llvm::FunctionCallee trapFunc;
 
-OptUInt64 dram_jit_load(HART* hart, uint64_t addr, uint64_t size) {
-	std::optional<uint64_t> val = hart->mmio->load(hart,addr,size);
+extern "C" OptUInt64 dram_jit_load(DRAMJITLOAD_ARGS* args) {
+    HART* hart = reinterpret_cast<HART*>(args->hart);
+	std::optional<uint64_t> val = hart->mmio->load(hart,args->addr,args->size);
     return OptUInt64{val.has_value(), *val};
 }
-bool dram_jit_store(HART* hart, uint64_t addr, uint64_t size, uint64_t value) {
+extern "C" bool dram_jit_store(DRAMJITSTORE_ARGS* args) {
+    // For some reason LLVM shifts down indexes of variables, so there is workaround
+    bool isShifted = args->value <= 64 && args->size > 64;
+    HART* hart = reinterpret_cast<HART*>(args->hart);
+    uint64_t addr = args->addr;
+    uint64_t size = args->size;
+    uint64_t value = args->value;
+    if(isShifted) {
+        hart = reinterpret_cast<HART*>(args->addr);
+        addr = args->size;
+        size = args->value;
+        value = args->hart;
+    }
 	return hart->mmio->store(hart,addr,size,value);
+}
+
+void jit_reset() {
+    jit->getMainJITDylib().clear();
+    jit_init();
 }
 
 int jit_init() {
@@ -53,6 +74,22 @@ int jit_init() {
         return 1;
     }
     jit = std::move(*jit1);
+
+    JITDylib &jd = jit->getMainJITDylib();
+    ExecutionSession &es = jit->getExecutionSession();
+
+
+    MangleAndInterner mangle(es, jit->getDataLayout());
+
+    // SymbolMap: SymbolStringPtr -> ExecutorSymbolDef
+    SymbolMap symbols;
+
+    ExecutorAddr addr_store(reinterpret_cast<JITTargetAddress>(&dram_jit_store));
+    symbols[mangle("dram_jit_store")] = ExecutorSymbolDef(addr_store, JITSymbolFlags::Exported);
+    ExecutorAddr addr_load(reinterpret_cast<JITTargetAddress>(&dram_jit_load));
+    symbols[mangle("dram_jit_load")] = ExecutorSymbolDef(addr_load, JITSymbolFlags::Exported);
+
+    cantFail(jd.define(absoluteSymbols(std::move(symbols))));
 
     // Define HART struct in LLVM
 
@@ -95,12 +132,12 @@ int jit_init() {
     optStructTy = llvm::StructType::create(context, {i64Ty,i1Ty}, "OptUInt64");
         
     // load
-    std::vector<llvm::Type*> loadArgs = { llvm::PointerType::getUnqual(hartStructTy), i64Ty, i64Ty };
+    std::vector<llvm::Type*> loadArgs = { i64Ty, i64Ty, i64Ty };
     llvm::FunctionType* loadTy = llvm::FunctionType::get(optStructTy, loadArgs, false);
     loadFunc = module->getOrInsertFunction("dram_jit_load", loadTy);
 
     // store
-    std::vector<llvm::Type*> storeArgs = { llvm::PointerType::getUnqual(hartStructTy), i64Ty, i64Ty, i64Ty };
+    std::vector<llvm::Type*> storeArgs = { i64Ty, i64Ty, i64Ty, i64Ty };
     llvm::FunctionType* storeTy = llvm::FunctionType::get(i1Ty, storeArgs, false);
     storeFunc = module->getOrInsertFunction("dram_jit_store", storeTy);
 
@@ -121,7 +158,29 @@ BlockFn jit_create_block(HART* hart, std::vector<CACHE_Instr>& instrs) {
     try {
         auto ctx = std::make_unique<llvm::LLVMContext>();
         auto module = std::make_unique<llvm::Module>("jit_module", *ctx);
-        
+
+        llvm::Type* i1Ty = llvm::Type::getInt1Ty(*ctx);
+        llvm::Type* i64Ty = llvm::Type::getInt64Ty(*ctx);
+        llvm::Type* voidTy = llvm::Type::getVoidTy(*ctx);
+        auto l_optStructTy = llvm::StructType::create(*ctx, {i1Ty,i64Ty}, "OptUInt64");
+        auto l_dramjitstoreargsTy = llvm::StructType::create(*ctx, {i64Ty,i64Ty,i64Ty,i64Ty}, "DRAMJITSTORE_ARGS");
+        auto l_dramjitloadargsTy = llvm::StructType::create(*ctx, {i64Ty,i64Ty,i64Ty}, "DRAMJITLOAD_ARGS");
+        std::vector<Type*> elements = {
+            i64Ty, // hart
+            i64Ty, // addr
+            i64Ty, // size  
+            i64Ty  // value
+        };
+        l_dramjitstoreargsTy->setBody(elements);
+
+        std::vector<llvm::Type*> loadArgs = { PointerType::get(l_dramjitloadargsTy,0) };
+        llvm::FunctionType* loadTy = llvm::FunctionType::get(l_optStructTy, loadArgs, false);
+        llvm::FunctionCallee l_loadFunc = module->getOrInsertFunction("dram_jit_load", loadTy);
+
+        std::vector<llvm::Type*> storeArgs = { PointerType::get(l_dramjitstoreargsTy,0) };
+        llvm::FunctionType* storeTy = llvm::FunctionType::get(i1Ty, storeArgs, false);
+        llvm::FunctionCallee l_storeFunc = module->getOrInsertFunction("dram_jit_store", storeTy);
+
         auto* funcType = llvm::FunctionType::get(
             llvm::Type::getVoidTy(*ctx),
             { llvm::PointerType::get(hartStructTy,0) },
@@ -135,19 +194,6 @@ BlockFn jit_create_block(HART* hart, std::vector<CACHE_Instr>& instrs) {
             funcName,
             module.get()
         );
-
-        llvm::Type* i1Ty = llvm::Type::getInt1Ty(*ctx);
-        llvm::Type* i64Ty = llvm::Type::getInt64Ty(*ctx);
-        llvm::Type* voidTy = llvm::Type::getVoidTy(*ctx);
-        auto l_optStructTy = llvm::StructType::create(*ctx, {i64Ty,i1Ty}, "OptUInt64");
-
-        std::vector<llvm::Type*> loadArgs = { llvm::PointerType::getUnqual(hartStructTy), i64Ty, i64Ty };
-        llvm::FunctionType* loadTy = llvm::FunctionType::get(l_optStructTy, loadArgs, false);
-        llvm::FunctionCallee l_loadFunc = module->getOrInsertFunction("dram_jit_load",loadTy);
-
-        std::vector<llvm::Type*> storeArgs = { llvm::PointerType::getUnqual(hartStructTy), i64Ty, i64Ty, i64Ty };
-        llvm::FunctionType* storeTy = llvm::FunctionType::get(i1Ty, storeArgs, false);
-        llvm::FunctionCallee l_storeFunc = module->getOrInsertFunction("dram_jit_store",storeTy);
 
         auto* entryBB = llvm::BasicBlock::Create(*ctx, "entry", func);
         llvm::IRBuilder<> builder(entryBB);
@@ -166,6 +212,10 @@ BlockFn jit_create_block(HART* hart, std::vector<CACHE_Instr>& instrs) {
             i++;
             instr.oprs.loadFunc = l_loadFunc;
             instr.oprs.storeFunc = l_storeFunc;
+            instr.oprs.types[0] = l_optStructTy;
+            instr.oprs.types[1] = l_dramjitstoreargsTy;
+            instr.oprs.types[2] = l_dramjitloadargsTy;
+            
             instr.fn(hart, instr.inst, &instr.oprs, &tpl);
 
             builder.CreateStore(builder.getInt64(hart->pc + 4*i),pcPtr);

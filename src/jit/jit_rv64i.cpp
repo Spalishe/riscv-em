@@ -54,7 +54,7 @@ void jit_RTYPE(HART* hart, CACHE_DecodedOperands* cache, IRBuilder<>* builder, l
         case 4: sum = builder->CreateAnd(val1, val2); break; // AND
     }
     if(isW) {
-        sum = builder->CreateSExt(sum,int32ptr);
+        sum = builder->CreateTrunc(sum,int32ptr);
     }
 
     // store in rd
@@ -81,12 +81,7 @@ void jit_RTYPE_SHIFT(HART* hart, CACHE_DecodedOperands* cache, IRBuilder<>* buil
         val2 = builder->CreateTrunc(val2, int32ptr);
         val2 = builder->CreateAnd(val2,(Value*)0x1F);
     } else {
-        if(type == 0) {
-            val2 = builder->CreateSExt(val2,i64Ty);
-        } else if(type == 2) {
-            val1 = builder->CreateTrunc(val1,int32ptr);
-            val2 = builder->CreateSExt(val2,i64Ty);
-        }
+        val2 = builder->CreateSExt(val2,i64Ty);
     }
 
     llvm::Value* sum = nullptr;
@@ -97,7 +92,7 @@ void jit_RTYPE_SHIFT(HART* hart, CACHE_DecodedOperands* cache, IRBuilder<>* buil
     }
     if(isW) {
         if(type == 0 || type == 1) {
-            sum = builder->CreateSExt(sum,int32ptr);
+            sum = builder->CreateTrunc(sum,int32ptr);
         } else {
             sum = builder->CreateSExt(sum,i64Ty);
         }
@@ -230,6 +225,7 @@ void jit_ITYPE_SLT(HART* hart, CACHE_DecodedOperands* cache, IRBuilder<>* builde
 void jit_ITYPE_L(HART* hart, CACHE_DecodedOperands* cache, IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr, uint8_t type) {
     llvm::Type* i64Ty = llvm::Type::getInt64Ty(context);
     llvm::Type* i32Ty = llvm::Type::getInt32Ty(context);
+    llvm::Type* i1Ty = llvm::Type::getInt1Ty(context);
 
     llvm::Value* regsPtr = builder->CreateStructGEP(hartStructTy, hartPtr, 0); // HART->regs
 
@@ -248,23 +244,30 @@ void jit_ITYPE_L(HART* hart, CACHE_DecodedOperands* cache, IRBuilder<>* builder,
 
     llvm::Value* res = nullptr;
     llvm::Value* size = llvm::ConstantInt::get(i64Ty, 8, true);
-    if(type == 2 || type == 3) llvm::ConstantInt::get(i64Ty, 16, true);
-    if(type == 4 || type == 5) llvm::ConstantInt::get(i64Ty, 32, true);
+    if(type == 2 || type == 3) size = llvm::ConstantInt::get(i64Ty, 16, true);
+    if(type == 4 || type == 5) size = llvm::ConstantInt::get(i64Ty, 32, true);
     if(type == 6) size = llvm::ConstantInt::get(i64Ty, 64, true);
-    llvm::Value* loadst = builder->CreateCall(cache->loadFunc, {hartPtr, sum, size});
 
-    llvm::Value* hasValuePtr = builder->CreateStructGEP(optStructTy, loadst, 0);
-    llvm::Value* hasValue = builder->CreateLoad(builder->getInt1Ty(), hasValuePtr);
+    AllocaInst* structPtr = builder->CreateAlloca(cache->types[2], nullptr);
 
-    llvm::Value* valuePtr = builder->CreateStructGEP(optStructTy, loadst, 1);
-    llvm::Value* value = builder->CreateLoad(builder->getInt64Ty(), valuePtr);
+    Value* field0Ptr = builder->CreateStructGEP(cache->types[2], structPtr, 0);
+    builder->CreateStore(builder->getInt64((uint64_t)hart),field0Ptr);
+    Value* field1Ptr = builder->CreateStructGEP(cache->types[2], structPtr, 1);
+    builder->CreateStore(sum,field1Ptr);
+    Value* field2Ptr = builder->CreateStructGEP(cache->types[2], structPtr, 2);
+    builder->CreateStore(size,field2Ptr);
+
+    llvm::Value* loadst = builder->CreateCall(cache->loadFunc, {structPtr});
+
+    llvm::Value* hasValue = builder->CreateExtractValue(loadst, {0});
+    llvm::Value* value = builder->CreateExtractValue(loadst, {1});
 
     switch(type) {
-        case 0: res = builder->CreateSExt(builder->CreateSExt(value,int8ptr),i64Ty); break; // LB
-        case 2: res = builder->CreateSExt(builder->CreateSExt(value,int16ptr),i64Ty); break; // LH
-        case 4: res = builder->CreateSExt(builder->CreateSExt(value,int32ptr),i64Ty); break; // LW
+        case 0: res = builder->CreateSExt(builder->CreateTrunc(value,int8ptr),i64Ty); break; // LB
+        case 2: res = builder->CreateSExt(builder->CreateTrunc(value,int16ptr),i64Ty); break; // LH
+        case 4: res = builder->CreateSExt(builder->CreateTrunc(value,int32ptr),i64Ty); break; // LW
         case 6: res = builder->CreateSExt(value,i64Ty); break; // LD
-        default: res = builder->CreateZExt(value,i64Ty);
+        default: res = value; break;
     }
 
     llvm::BasicBlock* thenBB = llvm::BasicBlock::Create(context, "has_value", currentFunc);
@@ -290,29 +293,46 @@ void jit_ITYPE_L(HART* hart, CACHE_DecodedOperands* cache, IRBuilder<>* builder,
 void jit_STORE(HART* hart, CACHE_DecodedOperands* cache, IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr, uint8_t type) {
     llvm::Type* i64Ty = llvm::Type::getInt64Ty(context);
     llvm::Type* i32Ty = llvm::Type::getInt32Ty(context);
+    llvm::Type* i1Ty = llvm::Type::getInt1Ty(context);
 
     llvm::Value* regsPtr = builder->CreateStructGEP(hartStructTy, hartPtr, 0); // HART->regs
 
     llvm::Value* rs1Ptr = builder->CreateGEP(i64Ty, regsPtr, builder->getInt32(cache->rs1));
     llvm::Value* rs2Ptr = builder->CreateGEP(i64Ty, regsPtr, builder->getInt32(cache->rs2));
-    llvm::Value* val2 = ConstantInt::get(i32Ty, (int32_t)cache->imm,true);
+    llvm::Value* val2 = ConstantInt::get(i32Ty,(int32_t)cache->imm,true);
+    val2 = builder->CreateSExt(val2,i64Ty);
 
     auto int8ptr = llvm::Type::getInt8Ty(context);
     auto int16ptr = llvm::Type::getInt16Ty(context);
     auto int32ptr = llvm::Type::getInt32Ty(context);
     // load values from rs1 and rs2
     llvm::Value* val1 = builder->CreateLoad(i64Ty, rs1Ptr);
-    val2 = builder->CreateSExt(val2,i64Ty);
     llvm::Value* val3 = builder->CreateLoad(i64Ty, rs2Ptr);
     llvm::Value* sum = builder->CreateAdd(val1, val2);
+    sum = builder->CreateIntCast(sum,i64Ty,true);
+    llvm::Value* res = builder->getInt1(1);
 
-    llvm::Value* res = nullptr;
+    llvm::Value* size = builder->getInt64(8);
     switch(type) {
-        case 0: res = builder->CreateCall(cache->storeFunc, {hartPtr, sum, llvm::ConstantInt::get(i64Ty, 8, true),val3}); break; // SB
-        case 1: res = builder->CreateCall(cache->storeFunc, {hartPtr, sum, llvm::ConstantInt::get(i64Ty, 16, true),val3}); break; // SH
-        case 2: res = builder->CreateCall(cache->storeFunc, {hartPtr, sum, llvm::ConstantInt::get(i64Ty, 32, true),val3}); break; // SW
-        case 3: res = builder->CreateCall(cache->storeFunc, {hartPtr, sum, llvm::ConstantInt::get(i64Ty, 64, true),val3}); break; // SD
+        case 0: size = builder->getInt64(8); break;
+        case 1: size = builder->getInt64(16); break;
+        case 2: size = builder->getInt64(32); break;
+        case 3: size = builder->getInt64(64); break;
     }
+
+    AllocaInst* structPtr = builder->CreateAlloca(cache->types[1], nullptr);
+
+    // For some reason LLVM shifts down indexes of variables
+    Value* field0Ptr = builder->CreateStructGEP(cache->types[1], structPtr, 0);
+    builder->CreateStore(builder->getInt64((uint64_t)hart),field0Ptr);
+    Value* field1Ptr = builder->CreateStructGEP(cache->types[1], structPtr, 1);
+    builder->CreateStore(sum,field1Ptr);
+    Value* field2Ptr = builder->CreateStructGEP(cache->types[1], structPtr, 2);
+    builder->CreateStore(size,field2Ptr);
+    Value* field3Ptr = builder->CreateStructGEP(cache->types[1], structPtr, 3);
+    builder->CreateStore(val3,field3Ptr);
+
+    res = builder->CreateCall(cache->storeFunc, {structPtr});
 
     llvm::BasicBlock* thenBB = llvm::BasicBlock::Create(context, "has_value", currentFunc);
     llvm::BasicBlock* elseBB = llvm::BasicBlock::Create(context, "no_value", currentFunc);
@@ -340,7 +360,7 @@ void jit_UTYPE(HART* hart, CACHE_DecodedOperands* cache, IRBuilder<>* builder, l
     llvm::Value* pcPtr = builder->CreateStructGEP(hartStructTy, hartPtr, 1); // HART->pc
 
     llvm::Value* val1 = ConstantInt::get(i32Ty, cache->imm,true);
-    val1 = builder->CreateSExt(val1, i32Ty);
+    val1 = builder->CreateSExt(val1, i64Ty);
     llvm::Value* rdPtr  = builder->CreateGEP(i64Ty, regsPtr, builder->getInt32(cache->rd));
 
     llvm::Value* shl = builder->CreateSExt(builder->CreateShl(val1, builder->getInt32(12)),i64Ty);

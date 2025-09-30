@@ -39,6 +39,8 @@ struct CACHE_DecodedOperands {
 
     llvm::FunctionCallee loadFunc;
     llvm::FunctionCallee storeFunc;
+    
+    std::unordered_map<uint8_t,llvm::StructType*> types;
 };
 struct CACHE_Instr {
     void (*fn)(HART*, uint32_t, CACHE_DecodedOperands*, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>*);
