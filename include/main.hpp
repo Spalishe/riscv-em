@@ -20,6 +20,6 @@ Copyright 2025 Spalishe
 #include "devices/mmio.h"
 
 void reset();
-void poweroff();
+void poweroff(bool ctrlc);
 extern MemoryMap memmap;
 extern MMIO* mmio;

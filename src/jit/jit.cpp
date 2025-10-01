@@ -59,7 +59,10 @@ extern "C" bool dram_jit_store(DRAMJITSTORE_ARGS* args) {
 }
 
 void jit_reset() {
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wunused-result"
     jit->getMainJITDylib().clear();
+    #pragma GCC diagnostic pop
     jit_init();
 }
 

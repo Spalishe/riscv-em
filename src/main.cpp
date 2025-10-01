@@ -254,7 +254,8 @@ void add_devices_and_map() {
 					if (n > 0) {
 						// Ctrl+Alt+C
 						if (n >= 2 && buf[0] == 0x1B && buf[1] == 0x03) {
-							poweroff();
+							poweroff(true);
+							break;
 						}
 						else {
 							for (int i = 0; i < n; i++) {
@@ -285,18 +286,21 @@ void add_devices_and_map() {
 	}
 }
 
-void poweroff() {
+void poweroff(bool ctrlc) {
 	kb_running = false;
-	if (kb_t.joinable())
-		kb_t.join();
+	if(!ctrlc) {
+		if (kb_t.joinable())
+			kb_t.join();
+	} else kb_t.detach();
 	clint->stop_timer_thread();
-	exit(0);
+	std::_Exit(1);
 }
 
 void reset() {
 	kb_running = false;
 	if (kb_t.joinable())
-        kb_t.join();
+		kb_t.join();
+	kb_t.detach();
 	clint->stop_timer_thread();
 	
 	fdt_node_free(fdt);
@@ -516,6 +520,7 @@ int main(int argc, char* argv[]) {
 		kb_running = false;
 		if (kb_t.joinable())
 			kb_t.join();
+		kb_t.detach();
 		clint->stop_timer_thread();
 		
 		exit(0);

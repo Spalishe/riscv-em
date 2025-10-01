@@ -414,17 +414,25 @@ void HART::cpu_execute(uint32_t inst) {
 	if(jit_enabled && it2 != instr_block_cache_jit.end()) {
 		instr_block_cache_jit[pc](this);
 		virt_pc = pc;
-	} else if(!jit_enabled && it1 != instr_block_cache.end()) {
-		for(auto &in : instr_block_cache[pc]) {
-			auto [fn_b, __1,__2,inst_b,oprs] = in;
-			(void)__1; (void)__2; // unused
-			if(trap_notify) {trap_notify = false;}
-			fn_b(this,inst_b,&oprs,NULL);
-			if(trap_notify) {trap_notify = false; break;}
-			pc += ((inst_b & 3) == 3 ? 4 : 2);
-			csrs[CYCLE] += 1;
-			regs[0] = 0;
+	} else if(it1 != instr_block_cache.end()) {
+		uint64_t pc_v = pc;
+		if(instr_block_cache_count_executed[pc_v] > BLOCK_EXECUTE_COUNT_TO_JIT && jit_enabled){
+			BlockFn jfn = jit_create_block(this,instr_block_cache[pc_v]);
+			instr_block_cache_jit[pc_v] = jfn;
+			jfn(this);
+		} else {
+			for(auto &in : instr_block_cache[pc]) {
+				auto [fn_b, __1,__2,inst_b,oprs] = in;
+				(void)__1; (void)__2; // unused
+				if(trap_notify) {trap_notify = false;}
+				fn_b(this,inst_b,&oprs,NULL);
+				if(trap_notify) {trap_notify = false; break;}
+				pc += ((inst_b & 3) == 3 ? 4 : 2);
+				csrs[CYCLE] += 1;
+				regs[0] = 0;
+			}
 		}
+		instr_block_cache_count_executed[pc_v] += 1;
 		virt_pc = pc;
 	} else {
 		CACHE_Instr instr = parse_instruction(this,inst);
@@ -436,22 +444,17 @@ void HART::cpu_execute(uint32_t inst) {
 			} else {
 				if(instr_block.size() > 0) {
 					auto cp = instr_block;
-					if(jit_enabled) {
-						BlockFn jfn = jit_create_block(this,cp);
-						instr_block_cache_jit[pc] = jfn;
-						jfn(this);
-					} else {
-						instr_block_cache[pc] = cp;
-						for(auto &in : instr_block) {
-							auto [fn_b, __1,__2,inst_b,oprs] = in;
-							(void)__1; (void)__2; // unused
-							if(trap_notify) {trap_notify = false;}
-							fn_b(this,inst_b,&oprs,NULL);
-							if(trap_notify) {trap_notify = false; break;}
-							pc += ((inst_b & 3) == 3 ? 4 : 2);
-							csrs[CYCLE] += 1;
-							regs[0] = 0;
-						}
+					instr_block_cache[pc] = cp;
+					instr_block_cache_count_executed[pc] = 1;
+					for(auto &in : instr_block) {
+						auto [fn_b, __1,__2,inst_b,oprs] = in;
+						(void)__1; (void)__2; // unused
+						if(trap_notify) {trap_notify = false;}
+						fn_b(this,inst_b,&oprs,NULL);
+						if(trap_notify) {trap_notify = false; break;}
+						pc += ((inst_b & 3) == 3 ? 4 : 2);
+						csrs[CYCLE] += 1;
+						regs[0] = 0;
 					}
 					instr_block.clear();
 				}

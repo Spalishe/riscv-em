@@ -273,7 +273,7 @@ CACHE_Instr parse_instruction(struct HART* hart, uint32_t inst) {
                                 case 1: fn = exec_EBREAK; junction = true; break;
                                 case 261: fn = exec_WFI; junction = true; break;
                                 case 258: fn = exec_SRET; increase = false; junction = true; break;
-                                case 288: fn = exec_SFENCE_VMA; break;
+                                case 288: fn = exec_SFENCE_VMA; junction = true; break;
                                 case 770: fn = exec_MRET; increase = false; junction = true; break;
                             }; break;
                     }; break;
