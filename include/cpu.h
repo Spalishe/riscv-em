@@ -71,6 +71,7 @@ struct HART {
 
     std::vector<CACHE_Instr> instr_block; // instruction function, instruction itself
     std::unordered_map<uint64_t, std::vector<CACHE_Instr>> instr_block_cache; // as key put PC
+    std::unordered_map<uint64_t, uint64_t> instr_block_cache_count_executed; // as key put PC
     std::unordered_map<uint64_t, BlockFn> instr_block_cache_jit; // as key put PC
     
 	bool stopexec;
@@ -86,7 +87,7 @@ struct HART {
     MMIO* mmio;
 
     void cpu_start(bool debug, uint64_t dtb_path, bool nojit);
-    int cpu_start_testing();
+    int cpu_start_testing(bool nojit);
     uint32_t cpu_fetch();
     void cpu_loop();
     void cpu_execute(uint32_t inst);

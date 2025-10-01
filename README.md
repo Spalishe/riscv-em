@@ -56,12 +56,12 @@ You can install all required dependencies using:
 
 Arch:
 ```bash
-sudo pacman -S cmake make gcc
+sudo pacman -S cmake make gcc llvm
 ```
 
 Ubuntu:
 ```bash
-sudo apt install cmake make gcc
+sudo apt install cmake make gcc llvm
 ```
 
 ## License

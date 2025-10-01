@@ -43,7 +43,8 @@ struct UART : public Device {
     int irq_num;
     bool dlab = false;    // Divisor Latch Access Bit (from LCR[7])
 
-    std::queue<uint8_t> rx_buffer;
+    bool fifo_enabled;
+    std::queue<uint8_t> fifo_buffer;
 
     UART(uint64_t base, DRAM& ram, PLIC* plic, int irq_num, fdt_node* fdt, uint8_t hartcount);
 

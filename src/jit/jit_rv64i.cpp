@@ -55,6 +55,7 @@ void jit_RTYPE(HART* hart, CACHE_DecodedOperands* cache, IRBuilder<>* builder, l
     }
     if(isW) {
         sum = builder->CreateTrunc(sum,int32ptr);
+        sum = builder->CreateSExt(sum, i64Ty);
     }
 
     // store in rd
@@ -62,6 +63,7 @@ void jit_RTYPE(HART* hart, CACHE_DecodedOperands* cache, IRBuilder<>* builder, l
 }
 void jit_RTYPE_SHIFT(HART* hart, CACHE_DecodedOperands* cache, IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr, uint8_t type, bool isW) {
     llvm::Type* i64Ty = llvm::Type::getInt64Ty(context);
+    llvm::Type* i32Ty = llvm::Type::getInt32Ty(context);
 
     llvm::Value* regsPtr = builder->CreateStructGEP(hartStructTy, hartPtr, 0); // HART->regs
 
@@ -69,17 +71,14 @@ void jit_RTYPE_SHIFT(HART* hart, CACHE_DecodedOperands* cache, IRBuilder<>* buil
     llvm::Value* rs1Ptr = builder->CreateGEP(i64Ty, regsPtr, builder->getInt32(cache->rs1));
     llvm::Value* rs2Ptr = builder->CreateGEP(i64Ty, regsPtr, builder->getInt32(cache->rs2));
     llvm::Value* rdPtr  = builder->CreateGEP(i64Ty, regsPtr, builder->getInt32(cache->rd));
-    
-    auto int32ptr = llvm::Type::getInt32Ty(context);
 
     // load values from rs1 and rs2
     llvm::Value* val1 = builder->CreateLoad(i64Ty, rs1Ptr);
     llvm::Value* val2 = builder->CreateLoad(i64Ty, rs2Ptr);
 
     if(isW) {
-        val1 = builder->CreateTrunc(val1, int32ptr);
-        val2 = builder->CreateTrunc(val2, int32ptr);
-        val2 = builder->CreateAnd(val2,(Value*)0x1F);
+        val1 = builder->CreateTrunc(val1, i32Ty);
+        val2 = builder->CreateTrunc(val2, i32Ty);
     } else {
         val2 = builder->CreateSExt(val2,i64Ty);
     }
@@ -91,11 +90,8 @@ void jit_RTYPE_SHIFT(HART* hart, CACHE_DecodedOperands* cache, IRBuilder<>* buil
         case 2: sum = builder->CreateAShr(val1, val2); break; // SRA
     }
     if(isW) {
-        if(type == 0 || type == 1) {
-            sum = builder->CreateTrunc(sum,int32ptr);
-        } else {
-            sum = builder->CreateSExt(sum,i64Ty);
-        }
+        sum = builder->CreateTrunc(sum,i32Ty);
+        sum = builder->CreateSExt(sum,i64Ty);
     }
 
     // store in rd
@@ -186,11 +182,8 @@ void jit_ITYPE_SHIFT(HART* hart, CACHE_DecodedOperands* cache, IRBuilder<>* buil
         case 2: sum = builder->CreateAShr(val1, val2); break; // SRAI
     }
     if(isW) {
-        if(type == 0 || type == 1) {
-            sum = builder->CreateSExt(sum,i32Ty);
-        } else {
-            sum = builder->CreateSExt(sum,i64Ty);
-        }
+        sum = builder->CreateTrunc(sum,i32Ty);
+        sum = builder->CreateSExt(sum,i64Ty);
     }
 
     // store in rd
@@ -239,7 +232,6 @@ void jit_ITYPE_L(HART* hart, CACHE_DecodedOperands* cache, IRBuilder<>* builder,
     auto int32ptr = llvm::Type::getInt32Ty(context);
     // load values from rs1 and rs2
     llvm::Value* val1 = builder->CreateLoad(i64Ty, rs1Ptr);
-    val2 = builder->CreateSExt(val2,i64Ty);
     llvm::Value* sum = builder->CreateAdd(val1, val2);
 
     llvm::Value* res = nullptr;
@@ -266,7 +258,7 @@ void jit_ITYPE_L(HART* hart, CACHE_DecodedOperands* cache, IRBuilder<>* builder,
         case 0: res = builder->CreateSExt(builder->CreateTrunc(value,int8ptr),i64Ty); break; // LB
         case 2: res = builder->CreateSExt(builder->CreateTrunc(value,int16ptr),i64Ty); break; // LH
         case 4: res = builder->CreateSExt(builder->CreateTrunc(value,int32ptr),i64Ty); break; // LW
-        case 6: res = builder->CreateSExt(value,i64Ty); break; // LD
+        case 6: res = value; break; // LD
         default: res = value; break;
     }
 

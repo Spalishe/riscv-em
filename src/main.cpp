@@ -238,7 +238,7 @@ void add_devices_and_map() {
 			struct termios oldt, newt;
 			tcgetattr(STDIN_FILENO, &oldt);
 			newt = oldt;
-			newt.c_lflag &= ~(ICANON | ECHO);
+			newt.c_lflag &= ~(ICANON | ECHO | ISIG);
 			tcsetattr(STDIN_FILENO, TCSANOW, &newt);
 
 			while (kb_running) {
@@ -249,10 +249,19 @@ void add_devices_and_map() {
 				struct timeval tv = {0, 100000}; // 100ms timeout
 				
 				if (select(1, &fds, NULL, NULL, &tv) > 0) {
-					char c;
-					if (read(STDIN_FILENO, &c, 1) == 1) {
-						uart->receive_byte(c);
-					}
+					unsigned char buf[8];
+					int n = read(STDIN_FILENO, buf, sizeof(buf));
+					if (n > 0) {
+						// Ctrl+Alt+C
+						if (n >= 2 && buf[0] == 0x1B && buf[1] == 0x03) {
+							poweroff();
+						}
+						else {
+							for (int i = 0; i < n; i++) {
+								uart->receive_byte(buf[i]);
+							}
+						}
+        			}
 				}
 			}
 			
@@ -485,8 +494,8 @@ int main(int argc, char* argv[]) {
 			}
 			std::cout << "[TESTING] Executing file " << val << "... ";
 			hart->cpu_readfile(val, DRAM_BASE,false);
-			int out = hart->cpu_start_testing();
-			jit_reset();
+			int out = hart->cpu_start_testing(nojit);
+			if(!nojit) jit_reset();
 			if(out != 0) {
 				std::cout << "[\033[31mFAIL\033[0m] A0 = " << out << std::endl;	
 				failed.push_back(val);

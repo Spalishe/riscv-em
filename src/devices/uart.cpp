@@ -66,8 +66,14 @@ uint64_t UART::read(HART* hart, uint64_t addr, uint64_t size) {
             if (dlab) {
                 value = dll;
             } else {
-                value = rhr;
-                lsr &= ~0x01; // Clear data ready flag after read
+                if(fifo_enabled) {
+                    value = fifo_buffer.front();
+                    fifo_buffer.pop();
+                    if(fifo_buffer.size() == 0) lsr &= ~0x01;
+                } else {
+                    value = rhr;
+                    lsr &= ~0x01; // Clear data ready flag after read
+                }
                 update_iir();
             }
             break;
@@ -155,7 +161,17 @@ void UART::write(HART* hart, uint64_t addr, uint64_t size, uint64_t value) {
             
         case 2: // FCR (write) - FIFO Control Register
             fcr = byte_value;
-            // Simple implementation: ignore FIFO for now
+            fifo_enabled = (fcr & 1) == 1;
+            if((fcr & 3) >> 1 == 1) {
+                std::queue<uint8_t> empty;
+                fifo_buffer.swap(empty);
+                fcr = fcr & ~3 | fifo_enabled;
+            }
+            if((fcr & 4) >> 2 == 1) {
+                //TX Buffer Clear
+                //Empty rn cuz i have no buffer
+                fcr = fcr & ~4 | fifo_enabled;
+            }
             break;
             
         case 3: // LCR (write)
@@ -186,7 +202,13 @@ void UART::write(HART* hart, uint64_t addr, uint64_t size, uint64_t value) {
 }
 
 void UART::receive_byte(uint8_t byte) {
-    rhr = byte;
+    if(fifo_enabled) {
+        if (fifo_buffer.size() < 16) {
+            fifo_buffer.push(byte);
+        }
+    } else {
+        rhr = byte;
+    }
     lsr |= 0x01; // Data Ready
     update_iir();
     if (ier & 0x02) trigger_irq(); // RX interrupt enabled

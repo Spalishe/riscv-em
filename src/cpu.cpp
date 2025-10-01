@@ -101,7 +101,7 @@ void HART::cpu_start(bool debug, uint64_t dtb_path, bool nojit) {
 
 	cpu_loop();
 }
-int HART::cpu_start_testing() {
+int HART::cpu_start_testing(bool nojit) {
 	testing = true;
 	trap_active = false;
 	trap_notify = false;
@@ -119,6 +119,8 @@ int HART::cpu_start_testing() {
 
 	stopexec = false;
 	regs[10] = id;
+
+	jit_enabled = !nojit;
 
 	reservation_valid = false;
 	reservation_value = 0;
