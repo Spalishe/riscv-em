@@ -18,6 +18,7 @@ Copyright 2025 Spalishe
 #include "../include/instset.h"
 #include "../include/cpu.h"
 #include "../include/csr.h"
+#include "../include/jit_insts.hpp"
 #include <iostream>
 
 #include <limits>
@@ -29,7 +30,7 @@ void exec_MULW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, s
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
-	hart->regs[rd_l] = (uint64_t)((int32_t)hart->regs[rs1_l] * (int32_t)hart->regs[rs2_l]);
+	if(jitd == NULL) hart->regs[rd_l] = (uint64_t)((int32_t)hart->regs[rs1_l] * (int32_t)hart->regs[rs2_l]);
 
     if(!opers->s){
         opers->rd = rd_l;
@@ -37,6 +38,7 @@ void exec_MULW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, s
         opers->rs2 = rs2_l;
         opers->s = true;
     }
+    if(jitd != NULL) jit_MUL(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd), 4);
 	if(hart->dbg) hart->print_d("{0x%.8X} [MULW] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1_l,rs2_l,rd_l);
 }
 
@@ -44,13 +46,15 @@ void exec_DIVW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, s
     uint64_t rd_l = opers->s ? opers->rd : rd(inst);
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
-
-    if(hart->regs[rs2_l] == 0) {
-	    hart->regs[rd_l] = (int64_t)-1;
-    } else if(hart->regs[rs1_l] == std::numeric_limits<int32_t>::min() && hart->regs[rs2_l] == -1) {
-        hart->regs[rd_l] = hart->regs[rs1_l];
-    } else {
-        hart->regs[rd_l] = (uint64_t)((int32_t)hart->regs[rs1_l] / (int32_t)hart->regs[rs2_l]);
+    
+    if(jitd == NULL) {
+        if(hart->regs[rs2_l] == 0) {
+            hart->regs[rd_l] = (uint64_t)-1;
+        } else if(hart->regs[rs1_l] == std::numeric_limits<int32_t>::min() && hart->regs[rs2_l] == -1) {
+            hart->regs[rd_l] = hart->regs[rs1_l];
+        } else {
+            hart->regs[rd_l] = (uint64_t)((int32_t)hart->regs[rs1_l] / (int32_t)hart->regs[rs2_l]);
+        }
     }
     
     if(!opers->s){
@@ -59,6 +63,7 @@ void exec_DIVW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, s
         opers->rs2 = rs2_l;
         opers->s = true;
     }
+    if(jitd != NULL) jit_DIV(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd), 2);
 	if(hart->dbg) hart->print_d("{0x%.8X} [DIVW] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1_l,rs2_l,rd_l);
 }
 void exec_DIVUW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
@@ -66,10 +71,12 @@ void exec_DIVUW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, 
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
-    if(hart->regs[rs2_l] == 0) {
-	    hart->regs[rd_l] = std::numeric_limits<uint64_t>::max();
-    } else {
-        hart->regs[rd_l] = (uint64_t)(int64_t)(int32_t)(hart->regs[rs1_l] / hart->regs[rs2_l]);
+    if(jitd == NULL) {
+        if(hart->regs[rs2_l] == 0) {
+            hart->regs[rd_l] = (uint64_t)-1;
+        } else {
+            hart->regs[rd_l] = (uint64_t)(int64_t)(int32_t)(hart->regs[rs1_l] / hart->regs[rs2_l]);
+        }
     }
     
     if(!opers->s){
@@ -78,6 +85,7 @@ void exec_DIVUW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, 
         opers->rs2 = rs2_l;
         opers->s = true;
     }
+    if(jitd != NULL) jit_DIV(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd), 3);
 	if(hart->dbg) hart->print_d("{0x%.8X} [DIVUW] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1_l,rs2_l,rd_l);
 }
 void exec_REMW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
@@ -85,12 +93,14 @@ void exec_REMW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, s
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
-    if(hart->regs[rs2_l] == 0) {
-	    hart->regs[rd_l] = hart->regs[rs1_l];
-    } else if(hart->regs[rs1_l] == std::numeric_limits<int32_t>::min() && hart->regs[rs2_l] == -1) {
-        hart->regs[rd_l] = 0;
-    } else {
-        hart->regs[rd_l] = (uint64_t)(int64_t)((int32_t)hart->regs[rs1_l] % (int32_t)hart->regs[rs2_l]);
+    if(jitd == NULL) {
+        if(hart->regs[rs2_l] == 0) {
+            hart->regs[rd_l] = hart->regs[rs1_l];
+        } else if(hart->regs[rs1_l] == std::numeric_limits<int32_t>::min() && hart->regs[rs2_l] == -1) {
+            hart->regs[rd_l] = 0;
+        } else {
+            hart->regs[rd_l] = (uint64_t)(int64_t)((int32_t)hart->regs[rs1_l] % (int32_t)hart->regs[rs2_l]);
+        }
     }
     
     if(!opers->s){
@@ -99,6 +109,7 @@ void exec_REMW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, s
         opers->rs2 = rs2_l;
         opers->s = true;
     }
+    if(jitd != NULL) jit_REM(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd), 2);
 	if(hart->dbg) hart->print_d("{0x%.8X} [REMW] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1_l,rs2_l,rd_l);
 }
 void exec_REMUW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
@@ -106,10 +117,12 @@ void exec_REMUW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, 
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
-    if(hart->regs[rs2_l] == 0) {
-	    hart->regs[rd_l] = hart->regs[rs1_l];
-    } else {
-        hart->regs[rd_l] = (uint64_t)(int64_t)(int32_t)((uint32_t)hart->regs[rs1_l] % (uint32_t)hart->regs[rs2_l]);
+    if(jitd == NULL) {
+        if(hart->regs[rs2_l] == 0) {
+            hart->regs[rd_l] = hart->regs[rs1_l];
+        } else {
+            hart->regs[rd_l] = (uint64_t)(int64_t)(int32_t)((uint32_t)hart->regs[rs1_l] % (uint32_t)hart->regs[rs2_l]);
+        }
     }
     
     if(!opers->s){
@@ -118,6 +131,7 @@ void exec_REMUW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, 
         opers->rs2 = rs2_l;
         opers->s = true;
     }
+    if(jitd != NULL) jit_REM(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd), 3);
 	if(hart->dbg) hart->print_d("{0x%.8X} [REMUW] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1_l,rs2_l,rd_l);
 }
 
@@ -130,7 +144,7 @@ void exec_MUL(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, st
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
-	hart->regs[rd_l] = hart->regs[rs1_l] * hart->regs[rs2_l];
+    if(jitd == NULL) hart->regs[rd_l] = hart->regs[rs1_l] * hart->regs[rs2_l];
 	
     if(!opers->s){
         opers->rd = rd_l;
@@ -138,6 +152,7 @@ void exec_MUL(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, st
         opers->rs2 = rs2_l;
         opers->s = true;
     }
+    if(jitd != NULL) jit_MUL(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd), 0);
 	if(hart->dbg) hart->print_d("{0x%.8X} [MUL] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1_l,rs2_l,rd_l);
 }
 void exec_MULH(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
@@ -145,15 +160,18 @@ void exec_MULH(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, s
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
-    __int128_t res = (__int128_t)(int64_t)hart->regs[rs1_l] * (__int128_t)(int64_t)hart->regs[rs2_l];
-	hart->regs[rd_l] = (uint64_t)(res>>64);
-	
+    if(jitd == NULL) {
+        __int128_t res = (__int128_t)(int64_t)hart->regs[rs1_l] * (__int128_t)(int64_t)hart->regs[rs2_l];
+        hart->regs[rd_l] = (uint64_t)(res>>64);
+    }
+
     if(!opers->s){
         opers->rd = rd_l;
         opers->rs1 = rs1_l;
         opers->rs2 = rs2_l;
         opers->s = true;
     }
+    if(jitd != NULL) jit_MUL(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd), 1);
 	if(hart->dbg) hart->print_d("{0x%.8X} [MULH] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1_l,rs2_l,rd_l);
 }
 void exec_MULHSU(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
@@ -161,15 +179,18 @@ void exec_MULHSU(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers,
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
-    __uint128_t res = (__uint128_t)(__int128_t)(int64_t)hart->regs[rs1_l] * (__uint128_t)hart->regs[rs2_l];
-	hart->regs[rd_l] = (uint64_t)(res>>64);
-	
+    if(jitd == NULL) {
+        __uint128_t res = (__uint128_t)(__int128_t)(int64_t)hart->regs[rs1_l] * (__uint128_t)hart->regs[rs2_l];
+        hart->regs[rd_l] = (uint64_t)(res>>64);
+    }
+    
     if(!opers->s){
         opers->rd = rd_l;
         opers->rs1 = rs1_l;
         opers->rs2 = rs2_l;
         opers->s = true;
     }
+    if(jitd != NULL) jit_MUL(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd), 2);
 	if(hart->dbg) hart->print_d("{0x%.8X} [MULHSU] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1_l,rs2_l,rd_l);
 }
 void exec_MULHU(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
@@ -177,15 +198,18 @@ void exec_MULHU(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, 
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
-    __uint128_t res = (__uint128_t)hart->regs[rs1_l] * (__uint128_t)hart->regs[rs2_l];
-	hart->regs[rd_l] = (uint64_t)(res>>64);
-	
+    if(jitd == NULL) {
+        __uint128_t res = (__uint128_t)hart->regs[rs1_l] * (__uint128_t)hart->regs[rs2_l];
+	    hart->regs[rd_l] = (uint64_t)(res>>64);
+    }
+
     if(!opers->s){
         opers->rd = rd_l;
         opers->rs1 = rs1_l;
         opers->rs2 = rs2_l;
         opers->s = true;
     }
+    if(jitd != NULL) jit_MUL(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd), 3);
 	if(hart->dbg) hart->print_d("{0x%.8X} [MULHU] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1_l,rs2_l,rd_l);
 }
 
@@ -194,12 +218,14 @@ void exec_DIV(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, st
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
-    if(hart->regs[rs2_l] == 0) {
-	    hart->regs[rd_l] = (uint64_t)-1;
-    } else if(hart->regs[rs1_l] == std::numeric_limits<int64_t>::min() && hart->regs[rs2_l] == -1) {
-        hart->regs[rd_l] = hart->regs[rs1_l];
-    } else {
-        hart->regs[rd_l] = (uint64_t)((int64_t)hart->regs[rs1_l] / (int64_t)hart->regs[rs2_l]);
+    if(jitd == NULL) {
+        if(hart->regs[rs2_l] == 0) {
+            hart->regs[rd_l] = (uint64_t)-1;
+        } else if(hart->regs[rs1_l] == std::numeric_limits<int64_t>::min() && hart->regs[rs2_l] == -1) {
+            hart->regs[rd_l] = hart->regs[rs1_l];
+        } else {
+            hart->regs[rd_l] = (uint64_t)((int64_t)hart->regs[rs1_l] / (int64_t)hart->regs[rs2_l]);
+        }
     }
 	
     if(!opers->s){
@@ -208,6 +234,7 @@ void exec_DIV(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, st
         opers->rs2 = rs2_l;
         opers->s = true;
     }
+    if(jitd != NULL) jit_DIV(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd), 0);
 	if(hart->dbg) hart->print_d("{0x%.8X} [DIV] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1_l,rs2_l,rd_l);
 }
 void exec_DIVU(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
@@ -215,18 +242,21 @@ void exec_DIVU(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, s
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
-    if(hart->regs[rs2_l] == 0) {
-	    hart->regs[rd_l] = std::numeric_limits<uint64_t>::max();
-    } else {
-        hart->regs[rd_l] = hart->regs[rs1_l] / hart->regs[rs2_l];
+    if(jitd == NULL) {
+        if(hart->regs[rs2_l] == 0) {
+            hart->regs[rd_l] = (uint64_t)-1;
+        } else {
+            hart->regs[rd_l] = hart->regs[rs1_l] / hart->regs[rs2_l];
+        }
     }
-	
+
     if(!opers->s){
         opers->rd = rd_l;
         opers->rs1 = rs1_l;
         opers->rs2 = rs2_l;
         opers->s = true;
     }
+    if(jitd != NULL) jit_DIV(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd), 1);
 	if(hart->dbg) hart->print_d("{0x%.8X} [DIVU] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1_l,rs2_l,rd_l);
 }
 void exec_REM(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
@@ -234,12 +264,14 @@ void exec_REM(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, st
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
-    if(hart->regs[rs2_l] == 0) {
-	    hart->regs[rd_l] = hart->regs[rs1_l];
-    } else if(hart->regs[rs1_l] == std::numeric_limits<int64_t>::min() && hart->regs[rs2_l] == -1) {
-        hart->regs[rd_l] = 0;
-    } else {
-        hart->regs[rd_l] = (uint64_t)((int64_t)hart->regs[rs1_l] % (int64_t)hart->regs[rs2_l]);
+    if(jitd == NULL) {
+        if(hart->regs[rs2_l] == 0) {
+            hart->regs[rd_l] = hart->regs[rs1_l];
+        } else if(hart->regs[rs1_l] == std::numeric_limits<int64_t>::min() && hart->regs[rs2_l] == -1) {
+            hart->regs[rd_l] = 0;
+        } else {
+            hart->regs[rd_l] = (uint64_t)((int64_t)hart->regs[rs1_l] % (int64_t)hart->regs[rs2_l]);
+        }
     }
 	
     if(!opers->s){
@@ -248,6 +280,7 @@ void exec_REM(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, st
         opers->rs2 = rs2_l;
         opers->s = true;
     }
+    if(jitd != NULL) jit_REM(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd), 0);
 	if(hart->dbg) hart->print_d("{0x%.8X} [REM] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1_l,rs2_l,rd_l);
 }
 void exec_REMU(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
@@ -255,17 +288,20 @@ void exec_REMU(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, s
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
-    if(hart->regs[rs2_l] == 0) {
-	    hart->regs[rd_l] = hart->regs[rs1_l];
-    } else {
-        hart->regs[rd_l] = hart->regs[rs1_l] % (int64_t)hart->regs[rs2_l];
+    if(jitd == NULL) {
+        if(hart->regs[rs2_l] == 0) {
+            hart->regs[rd_l] = hart->regs[rs1_l];
+        } else {
+            hart->regs[rd_l] = hart->regs[rs1_l] % (int64_t)hart->regs[rs2_l];
+        }
     }
-	
+
     if(!opers->s){
         opers->rd = rd_l;
         opers->rs1 = rs1_l;
         opers->rs2 = rs2_l;
         opers->s = true;
     }
+    if(jitd != NULL) jit_REM(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd), 1);
 	if(hart->dbg) hart->print_d("{0x%.8X} [REMU] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1_l,rs2_l,rd_l);
 }

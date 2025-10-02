@@ -37,3 +37,7 @@ extern void jit_UTYPE(HART* hart, CACHE_DecodedOperands* cache, llvm::IRBuilder<
 
 extern void jit_ZICSR_R(HART* hart, CACHE_DecodedOperands* cache, llvm::IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr, uint8_t type);
 extern void jit_ZICSR_I(HART* hart, CACHE_DecodedOperands* cache, llvm::IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr, uint8_t type);
+
+extern void jit_MUL(HART* hart, CACHE_DecodedOperands* cache, llvm::IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr, uint8_t type);
+extern void jit_DIV(HART* hart, CACHE_DecodedOperands* cache, llvm::IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr, uint8_t type);
+extern void jit_REM(HART* hart, CACHE_DecodedOperands* cache, llvm::IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr, uint8_t type);
