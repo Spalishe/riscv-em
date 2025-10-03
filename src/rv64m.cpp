@@ -152,7 +152,9 @@ void exec_MUL(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, st
         opers->rs2 = rs2_l;
         opers->s = true;
     }
-    if(jitd != NULL) jit_MUL(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd), 0);
+    if(jitd != NULL) {
+        jit_MUL(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd), 0);
+    }
 	if(hart->dbg) hart->print_d("{0x%.8X} [MUL] rs1: %d; rs2: %d; rd: %d",hart->pc,rs1_l,rs2_l,rd_l);
 }
 void exec_MULH(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {

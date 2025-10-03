@@ -26,7 +26,7 @@ Copyright 2025 Spalishe
 using namespace llvm;
 using namespace llvm::orc;
 
-llvm::LLVMContext context;
+llvm::LLVMContext context = LLVMContext();
 std::unique_ptr<llvm::Module> module = std::make_unique<llvm::Module>("jit_module", context);
 std::unique_ptr<llvm::orc::LLJIT> jit;
 llvm::IRBuilder<> builder(context);
@@ -59,11 +59,34 @@ extern "C" bool dram_jit_store(DRAMJITSTORE_ARGS* args) {
 }
 
 void jit_reset() {
-    #pragma GCC diagnostic push
-    #pragma GCC diagnostic ignored "-Wunused-result"
-    jit->getMainJITDylib().clear();
-    #pragma GCC diagnostic pop
-    jit_init();
+    cantFail(jit->getMainJITDylib().clear());
+    jit.reset();
+    
+    // Initialize LLVM JIT targets
+    llvm::InitializeNativeTarget();
+    llvm::InitializeNativeTargetAsmPrinter();
+
+    auto jit1 = LLJITBuilder().create();
+    if (!jit1) {
+        llvm::errs() << "Failed to create JIT\n";
+    }
+    jit = std::move(*jit1);
+
+    JITDylib &jd = jit->getMainJITDylib();
+    ExecutionSession &es = jit->getExecutionSession();
+
+
+    MangleAndInterner mangle(es, jit->getDataLayout());
+
+    // SymbolMap: SymbolStringPtr -> ExecutorSymbolDef
+    SymbolMap symbols;
+
+    ExecutorAddr addr_store(reinterpret_cast<JITTargetAddress>(&dram_jit_store));
+    symbols[mangle("dram_jit_store")] = ExecutorSymbolDef(addr_store, JITSymbolFlags::Exported);
+    ExecutorAddr addr_load(reinterpret_cast<JITTargetAddress>(&dram_jit_load));
+    symbols[mangle("dram_jit_load")] = ExecutorSymbolDef(addr_load, JITSymbolFlags::Exported);
+
+    cantFail(jd.define(absoluteSymbols(std::move(symbols))));
 }
 
 int jit_init() {
