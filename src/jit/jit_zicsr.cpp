@@ -25,8 +25,8 @@ using namespace llvm;
 using namespace llvm::orc;
 
 void jit_ZICSR_R(HART* hart, CACHE_DecodedOperands* cache, IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr, uint8_t type) {
-    llvm::Type* i64Ty = llvm::Type::getInt64Ty(context);
-    llvm::Type* i32Ty = llvm::Type::getInt32Ty(context);
+    llvm::Type* i64Ty = builder->getInt64Ty();
+    llvm::Type* i32Ty = builder->getInt32Ty();
 
     llvm::Value* regsPtr = builder->CreateStructGEP(hartStructTy, hartPtr, 0); // HART->regs
     llvm::Value* csrsPtr = builder->CreateStructGEP(hartStructTy, hartPtr, 3); // HART->csrs
@@ -48,9 +48,9 @@ void jit_ZICSR_R(HART* hart, CACHE_DecodedOperands* cache, IRBuilder<>* builder,
         case 1: {
             sum = builder->CreateLoad(i64Ty,csrP);
             builder->CreateStore(val1,csrP);
-            llvm::BasicBlock* thenBB = llvm::BasicBlock::Create(context, "has_value", currentFunc);
-            llvm::BasicBlock* elseBB = llvm::BasicBlock::Create(context, "no_value", currentFunc);
-            llvm::BasicBlock* contBB = llvm::BasicBlock::Create(context, "cont", currentFunc);
+            llvm::BasicBlock* thenBB = llvm::BasicBlock::Create(*context, "has_value", currentFunc);
+            llvm::BasicBlock* elseBB = llvm::BasicBlock::Create(*context, "no_value", currentFunc);
+            llvm::BasicBlock* contBB = llvm::BasicBlock::Create(*context, "cont", currentFunc);
             llvm::Value* cond = builder->CreateICmpNE(val1, llvm::ConstantInt::get(i64Ty, 0));
             builder->CreateCondBr(cond, thenBB, elseBB);
 
@@ -68,9 +68,9 @@ void jit_ZICSR_R(HART* hart, CACHE_DecodedOperands* cache, IRBuilder<>* builder,
         case 2: {
             sum = builder->CreateLoad(i64Ty,csrP);
             builder->CreateStore(val1,csrP);
-            llvm::BasicBlock* thenBB = llvm::BasicBlock::Create(context, "has_value", currentFunc);
-            llvm::BasicBlock* elseBB = llvm::BasicBlock::Create(context, "no_value", currentFunc);
-            llvm::BasicBlock* contBB = llvm::BasicBlock::Create(context, "cont", currentFunc);
+            llvm::BasicBlock* thenBB = llvm::BasicBlock::Create(*context, "has_value", currentFunc);
+            llvm::BasicBlock* elseBB = llvm::BasicBlock::Create(*context, "no_value", currentFunc);
+            llvm::BasicBlock* contBB = llvm::BasicBlock::Create(*context, "cont", currentFunc);
             llvm::Value* cond = builder->CreateICmpNE(val1, llvm::ConstantInt::get(i64Ty, 0));
             builder->CreateCondBr(cond, thenBB, elseBB);
 
@@ -90,8 +90,8 @@ void jit_ZICSR_R(HART* hart, CACHE_DecodedOperands* cache, IRBuilder<>* builder,
     builder->CreateStore(sum, rdPtr);
 }
 void jit_ZICSR_I(HART* hart, CACHE_DecodedOperands* cache, IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr, uint8_t type) {
-    llvm::Type* i64Ty = llvm::Type::getInt64Ty(context);
-    llvm::Type* i32Ty = llvm::Type::getInt32Ty(context);
+    llvm::Type* i64Ty = builder->getInt64Ty();
+    llvm::Type* i32Ty = builder->getInt32Ty();
 
     llvm::Value* regsPtr = builder->CreateStructGEP(hartStructTy, hartPtr, 0); // HART->regs
     llvm::Value* csrsPtr = builder->CreateStructGEP(hartStructTy, hartPtr, 3); // HART->csrs
@@ -110,9 +110,9 @@ void jit_ZICSR_I(HART* hart, CACHE_DecodedOperands* cache, IRBuilder<>* builder,
         case 1: {
             sum = builder->CreateLoad(i64Ty,csrP);
             builder->CreateStore(val1,csrP);
-            llvm::BasicBlock* thenBB = llvm::BasicBlock::Create(context, "has_value", currentFunc);
-            llvm::BasicBlock* elseBB = llvm::BasicBlock::Create(context, "no_value", currentFunc);
-            llvm::BasicBlock* contBB = llvm::BasicBlock::Create(context, "cont", currentFunc);
+            llvm::BasicBlock* thenBB = llvm::BasicBlock::Create(*context, "has_value", currentFunc);
+            llvm::BasicBlock* elseBB = llvm::BasicBlock::Create(*context, "no_value", currentFunc);
+            llvm::BasicBlock* contBB = llvm::BasicBlock::Create(*context, "cont", currentFunc);
             llvm::Value* cond = builder->CreateICmpNE(val1, llvm::ConstantInt::get(i64Ty, 0));
             builder->CreateCondBr(cond, thenBB, elseBB);
 
@@ -130,9 +130,9 @@ void jit_ZICSR_I(HART* hart, CACHE_DecodedOperands* cache, IRBuilder<>* builder,
         case 2: {
             sum = builder->CreateLoad(i64Ty,csrP);
             builder->CreateStore(val1,csrP);
-            llvm::BasicBlock* thenBB = llvm::BasicBlock::Create(context, "has_value", currentFunc);
-            llvm::BasicBlock* elseBB = llvm::BasicBlock::Create(context, "no_value", currentFunc);
-            llvm::BasicBlock* contBB = llvm::BasicBlock::Create(context, "cont", currentFunc);
+            llvm::BasicBlock* thenBB = llvm::BasicBlock::Create(*context, "has_value", currentFunc);
+            llvm::BasicBlock* elseBB = llvm::BasicBlock::Create(*context, "no_value", currentFunc);
+            llvm::BasicBlock* contBB = llvm::BasicBlock::Create(*context, "cont", currentFunc);
             llvm::Value* cond = builder->CreateICmpNE(val1, llvm::ConstantInt::get(i64Ty, 0));
             builder->CreateCondBr(cond, thenBB, elseBB);
 

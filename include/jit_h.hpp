@@ -30,23 +30,7 @@ struct OptUInt64 {
     bool has_value;
     uint64_t value;
 };
-struct DRAMJITSTORE_ARGS {
-    uint64_t hart;
-    uint64_t addr;
-    uint64_t size;
-    uint64_t value;
-};
-struct DRAMJITLOAD_ARGS {
-    uint64_t hart;
-    uint64_t addr;
-    uint64_t size;
-};
-struct CPUTRAP_ARGS {
-    uint64_t hart;
-    uint64_t cause;
-    uint64_t tval;
-};
 
-extern "C" void jit_trap(CPUTRAP_ARGS* args);
-extern "C" bool dram_jit_store(DRAMJITSTORE_ARGS* args);
-extern "C" OptUInt64 dram_jit_load(DRAMJITLOAD_ARGS* args);
+extern "C" void jit_trap(HART* hart, uint64_t cause, uint64_t tval);
+extern "C" bool dram_jit_store(HART* hart, uint64_t addr, uint64_t size,uint64_t value);
+extern "C" OptUInt64 dram_jit_load(HART* hart, uint64_t addr, uint64_t size);

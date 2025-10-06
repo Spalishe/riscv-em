@@ -42,6 +42,8 @@ struct CACHE_DecodedOperands {
     llvm::FunctionCallee loadFunc;
     llvm::FunctionCallee storeFunc;
     llvm::FunctionCallee trapFunc;
+
+    llvm::FunctionCallee amo64Func;
     
     std::unordered_map<uint8_t,llvm::StructType*> types;
 };
@@ -61,6 +63,11 @@ struct HART {
     uint64_t virt_pc;
     uint64_t csrs[4069];
     uint8_t mode;
+    
+	uint64_t reservation_addr;
+	uint64_t reservation_value;
+	bool reservation_valid;
+	uint8_t reservation_size;
 
     bool testing;
     bool dbg;
@@ -82,10 +89,6 @@ struct HART {
     bool trap_active;
     bool trap_notify;
 
-	uint64_t reservation_addr;
-	uint64_t reservation_value;
-	bool reservation_valid;
-	uint8_t reservation_size;
     DRAM dram;
     MMIO* mmio;
 

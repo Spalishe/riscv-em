@@ -101,11 +101,11 @@ void jit_DIV(HART* hart, CACHE_DecodedOperands* cache, IRBuilder<>* builder, llv
     llvm::Value* val1 = builder->CreateLoad(i64Ty, rs1Ptr);
     llvm::Value* val2 = builder->CreateLoad(i64Ty, rs2Ptr);
 
-    llvm::BasicBlock* isZero = llvm::BasicBlock::Create(context, "isZero", currentFunc);
-    llvm::BasicBlock* SignOverflowCheck = llvm::BasicBlock::Create(context, "SignOverflowCheck", currentFunc);
-    llvm::BasicBlock* SignOverflow = llvm::BasicBlock::Create(context, "SignOverflow", currentFunc);
-    llvm::BasicBlock* normal = llvm::BasicBlock::Create(context, "normal", currentFunc);
-    llvm::BasicBlock* done = llvm::BasicBlock::Create(context, "done", currentFunc);
+    llvm::BasicBlock* isZero = llvm::BasicBlock::Create(*context, "isZero", currentFunc);
+    llvm::BasicBlock* SignOverflowCheck = llvm::BasicBlock::Create(*context, "SignOverflowCheck", currentFunc);
+    llvm::BasicBlock* SignOverflow = llvm::BasicBlock::Create(*context, "SignOverflow", currentFunc);
+    llvm::BasicBlock* normal = llvm::BasicBlock::Create(*context, "normal", currentFunc);
+    llvm::BasicBlock* done = llvm::BasicBlock::Create(*context, "done", currentFunc);
 
     llvm::Value* zero = builder->getInt64(0);
     if(type == 2 || type == 3) {
@@ -175,11 +175,11 @@ void jit_REM(HART* hart, CACHE_DecodedOperands* cache, IRBuilder<>* builder, llv
     llvm::Value* val1 = builder->CreateLoad(i64Ty, rs1Ptr);
     llvm::Value* val2 = builder->CreateLoad(i64Ty, rs2Ptr);
 
-    llvm::BasicBlock* isZero = llvm::BasicBlock::Create(context, "isZero", currentFunc);
-    llvm::BasicBlock* SignOverflowCheck = llvm::BasicBlock::Create(context, "SignOverflowCheck", currentFunc);
-    llvm::BasicBlock* SignOverflow = llvm::BasicBlock::Create(context, "SignOverflow", currentFunc);
-    llvm::BasicBlock* normal = llvm::BasicBlock::Create(context, "normal", currentFunc);
-    llvm::BasicBlock* done = llvm::BasicBlock::Create(context, "done", currentFunc);
+    llvm::BasicBlock* isZero = llvm::BasicBlock::Create(*context, "isZero", currentFunc);
+    llvm::BasicBlock* SignOverflowCheck = llvm::BasicBlock::Create(*context, "SignOverflowCheck", currentFunc);
+    llvm::BasicBlock* SignOverflow = llvm::BasicBlock::Create(*context, "SignOverflow", currentFunc);
+    llvm::BasicBlock* normal = llvm::BasicBlock::Create(*context, "normal", currentFunc);
+    llvm::BasicBlock* done = llvm::BasicBlock::Create(*context, "done", currentFunc);
 
     llvm::Value* zero = builder->getInt64(0);
     if(type == 2 || type == 3) {
