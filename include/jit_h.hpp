@@ -41,6 +41,12 @@ struct DRAMJITLOAD_ARGS {
     uint64_t addr;
     uint64_t size;
 };
+struct CPUTRAP_ARGS {
+    uint64_t hart;
+    uint64_t cause;
+    uint64_t tval;
+};
 
+extern "C" void jit_trap(CPUTRAP_ARGS* args);
 extern "C" bool dram_jit_store(DRAMJITSTORE_ARGS* args);
 extern "C" OptUInt64 dram_jit_load(DRAMJITLOAD_ARGS* args);

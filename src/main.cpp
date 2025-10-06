@@ -81,6 +81,18 @@ bool hasValue(char* arr[], int arrlen, std::string match) {
 	return has;
 }
 
+struct TermiosGuard {
+	struct termios oldt;
+	struct termios newt;
+	TermiosGuard() {
+		tcgetattr(STDIN_FILENO, &oldt);
+		newt = oldt;
+		newt.c_lflag &= ~(ICANON | ECHO | ISIG);
+		tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+	};
+    ~TermiosGuard() { tcsetattr(STDIN_FILENO, TCSANOW, &oldt); }
+} tguard;
+
 MemoryMap memmap;
 
 
@@ -235,11 +247,7 @@ void add_devices_and_map() {
 	if(!debug) {
 		kb_running = true;
 		kb_t = std::thread([&uart]() {
-			struct termios oldt, newt;
-			tcgetattr(STDIN_FILENO, &oldt);
-			newt = oldt;
-			newt.c_lflag &= ~(ICANON | ECHO | ISIG);
-			tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+			tguard = TermiosGuard();
 
 			while (kb_running) {
 				fd_set fds;
@@ -265,8 +273,6 @@ void add_devices_and_map() {
         			}
 				}
 			}
-			
-			tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
 		});
 	}
 

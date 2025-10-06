@@ -37,6 +37,10 @@ llvm::FunctionCallee loadFunc;
 llvm::FunctionCallee storeFunc;
 llvm::FunctionCallee trapFunc;
 
+extern "C" void jit_trap(CPUTRAP_ARGS* args) {
+    HART* hart = reinterpret_cast<HART*>(args->hart);
+	hart->cpu_trap(args->cause,args->tval,false);
+}
 extern "C" OptUInt64 dram_jit_load(DRAMJITLOAD_ARGS* args) {
     HART* hart = reinterpret_cast<HART*>(args->hart);
 	std::optional<uint64_t> val = hart->mmio->load(hart,args->addr,args->size);
@@ -191,6 +195,7 @@ BlockFn jit_create_block(HART* hart, std::vector<CACHE_Instr>& instrs) {
         auto l_optStructTy = llvm::StructType::create(*ctx, {i1Ty,i64Ty}, "OptUInt64");
         auto l_dramjitstoreargsTy = llvm::StructType::create(*ctx, {i64Ty,i64Ty,i64Ty,i64Ty}, "DRAMJITSTORE_ARGS");
         auto l_dramjitloadargsTy = llvm::StructType::create(*ctx, {i64Ty,i64Ty,i64Ty}, "DRAMJITLOAD_ARGS");
+        auto l_cputrapargsTy = llvm::StructType::create(*ctx, {i64Ty,i64Ty,i64Ty}, "CPUTRAP_ARGS");
         std::vector<Type*> elements = {
             i64Ty, // hart
             i64Ty, // addr
@@ -206,6 +211,10 @@ BlockFn jit_create_block(HART* hart, std::vector<CACHE_Instr>& instrs) {
         std::vector<llvm::Type*> storeArgs = { PointerType::get(l_dramjitstoreargsTy,0) };
         llvm::FunctionType* storeTy = llvm::FunctionType::get(i1Ty, storeArgs, false);
         llvm::FunctionCallee l_storeFunc = module->getOrInsertFunction("dram_jit_store", storeTy);
+
+        std::vector<llvm::Type*> trapArgs = { PointerType::get(l_cputrapargsTy,0) };
+        llvm::FunctionType* trapTy = llvm::FunctionType::get(voidTy, trapArgs, false);
+        llvm::FunctionCallee l_trapFunc = module->getOrInsertFunction("jit_trap", trapTy);
 
         auto* funcType = llvm::FunctionType::get(
             llvm::Type::getVoidTy(*ctx),
@@ -238,9 +247,11 @@ BlockFn jit_create_block(HART* hart, std::vector<CACHE_Instr>& instrs) {
             i++;
             instr.oprs.loadFunc = l_loadFunc;
             instr.oprs.storeFunc = l_storeFunc;
+            instr.oprs.trapFunc = l_trapFunc;
             instr.oprs.types[0] = l_optStructTy;
             instr.oprs.types[1] = l_dramjitstoreargsTy;
             instr.oprs.types[2] = l_dramjitloadargsTy;
+            instr.oprs.types[3] = l_cputrapargsTy;
             
             instr.fn(hart, instr.inst, &instr.oprs, &tpl);
 
