@@ -46,3 +46,22 @@ extern void jit_LR_D(HART* hart, CACHE_DecodedOperands* cache, llvm::IRBuilder<>
 extern void jit_SC_D(HART* hart, CACHE_DecodedOperands* cache, llvm::IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr);
 extern void jit_AMOSWAP_D(HART* hart, CACHE_DecodedOperands* cache, llvm::IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr);
 extern void jit_AMOADD_D(HART* hart, CACHE_DecodedOperands* cache, llvm::IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr);
+extern void jit_AMOXOR_D(HART* hart, CACHE_DecodedOperands* cache, llvm::IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr);
+extern void jit_AMOAND_D(HART* hart, CACHE_DecodedOperands* cache, llvm::IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr);
+extern void jit_AMOOR_D(HART* hart, CACHE_DecodedOperands* cache, llvm::IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr);
+extern void jit_AMOMIN_D(HART* hart, CACHE_DecodedOperands* cache, llvm::IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr);
+extern void jit_AMOMAX_D(HART* hart, CACHE_DecodedOperands* cache, llvm::IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr);
+extern void jit_AMOUMIN_D(HART* hart, CACHE_DecodedOperands* cache, llvm::IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr);
+extern void jit_AMOUMAX_D(HART* hart, CACHE_DecodedOperands* cache, llvm::IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr);
+
+extern void jit_LR_W(HART* hart, CACHE_DecodedOperands* cache, llvm::IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr);
+extern void jit_SC_W(HART* hart, CACHE_DecodedOperands* cache, llvm::IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr);
+extern void jit_AMOSWAP_W(HART* hart, CACHE_DecodedOperands* cache, llvm::IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr);
+extern void jit_AMOADD_W(HART* hart, CACHE_DecodedOperands* cache, llvm::IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr);
+extern void jit_AMOXOR_W(HART* hart, CACHE_DecodedOperands* cache, llvm::IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr);
+extern void jit_AMOAND_W(HART* hart, CACHE_DecodedOperands* cache, llvm::IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr);
+extern void jit_AMOOR_W(HART* hart, CACHE_DecodedOperands* cache, llvm::IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr);
+extern void jit_AMOMIN_W(HART* hart, CACHE_DecodedOperands* cache, llvm::IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr);
+extern void jit_AMOMAX_W(HART* hart, CACHE_DecodedOperands* cache, llvm::IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr);
+extern void jit_AMOUMIN_W(HART* hart, CACHE_DecodedOperands* cache, llvm::IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr);
+extern void jit_AMOUMAX_W(HART* hart, CACHE_DecodedOperands* cache, llvm::IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr);

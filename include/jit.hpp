@@ -29,6 +29,7 @@ extern llvm::StructType* optStructTy;
 extern llvm::FunctionCallee loadFunc;
 extern llvm::FunctionCallee storeFunc;
 extern llvm::FunctionCallee trapFunc;
-extern llvm::FunctionCallee amo64;
+extern llvm::Function* amo64;
+extern llvm::Function* amo32;
 
 extern llvm::LLVMContext *context;

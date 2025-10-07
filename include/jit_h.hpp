@@ -27,10 +27,11 @@ using BlockFn = void(*)(HART*);
 BlockFn jit_create_block(HART* hart, std::vector<CACHE_Instr>& instrs);
 
 struct OptUInt64 {
-    bool has_value;
     uint64_t value;
+    bool has_value;
 };
 
 extern "C" void jit_trap(HART* hart, uint64_t cause, uint64_t tval);
+extern "C" void jit_printval(uint64_t val);
 extern "C" bool dram_jit_store(HART* hart, uint64_t addr, uint64_t size,uint64_t value);
 extern "C" OptUInt64 dram_jit_load(HART* hart, uint64_t addr, uint64_t size);

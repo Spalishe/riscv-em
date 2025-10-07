@@ -42,8 +42,10 @@ struct CACHE_DecodedOperands {
     llvm::FunctionCallee loadFunc;
     llvm::FunctionCallee storeFunc;
     llvm::FunctionCallee trapFunc;
+    llvm::FunctionCallee printFunc;
 
-    llvm::FunctionCallee amo64Func;
+    llvm::Function* amo64Func;
+    llvm::Function* amo32Func;
     
     std::unordered_map<uint8_t,llvm::StructType*> types;
 };
