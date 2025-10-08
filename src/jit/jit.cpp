@@ -55,7 +55,7 @@ extern "C" void jit_printval(uint64_t val) {
     std::cout << val << std::endl;
 }
 
-llvm::Function* createAmo64Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *md, llvm::StructType* l_optStructTy, llvm::FunctionCallee loadFunc, llvm::FunctionCallee storeFunc, llvm::FunctionCallee trapFunc) {
+llvm::Function* createAmo64Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *md, llvm::StructType* l_optStructTy, llvm::FunctionCallee loadFunc, llvm::FunctionCallee storeFunc, llvm::FunctionCallee trapFunc,uint64_t pc) {
     llvm::Type* i64Ty = bd->getInt64Ty();
     llvm::Type* args[] = {
         llvm::PointerType::getUnqual(hartStructTy), // Hart
@@ -67,7 +67,7 @@ llvm::Function* createAmo64Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *
     llvm::Function* func = llvm::Function::Create(
         funcTy,
         llvm::Function::ExternalLinkage,
-        "amo64",
+        "amo64_" + std::to_string(pc),
         md->get()
     );
     auto argsIter = func->arg_begin();
@@ -75,6 +75,15 @@ llvm::Function* createAmo64Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *
     (++argsIter)->setName("type");
     (++argsIter)->setName("addr");
     (++argsIter)->setName("rs2");
+
+    llvm::GlobalVariable* memCell = new llvm::GlobalVariable(
+        **md,
+        i64Ty,
+        false,                          // isConstant
+        llvm::GlobalValue::ExternalLinkage,
+        builder->getInt64(0),
+        "amo64_memCell_" + std::to_string(pc)
+    );
 
     llvm::BasicBlock* entry = llvm::BasicBlock::Create(bd->getContext(), "entry", func);
     bd->SetInsertPoint(entry);
@@ -97,8 +106,8 @@ llvm::Function* createAmo64Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *
     bd->SetInsertPoint(normalBB);
     llvm::Value* loadRet = bd->CreateCall(loadFunc,{hartPtr,addr,bd->getInt64(64)});
 
-    llvm::Value* value = builder->CreateExtractValue(loadRet, {0});
-    llvm::Value* hasValue = builder->CreateExtractValue(loadRet, {1});
+    llvm::Value* value = bd->CreateExtractValue(loadRet, {0});
+    llvm::Value* hasValue = bd->CreateExtractValue(loadRet, {1});
 
     bd->CreateCondBr(hasValue,normal1BB,accessBB);
 
@@ -113,6 +122,7 @@ llvm::Function* createAmo64Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *
     bd->SetInsertPoint(normal1BB);
     retStruct = bd->CreateInsertValue(retStruct, value, {0});
     retStruct = bd->CreateInsertValue(retStruct, bd->getInt1(1), {1});
+    builder->CreateStore(value,memCell);
 
     llvm::BasicBlock* amoswapBB = llvm::BasicBlock::Create(bd->getContext(), "amo64_amoswap", func);
     llvm::BasicBlock* amoaddBB = llvm::BasicBlock::Create(bd->getContext(), "amo64_amoadd", func);
@@ -138,7 +148,6 @@ llvm::Function* createAmo64Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *
     sw->addCase(bd->getInt64(8),amoumaxBB);
 
     llvm::MaybeAlign align(8);
-    llvm::Value* fval = value;
     llvm::Value* prev;
 
     // Replace Monotonic with Release, Acquire if required
@@ -147,7 +156,7 @@ llvm::Function* createAmo64Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *
     bd->SetInsertPoint(amoswapBB);
     prev = bd->CreateAtomicRMW(
         llvm::AtomicRMWInst::Xchg,
-        fval,
+        memCell,
         rs2,
         align,
         llvm::AtomicOrdering::Monotonic
@@ -158,7 +167,7 @@ llvm::Function* createAmo64Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *
     bd->SetInsertPoint(amoaddBB);
     prev = bd->CreateAtomicRMW(
         llvm::AtomicRMWInst::Add,
-        fval,
+        memCell,
         rs2,
         align,
         llvm::AtomicOrdering::Monotonic
@@ -169,7 +178,7 @@ llvm::Function* createAmo64Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *
     bd->SetInsertPoint(amoxorBB);
     prev = bd->CreateAtomicRMW(
         llvm::AtomicRMWInst::Xor,
-        fval,
+        memCell,
         rs2,
         align,
         llvm::AtomicOrdering::Monotonic
@@ -180,7 +189,7 @@ llvm::Function* createAmo64Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *
     bd->SetInsertPoint(amoandBB);
     prev = bd->CreateAtomicRMW(
         llvm::AtomicRMWInst::And,
-        fval,
+        memCell,
         rs2,
         align,
         llvm::AtomicOrdering::Monotonic
@@ -191,7 +200,7 @@ llvm::Function* createAmo64Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *
     bd->SetInsertPoint(amoorBB);
     prev = bd->CreateAtomicRMW(
         llvm::AtomicRMWInst::Or,
-        fval,
+        memCell,
         rs2,
         align,
         llvm::AtomicOrdering::Monotonic
@@ -202,7 +211,7 @@ llvm::Function* createAmo64Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *
     bd->SetInsertPoint(amominBB);
     prev = bd->CreateAtomicRMW(
         llvm::AtomicRMWInst::Min,
-        fval,
+        memCell,
         rs2,
         align,
         llvm::AtomicOrdering::Monotonic
@@ -213,7 +222,7 @@ llvm::Function* createAmo64Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *
     bd->SetInsertPoint(amomaxBB);
     prev = bd->CreateAtomicRMW(
         llvm::AtomicRMWInst::Max,
-        fval,
+        memCell,
         rs2,
         align,
         llvm::AtomicOrdering::Monotonic
@@ -224,7 +233,7 @@ llvm::Function* createAmo64Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *
     bd->SetInsertPoint(amouminBB);
     prev = bd->CreateAtomicRMW(
         llvm::AtomicRMWInst::UMin,
-        fval,
+        memCell,
         rs2,
         align,
         llvm::AtomicOrdering::Monotonic
@@ -235,7 +244,7 @@ llvm::Function* createAmo64Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *
     bd->SetInsertPoint(amoumaxBB);
     prev = bd->CreateAtomicRMW(
         llvm::AtomicRMWInst::UMax,
-        fval,
+        memCell,
         rs2,
         align,
         llvm::AtomicOrdering::Monotonic
@@ -247,11 +256,11 @@ llvm::Function* createAmo64Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *
 
     bd->SetInsertPoint(amoafterBB);
 
-    bd->CreateCall(storeFunc,{hartPtr,addr,bd->getInt64(64),fval});
+    bd->CreateCall(storeFunc,{hartPtr,addr,bd->getInt64(64),builder->CreateLoad(i64Ty,memCell)});
     bd->CreateRet(retStruct);
     return func;
 }
-llvm::Function* createAmo32Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *md, llvm::StructType* l_optStructTy, llvm::FunctionCallee loadFunc, llvm::FunctionCallee storeFunc, llvm::FunctionCallee trapFunc) {
+llvm::Function* createAmo32Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *md, llvm::StructType* l_optStructTy, llvm::FunctionCallee loadFunc, llvm::FunctionCallee storeFunc, llvm::FunctionCallee trapFunc,uint64_t pc) {
     llvm::Type* i64Ty = bd->getInt64Ty();
     llvm::Type* i32Ty = bd->getInt32Ty();
     llvm::Type* args[] = {
@@ -264,7 +273,7 @@ llvm::Function* createAmo32Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *
     llvm::Function* func = llvm::Function::Create(
         funcTy,
         llvm::Function::ExternalLinkage,
-        "amo32",
+        "amo32_" + std::to_string(pc),
         md->get()
     );
     auto argsIter = func->arg_begin();
@@ -272,6 +281,15 @@ llvm::Function* createAmo32Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *
     (++argsIter)->setName("type");
     (++argsIter)->setName("addr");
     (++argsIter)->setName("rs2");
+
+    llvm::GlobalVariable* memCell = new llvm::GlobalVariable(
+        **md,
+        i32Ty,
+        false,                          // isConstant
+        llvm::GlobalValue::ExternalLinkage,
+        builder->getInt32(0),
+        "amo32_memCell_" + std::to_string(pc)
+    );
 
     llvm::BasicBlock* entry = llvm::BasicBlock::Create(bd->getContext(), "entry", func);
     bd->SetInsertPoint(entry);
@@ -294,8 +312,8 @@ llvm::Function* createAmo32Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *
     bd->SetInsertPoint(normalBB);
     llvm::Value* loadRet = bd->CreateCall(loadFunc,{hartPtr,addr,bd->getInt64(32)});
 
-    llvm::Value* value = builder->CreateExtractValue(loadRet, {0});
-    llvm::Value* hasValue = builder->CreateExtractValue(loadRet, {1});
+    llvm::Value* value = bd->CreateExtractValue(loadRet, {0});
+    llvm::Value* hasValue = bd->CreateExtractValue(loadRet, {1});
 
     bd->CreateCondBr(hasValue,normal1BB,accessBB);
 
@@ -310,6 +328,7 @@ llvm::Function* createAmo32Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *
     bd->SetInsertPoint(normal1BB);
     retStruct = bd->CreateInsertValue(retStruct, value, {0});
     retStruct = bd->CreateInsertValue(retStruct, bd->getInt1(1), {1});
+    builder->CreateStore(value,memCell);
 
     llvm::BasicBlock* amoswapBB = llvm::BasicBlock::Create(bd->getContext(), "amo32_amoswap", func);
     llvm::BasicBlock* amoaddBB = llvm::BasicBlock::Create(bd->getContext(), "amo32_amoadd", func);
@@ -335,7 +354,6 @@ llvm::Function* createAmo32Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *
     sw->addCase(bd->getInt64(8),amoumaxBB);
 
     llvm::MaybeAlign align(4);
-    llvm::Value* fval = value;
     llvm::Value* prev;
 
     // Replace Monotonic with Release, Acquire if required
@@ -344,7 +362,7 @@ llvm::Function* createAmo32Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *
     bd->SetInsertPoint(amoswapBB);
     prev = bd->CreateAtomicRMW(
         llvm::AtomicRMWInst::Xchg,
-        fval,
+        memCell,
         rs2,
         align,
         llvm::AtomicOrdering::Monotonic
@@ -355,7 +373,7 @@ llvm::Function* createAmo32Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *
     bd->SetInsertPoint(amoaddBB);
     prev = bd->CreateAtomicRMW(
         llvm::AtomicRMWInst::Add,
-        fval,
+        memCell,
         rs2,
         align,
         llvm::AtomicOrdering::Monotonic
@@ -366,7 +384,7 @@ llvm::Function* createAmo32Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *
     bd->SetInsertPoint(amoxorBB);
     prev = bd->CreateAtomicRMW(
         llvm::AtomicRMWInst::Xor,
-        fval,
+        memCell,
         rs2,
         align,
         llvm::AtomicOrdering::Monotonic
@@ -377,7 +395,7 @@ llvm::Function* createAmo32Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *
     bd->SetInsertPoint(amoandBB);
     prev = bd->CreateAtomicRMW(
         llvm::AtomicRMWInst::And,
-        fval,
+        memCell,
         rs2,
         align,
         llvm::AtomicOrdering::Monotonic
@@ -388,7 +406,7 @@ llvm::Function* createAmo32Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *
     bd->SetInsertPoint(amoorBB);
     prev = bd->CreateAtomicRMW(
         llvm::AtomicRMWInst::Or,
-        fval,
+        memCell,
         rs2,
         align,
         llvm::AtomicOrdering::Monotonic
@@ -399,7 +417,7 @@ llvm::Function* createAmo32Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *
     bd->SetInsertPoint(amominBB);
     prev = bd->CreateAtomicRMW(
         llvm::AtomicRMWInst::Min,
-        fval,
+        memCell,
         rs2,
         align,
         llvm::AtomicOrdering::Monotonic
@@ -410,7 +428,7 @@ llvm::Function* createAmo32Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *
     bd->SetInsertPoint(amomaxBB);
     prev = bd->CreateAtomicRMW(
         llvm::AtomicRMWInst::Max,
-        fval,
+        memCell,
         rs2,
         align,
         llvm::AtomicOrdering::Monotonic
@@ -421,7 +439,7 @@ llvm::Function* createAmo32Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *
     bd->SetInsertPoint(amouminBB);
     prev = bd->CreateAtomicRMW(
         llvm::AtomicRMWInst::UMin,
-        fval,
+        memCell,
         rs2,
         align,
         llvm::AtomicOrdering::Monotonic
@@ -432,7 +450,7 @@ llvm::Function* createAmo32Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *
     bd->SetInsertPoint(amoumaxBB);
     prev = bd->CreateAtomicRMW(
         llvm::AtomicRMWInst::UMax,
-        fval,
+        memCell,
         rs2,
         align,
         llvm::AtomicOrdering::Monotonic
@@ -444,7 +462,7 @@ llvm::Function* createAmo32Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *
 
     bd->SetInsertPoint(amoafterBB);
 
-    bd->CreateCall(storeFunc,{hartPtr,addr,bd->getInt64(32),fval});
+    bd->CreateCall(storeFunc,{hartPtr,addr,bd->getInt64(32),builder->CreateLoad(i64Ty,memCell)});
     bd->CreateRet(retStruct);
     return func;
 }
@@ -578,20 +596,9 @@ BlockFn jit_create_block(HART* hart, std::vector<CACHE_Instr>& instrs) {
         llvm::FunctionType* printTy = llvm::FunctionType::get(voidTy, printArgs, false);
         llvm::FunctionCallee l_printFunc = module->getOrInsertFunction("jit_printval", printTy);
 
-        llvm::Function* l_amo64;
-        if(!amo64) {
-            l_amo64 = createAmo64Func(builder.get(),&module,optStructTy,l_loadFunc,l_storeFunc,l_trapFunc);
-            amo64 = l_amo64;
-        }
-        else {l_amo64 = amo64;}
+        amo64 = createAmo64Func(builder.get(),&module,optStructTy,l_loadFunc,l_storeFunc,l_trapFunc,hart->pc);
 
-        llvm::Function* l_amo32;
-        if(!amo32) {
-            l_amo32 = createAmo32Func(builder.get(),&module,optStructTy,l_loadFunc,l_storeFunc,l_trapFunc);
-            amo32 = l_amo32;
-        }
-        else {l_amo32 = amo32;}
-
+        amo32 = createAmo32Func(builder.get(),&module,optStructTy,l_loadFunc,l_storeFunc,l_trapFunc,hart->pc);
 
         llvm::Function* func = llvm::Function::Create(
             funcType,
@@ -621,8 +628,8 @@ BlockFn jit_create_block(HART* hart, std::vector<CACHE_Instr>& instrs) {
             instr.oprs.loadFunc = l_loadFunc;
             instr.oprs.storeFunc = l_storeFunc;
             instr.oprs.trapFunc = l_trapFunc;
-            instr.oprs.amo64Func = l_amo64;
-            instr.oprs.amo32Func = l_amo32;
+            instr.oprs.amo64Func = amo64;
+            instr.oprs.amo32Func = amo32;
             instr.oprs.printFunc = l_printFunc;
             
             instr.fn(hart, instr.inst, &instr.oprs, &tpl);
@@ -633,7 +640,6 @@ BlockFn jit_create_block(HART* hart, std::vector<CACHE_Instr>& instrs) {
         }
 
         builder->CreateRetVoid();
-
         if (llvm::verifyFunction(*func, &llvm::errs())) {
             llvm::errs() << "Function verification failed\n";
             return nullptr;

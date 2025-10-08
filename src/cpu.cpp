@@ -416,7 +416,7 @@ void HART::cpu_execute(uint32_t inst) {
 		virt_pc = pc;
 	} else if(it1 != instr_block_cache.end()) {
 		uint64_t pc_v = pc;
-		if(instr_block_cache_count_executed[pc_v] > BLOCK_EXECUTE_COUNT_TO_JIT && jit_enabled || true){
+		if(instr_block_cache_count_executed[pc_v] > BLOCK_EXECUTE_COUNT_TO_JIT && jit_enabled){
 			BlockFn jfn = jit_create_block(this,instr_block_cache[pc_v]);
 			instr_block_cache_jit[pc_v] = jfn;
 			jfn(this);
