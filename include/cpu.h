@@ -54,6 +54,8 @@ struct CACHE_Instr {
     bool incr;
     bool j;
     uint32_t inst;
+    bool isBr;
+    uint32_t imm_optional;
     CACHE_DecodedOperands oprs;
 };
 

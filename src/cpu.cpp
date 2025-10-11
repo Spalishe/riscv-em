@@ -422,48 +422,64 @@ void HART::cpu_execute(uint32_t inst) {
 			jfn(this);
 		} else {
 			for(auto &in : instr_block_cache[pc]) {
-				auto [fn_b, __1,__2,inst_b,oprs] = in;
+				auto [fn_b, __1,__2,inst_b,isBr,immopt,oprs] = in;
 				(void)__1; (void)__2; // unused
 				if(trap_notify) {trap_notify = false;}
 				fn_b(this,inst_b,&oprs,NULL);
 				if(trap_notify) {trap_notify = false; break;}
-				pc += ((inst_b & 3) == 3 ? 4 : 2);
+				if(!isBr) pc += ((inst_b & 3) == 3 ? 4 : 2);
 				csrs[CYCLE] += 1;
 				regs[0] = 0;
+				if(isBr) break; 
 			}
 		}
 		instr_block_cache_count_executed[pc_v] += 1;
 		virt_pc = pc;
 	} else {
 		CACHE_Instr instr = parse_instruction(this,inst);
-		auto [fn, incr, j, _, oprs] = instr;
+		auto [fn, incr, j, _, isBr, immopt, oprs] = instr;
 		if(block_enabled) {
 			if(!j) {
 				instr_block.push_back(instr);
 				virt_pc += (OP == 3 ? 4 : 2);
 			} else {
-				if(instr_block.size() > 0) {
-					auto cp = instr_block;
-					instr_block_cache[pc] = cp;
-					instr_block_cache_count_executed[pc] = 1;
-					for(auto &in : instr_block) {
-						auto [fn_b, __1,__2,inst_b,oprs] = in;
-						(void)__1; (void)__2; // unused
-						if(trap_notify) {trap_notify = false;}
-						fn_b(this,inst_b,&oprs,NULL);
-						if(trap_notify) {trap_notify = false; break;}
-						pc += ((inst_b & 3) == 3 ? 4 : 2);
-						csrs[CYCLE] += 1;
-						regs[0] = 0;
+				// TODO: Two-Pass IR translation
+				//		 First time store all block instrs until junction(Branches and JAL included in list)
+				//		 Then iterate for each instruction and check branches, if it poiniting further then stop iterating and create list, else continue
+				//		 It will possibly increase block creation time due to O(2), but it grands is possibility to create branches that can point to +imm values
+				bool can = true;
+				if(isBr) {
+					if((pc + immopt) >= pc && (pc + immopt) <= (instr_block.size()*4)) {
+						instr_block.push_back(instr);
+						virt_pc += (OP == 3 ? 4 : 2);
+						can = false;
 					}
-					instr_block.clear();
 				}
-				fn(this,inst,&oprs,NULL);
-				if(incr) {pc += (OP == 3 ? 4 : 2);}
-				virt_pc = pc;
+				if(can) {
+					if(instr_block.size() > 0) {
+						auto cp = instr_block;
+						instr_block_cache[pc] = cp;
+						instr_block_cache_count_executed[pc] = 1;
+						for(auto &in : instr_block) {
+							auto [fn_b, __1,__2,inst_b,isBr,immopt,oprs] = in;
+							(void)__1; (void)__2; // unused
+							if(trap_notify) {trap_notify = false;}
+							fn_b(this,inst_b,&oprs,NULL);
+							if(trap_notify) {trap_notify = false; break;}
+							if(!isBr) pc += ((inst_b & 3) == 3 ? 4 : 2);
+							csrs[CYCLE] += 1;
+							regs[0] = 0;
+							if(isBr) break;
+						}
+						instr_block.clear();
+					}
+					fn(this,inst,&oprs,NULL);
+					if(incr) {pc += (OP == 3 ? 4 : 2);}
+					virt_pc = pc;
 
-				csrs[CYCLE] += 1;
-				regs[0] = 0;
+					csrs[CYCLE] += 1;
+					regs[0] = 0;
+				}
 			}
 		} else {
 			fn(this,inst,&oprs,NULL);

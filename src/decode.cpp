@@ -86,6 +86,8 @@ CACHE_Instr parse_instruction(struct HART* hart, uint32_t inst) {
 	int OP = inst & 3;
 	bool increase = true;
 	bool junction = false;
+    bool isBranch = false;
+    uint32_t imm_opt = 0;
 	void (*fn)(HART*, uint32_t, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*,llvm::Function*,llvm::Value*>*);
 
 	auto it1 = instr_cache.find(inst);
@@ -248,15 +250,15 @@ CACHE_Instr parse_instruction(struct HART* hart, uint32_t inst) {
                     }; break;
                 case B_TYPE:
                     switch(funct3) {
-                        case BEQ: fn = exec_BEQ; junction = true; break;
-                        case BNE: fn = exec_BNE; junction = true; break;
-                        case BLT: fn = exec_BLT; junction = true; break;
-                        case BGE: fn = exec_BGE; junction = true; break;
-                        case BLTU: fn = exec_BLTU; junction = true; break;
-                        case BGEU: fn = exec_BGEU; junction = true; break;
+                        case BEQ: fn = exec_BEQ; junction = true; isBranch = true; imm_opt = imm_B(inst); break;
+                        case BNE: fn = exec_BNE; junction = true; isBranch = true; imm_opt = imm_B(inst); break;
+                        case BLT: fn = exec_BLT; junction = true; isBranch = true; imm_opt = imm_B(inst); break;
+                        case BGE: fn = exec_BGE; junction = true; isBranch = true; imm_opt = imm_B(inst); break;
+                        case BLTU: fn = exec_BLTU; junction = true; isBranch = true; imm_opt = imm_B(inst); break;
+                        case BGEU: fn = exec_BGEU; junction = true; isBranch = true; imm_opt = imm_B(inst); break;
                     }; break;
-                case JAL: fn = exec_JAL; increase = false; junction = true; break;
-                case JALR: fn = exec_JALR; increase = false; junction = true; break;
+                case JAL: fn = exec_JAL; increase = false; junction = true; isBranch = true; imm_opt = imm_J(inst); break;
+                case JALR: fn = exec_JALR; increase = false; junction = true; break; // Not making it branch for JIT cuz we cant predict if it will jmp inside local block or not
                 case LUI: fn = exec_LUI; break;
                 case AUIPC: fn = exec_AUIPC; break;
                 case ECALL: 
@@ -342,9 +344,9 @@ CACHE_Instr parse_instruction(struct HART* hart, uint32_t inst) {
                                 }
                             }
                         }; break;
-                        case 5: fn = exec_C_J; increase = false; junction = true; break;
-                        case 6: fn = exec_C_BEQZ; break;
-                        case 7: fn = exec_C_BNEZ; break;
+                        case 5: fn = exec_C_J; increase = false; junction = true; isBranch = true; imm_opt = imm_J(inst); break;
+                        case 6: fn = exec_C_BEQZ; isBranch = true; imm_opt = imm_B(inst); break;
+                        case 7: fn = exec_C_BNEZ; isBranch = true; imm_opt = imm_B(inst); break;
                     }
                 }; break;
                 case 2: {
@@ -383,7 +385,7 @@ CACHE_Instr parse_instruction(struct HART* hart, uint32_t inst) {
             //if(increase) pc += 2;
         }
 
-        CACHE_Instr dec = CACHE_Instr{fn, increase,junction,inst,CACHE_DecodedOperands()};
+        CACHE_Instr dec = CACHE_Instr{fn, increase,junction,inst,isBranch,imm_opt,CACHE_DecodedOperands()};
         instr_cache[inst] = dec;
         return dec;
     }

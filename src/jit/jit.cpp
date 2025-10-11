@@ -624,6 +624,7 @@ BlockFn jit_create_block(HART* hart, std::vector<CACHE_Instr>& instrs) {
         std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*> tpl{builder.get(), func, hartPtr};
         uint64_t i = 0;
         for (auto& instr : instrs) {
+            // We doing a thing: linearized block CFG with intra-block branch embedding
             i++;
             instr.oprs.loadFunc = l_loadFunc;
             instr.oprs.storeFunc = l_storeFunc;
@@ -631,7 +632,7 @@ BlockFn jit_create_block(HART* hart, std::vector<CACHE_Instr>& instrs) {
             instr.oprs.amo64Func = amo64;
             instr.oprs.amo32Func = amo32;
             instr.oprs.printFunc = l_printFunc;
-            
+
             instr.fn(hart, instr.inst, &instr.oprs, &tpl);
 
             builder->CreateStore(builder->getInt64(hart->pc + 4*i),pcPtr);
