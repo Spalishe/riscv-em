@@ -46,6 +46,9 @@ struct CACHE_DecodedOperands {
 
     llvm::Function* amo64Func;
     llvm::Function* amo32Func;
+
+    std::unordered_map<uint64_t,llvm::BasicBlock*> *branches;
+    uint64_t jit_virtpc;
     
     std::unordered_map<uint8_t,llvm::StructType*> types;
 };

@@ -34,6 +34,7 @@ extern void jit_ITYPE_SLT(HART* hart, CACHE_DecodedOperands* cache, llvm::IRBuil
 extern void jit_ITYPE_L(HART* hart, CACHE_DecodedOperands* cache, llvm::IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr, uint8_t type);
 extern void jit_STORE(HART* hart, CACHE_DecodedOperands* cache, llvm::IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr, uint8_t type);
 extern void jit_UTYPE(HART* hart, CACHE_DecodedOperands* cache, llvm::IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr, uint8_t type);
+extern void jit_BR(HART* hart, CACHE_DecodedOperands* cache, llvm::IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr, uint8_t type);
 
 extern void jit_ZICSR_R(HART* hart, CACHE_DecodedOperands* cache, llvm::IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr, uint8_t type);
 extern void jit_ZICSR_I(HART* hart, CACHE_DecodedOperands* cache, llvm::IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr, uint8_t type);

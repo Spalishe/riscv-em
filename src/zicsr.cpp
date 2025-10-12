@@ -57,7 +57,7 @@ void exec_CSRRW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, 
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t imm = opers->s ? opers->imm : imm_Zicsr(inst);
 
-    if(!csr_accessible(imm,hart->mode,(rs1_l != 0))) {
+    if(!csr_accessible(imm,hart->mode,true)) {
         hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,hart->mode,false);
     }
     if(jitd == NULL) {
@@ -134,7 +134,7 @@ void exec_CSRRWI(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers,
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t imm = opers->s ? opers->imm : imm_Zicsr(inst);
 
-    if(!csr_accessible(imm,hart->mode,(rs1_l != 0))) {
+    if(!csr_accessible(imm,hart->mode,true)) {
         hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,hart->mode,false);
     }
     if(jitd == NULL) {

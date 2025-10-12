@@ -21,5 +21,6 @@ Copyright 2025 Spalishe
 
 void reset();
 void poweroff(bool ctrlc);
+void fastexit();
 extern MemoryMap memmap;
 extern MMIO* mmio;

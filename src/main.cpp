@@ -59,6 +59,13 @@ Copyright 2025 Spalishe
 	The Broken Insts:
 		none
 	TODO:
+		-RV64C
+		-Zba - bit manip
+		-Zbb - bit manip
+		-Zbc - carry-less mul
+		-Zicbom - non-coherent DMA
+		-Zicboz - fast memory zeroing
+
 		-MMU
 		-RV32F
 		-RV64F
@@ -91,7 +98,7 @@ struct TermiosGuard {
 		tcsetattr(STDIN_FILENO, TCSANOW, &newt);
 	};
     ~TermiosGuard() { tcsetattr(STDIN_FILENO, TCSANOW, &oldt); }
-} tguard;
+};
 
 MemoryMap memmap;
 
@@ -247,7 +254,7 @@ void add_devices_and_map() {
 	if(!debug) {
 		kb_running = true;
 		kb_t = std::thread([&uart]() {
-			tguard = TermiosGuard();
+			TermiosGuard tguard = TermiosGuard();
 
 			while (kb_running) {
 				fd_set fds;
@@ -298,6 +305,11 @@ void poweroff(bool ctrlc) {
 		if (kb_t.joinable())
 			kb_t.join();
 	} else kb_t.detach();
+	clint->stop_timer_thread();
+	std::_Exit(1);
+}
+
+void fastexit() {
 	clint->stop_timer_thread();
 	std::_Exit(1);
 }

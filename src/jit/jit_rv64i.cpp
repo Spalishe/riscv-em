@@ -342,3 +342,46 @@ void jit_UTYPE(HART* hart, CACHE_DecodedOperands* cache, IRBuilder<>* builder, l
     // store in rd
     builder->CreateStore(res, rdPtr);
 }
+void jit_BR(HART* hart, CACHE_DecodedOperands* cache, IRBuilder<>* builder, llvm::Function* currentFunc, llvm::Value* hartPtr, uint8_t type) {
+    llvm::Type* i64Ty = llvm::Type::getInt64Ty(*context);
+    llvm::Type* i32Ty = llvm::Type::getInt32Ty(*context);
+
+    llvm::Value* regsPtr = builder->CreateStructGEP(hartStructTy, hartPtr, 0); // HART->regs
+    llvm::Value* pcPtr = builder->CreateStructGEP(hartStructTy, hartPtr, 1); // HART->pc
+
+    llvm::Value* rs1Ptr = builder->CreateGEP(i64Ty, regsPtr, builder->getInt32(cache->rs1));
+    llvm::Value* rs2Ptr = builder->CreateGEP(i64Ty, regsPtr, builder->getInt32(cache->rs2));
+    
+    llvm::Value* val1 = builder->CreateLoad(i64Ty, rs1Ptr);
+    llvm::Value* val2 = builder->CreateLoad(i64Ty, rs2Ptr);
+
+    llvm::Value* imm = ConstantInt::get(i32Ty,(int32_t)cache->imm,true);
+    imm = builder->CreateSExt(imm,i64Ty);
+
+    llvm::Value* icmpval;
+    switch(type) {
+        case 0: icmpval = builder->CreateICmpEQ(val1,val2); break; // BEQ
+        case 1: icmpval = builder->CreateICmpNE(val1,val2); break; // BNE
+        case 2: icmpval = builder->CreateICmpSLT(val1,val2); break; // BLT
+        case 3: icmpval = builder->CreateICmpSGE(val1,val2); break; // BGE
+        case 4: icmpval = builder->CreateICmpULT(val1,val2); break; // BLTU
+        case 5: icmpval = builder->CreateICmpUGE(val1,val2); break; // BGEU
+        case 6: icmpval = builder->getInt1(1); break; // JAL
+    }
+
+    uint64_t thisPc = cache->jit_virtpc + (int32_t)cache->imm;
+    /*for(auto const [key,val] : *cache->branches) {
+        std::cout << key << std::endl;
+    }
+    std::cout << "end" << std::endl;
+    std::cout << cache->jit_virtpc << std::endl;
+    std::cout << (int32_t)cache->imm << std::endl;
+    std::cout << hart->pc << std::endl;*/
+    BasicBlock* bl = cache->branches->at(thisPc);
+    
+    BasicBlock* els = llvm::BasicBlock::Create(*context, std::format("br_{}_after",thisPc), currentFunc);
+
+    builder->CreateCondBr(icmpval,bl,els);
+
+    builder->SetInsertPoint(els);
+}

@@ -621,6 +621,14 @@ BlockFn jit_create_block(HART* hart, std::vector<CACHE_Instr>& instrs) {
         llvm::Value* x0Ptr = builder->CreateGEP(i64Ty, regsPtr, builder->getInt32(0));
         llvm::Value* cyclePtr = builder->CreateGEP(i64Ty, csrsPtr, builder->getInt32(CYCLE));
 
+        std::unordered_map<uint64_t,llvm::BasicBlock*> br_blocks;
+        uint64_t base_pc = hart->pc;
+        uint64_t end_pc = base_pc + instrs.size() * 4;
+        for (uint64_t pc = base_pc; pc < end_pc; pc += 4) {
+            llvm::BasicBlock* bl = llvm::BasicBlock::Create(*context,"br_" + std::to_string(pc), func);
+            br_blocks[pc] = bl;
+        }
+
         std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*> tpl{builder.get(), func, hartPtr};
         uint64_t i = 0;
         for (auto& instr : instrs) {
@@ -632,6 +640,18 @@ BlockFn jit_create_block(HART* hart, std::vector<CACHE_Instr>& instrs) {
             instr.oprs.amo64Func = amo64;
             instr.oprs.amo32Func = amo32;
             instr.oprs.printFunc = l_printFunc;
+            instr.oprs.branches = &br_blocks; 
+            instr.oprs.jit_virtpc = hart->pc+(i-1)*4; 
+
+            auto find = br_blocks.find(hart->pc+(i-1)*4);
+            llvm::BasicBlock* br_b = NULL;
+            if(find != br_blocks.end()) {
+                br_b = br_blocks[hart->pc+(i-1)*4];
+            }
+            if(br_b != NULL) {
+                builder->CreateBr(br_b);
+                builder->SetInsertPoint(br_b);
+            }
 
             instr.fn(hart, instr.inst, &instr.oprs, &tpl);
 
@@ -639,8 +659,8 @@ BlockFn jit_create_block(HART* hart, std::vector<CACHE_Instr>& instrs) {
             builder->CreateStore(builder->getInt64(0),x0Ptr);
             builder->CreateStore(builder->getInt64(hart->csrs[CYCLE] + 1*i),cyclePtr);
         }
-
         builder->CreateRetVoid();
+
         if (llvm::verifyFunction(*func, &llvm::errs())) {
             llvm::errs() << "Function verification failed\n";
             return nullptr;

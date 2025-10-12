@@ -23,6 +23,7 @@ Copyright 2025 Spalishe
 #include "../include/opcodes.h"
 #include "../include/instset.h"
 #include "../include/csr.h"
+#include "../include/main.hpp"
 #include "../include/jit_h.hpp"
 #include "../include/devices/plic.hpp"
 #include <cstdio>
@@ -177,6 +178,7 @@ void HART::cpu_loop() {
 				continue;
 
 			if(line == "exit" || line == "quit") {
+				fastexit();
 				break;
 			}
 			else if(line == "singlestep") {
@@ -412,12 +414,14 @@ void HART::cpu_execute(uint32_t inst) {
 	auto it1 = instr_block_cache.find(pc);
 	auto it2 = instr_block_cache_jit.find(pc);
 	if(jit_enabled && it2 != instr_block_cache_jit.end()) {
+		if(dbg) std::cout << "JIT EXECUTED: " << pc << std::endl;
 		instr_block_cache_jit[pc](this);
 		virt_pc = pc;
 	} else if(it1 != instr_block_cache.end()) {
 		uint64_t pc_v = pc;
 		if(instr_block_cache_count_executed[pc_v] > BLOCK_EXECUTE_COUNT_TO_JIT && jit_enabled){
 			BlockFn jfn = jit_create_block(this,instr_block_cache[pc_v]);
+			if(dbg) std::cout << "JIT COMPILED: " << pc_v << std::endl;
 			instr_block_cache_jit[pc_v] = jfn;
 			jfn(this);
 		} else {
@@ -425,12 +429,15 @@ void HART::cpu_execute(uint32_t inst) {
 				auto [fn_b, __1,__2,inst_b,isBr,immopt,oprs] = in;
 				(void)__1; (void)__2; // unused
 				if(trap_notify) {trap_notify = false;}
+				uint64_t prevpc = pc;
+				bool brb = false;
 				fn_b(this,inst_b,&oprs,NULL);
-				if(trap_notify) {trap_notify = false; break;}
-				if(!isBr) pc += ((inst_b & 3) == 3 ? 4 : 2);
+				if(pc != prevpc) brb = true;
+				if(trap_notify) {trap_notify = false; brb = true; break;}
+				if(!isBr || brb) pc += ((inst_b & 3) == 3 ? 4 : 2);
 				csrs[CYCLE] += 1;
 				regs[0] = 0;
-				if(isBr) break; 
+				if(isBr && brb) break; 
 			}
 		}
 		instr_block_cache_count_executed[pc_v] += 1;
@@ -438,24 +445,33 @@ void HART::cpu_execute(uint32_t inst) {
 	} else {
 		CACHE_Instr instr = parse_instruction(this,inst);
 		auto [fn, incr, j, _, isBr, immopt, oprs] = instr;
+		int32_t immo = (int32_t)immopt;
 		if(block_enabled) {
 			if(!j) {
 				instr_block.push_back(instr);
 				virt_pc += (OP == 3 ? 4 : 2);
 			} else {
-				// TODO: Two-Pass IR translation
+				// TODO: Two-Pass IR construction
 				//		 First time store all block instrs until junction(Branches and JAL included in list)
 				//		 Then iterate for each instruction and check branches, if it poiniting further then stop iterating and create list, else continue
 				//		 It will possibly increase block creation time due to O(2), but it grands is possibility to create branches that can point to +imm values
 				bool can = true;
 				if(isBr) {
-					if((pc + immopt) >= pc && (pc + immopt) <= (instr_block.size()*4)) {
+					/*std::cout << virt_pc << std::endl;
+					std::cout << immo << std::endl;
+					std::cout << pc << std::endl;
+					std::cout << instr_block.size()*4 << std::endl;
+
+					std::cout << ((virt_pc + immo) >= pc) << std::endl;
+					std::cout << ((virt_pc + immo) <= (pc + instr_block.size()*4)) << std::endl;*/
+					if((virt_pc + immo) >= pc && (virt_pc + immo) <= (pc + instr_block.size()*4)) {
 						instr_block.push_back(instr);
 						virt_pc += (OP == 3 ? 4 : 2);
-						can = false;
+						//can = false;
 					}
 				}
 				if(can) {
+					bool brb = false;
 					if(instr_block.size() > 0) {
 						auto cp = instr_block;
 						instr_block_cache[pc] = cp;
@@ -464,17 +480,21 @@ void HART::cpu_execute(uint32_t inst) {
 							auto [fn_b, __1,__2,inst_b,isBr,immopt,oprs] = in;
 							(void)__1; (void)__2; // unused
 							if(trap_notify) {trap_notify = false;}
+							uint64_t prevpc = pc;
 							fn_b(this,inst_b,&oprs,NULL);
-							if(trap_notify) {trap_notify = false; break;}
-							if(!isBr) pc += ((inst_b & 3) == 3 ? 4 : 2);
+							if(pc != prevpc) brb = true;
+							if(trap_notify) {trap_notify = false; brb = true; break;}
+							if(!isBr || brb) pc += ((inst_b & 3) == 3 ? 4 : 2);
 							csrs[CYCLE] += 1;
 							regs[0] = 0;
-							if(isBr) break;
+							if(isBr && brb) break;
 						}
 						instr_block.clear();
 					}
-					fn(this,inst,&oprs,NULL);
-					if(incr) {pc += (OP == 3 ? 4 : 2);}
+					if(!brb) {
+						fn(this,inst,&oprs,NULL);
+						if(incr) {pc += (OP == 3 ? 4 : 2);}
+					}
 					virt_pc = pc;
 
 					csrs[CYCLE] += 1;
