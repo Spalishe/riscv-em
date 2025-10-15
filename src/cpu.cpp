@@ -145,7 +145,7 @@ uint32_t HART::cpu_fetch() {
 		cpu_trap(EXC_INST_ADDR_MISALIGNED,upc,false);
 	}
 	uint32_t inst = 0;
-	std::optional<uint64_t> val = mmio->load(this,upc,32);
+	std::optional<uint64_t> val = dram.mmap->load(upc,32);
 	if(val.has_value()) {
 		inst = (uint32_t) *val;
 	}
@@ -426,15 +426,14 @@ void HART::cpu_execute(uint32_t inst) {
 			jfn(this);
 		} else {
 			for(auto &in : instr_block_cache[pc]) {
-				auto [fn_b, __1,__2,inst_b,isBr,immopt,oprs] = in;
-				(void)__1; (void)__2; // unused
+				auto [fn_b, incr_b,__2,inst_b,isBr,immopt,oprs] = in;
+				(void)__2; // unused
 				if(trap_notify) {trap_notify = false;}
-				uint64_t prevpc = pc;
 				bool brb = false;
 				fn_b(this,inst_b,&oprs,NULL);
-				if(pc != prevpc) brb = true;
+				brb = oprs.brb;
 				if(trap_notify) {trap_notify = false; brb = true; break;}
-				if(!isBr || brb) pc += ((inst_b & 3) == 3 ? 4 : 2);
+				if(!isBr || !brb) {pc += ((inst_b & 3) == 3 ? 4 : 2);}
 				csrs[CYCLE] += 1;
 				regs[0] = 0;
 				if(isBr && brb) break; 
@@ -477,14 +476,13 @@ void HART::cpu_execute(uint32_t inst) {
 						instr_block_cache[pc] = cp;
 						instr_block_cache_count_executed[pc] = 1;
 						for(auto &in : instr_block) {
-							auto [fn_b, __1,__2,inst_b,isBr,immopt,oprs] = in;
-							(void)__1; (void)__2; // unused
+							auto [fn_b, incr_b,__2,inst_b,isBr,immopt,oprs] = in;
+							(void)__2; // unused
 							if(trap_notify) {trap_notify = false;}
-							uint64_t prevpc = pc;
 							fn_b(this,inst_b,&oprs,NULL);
-							if(pc != prevpc) brb = true;
+							brb = oprs.brb;
 							if(trap_notify) {trap_notify = false; brb = true; break;}
-							if(!isBr || brb) pc += ((inst_b & 3) == 3 ? 4 : 2);
+							if(!isBr || !brb) {pc += ((inst_b & 3) == 3 ? 4 : 2);}
 							csrs[CYCLE] += 1;
 							regs[0] = 0;
 							if(isBr && brb) break;

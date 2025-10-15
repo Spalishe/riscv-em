@@ -55,6 +55,16 @@ uint64_t imm_J(uint32_t inst) {
         | (get_bits(inst, 19,12) << 12) 
         | (get_bits(inst, 31,31) << 20),21);
 }
+uint64_t C_imm_J(uint16_t inst) {
+    return ((get_bits(inst, 12, 12) << 11) |
+        (get_bits(inst, 11, 11) << 4)  |
+        (get_bits(inst, 10, 9) << 8)   |
+        (get_bits(inst, 8, 8) << 10)   |
+        (get_bits(inst, 7, 7) << 6)    |
+        (get_bits(inst, 6, 6) << 7)    |
+        (get_bits(inst, 5, 3) << 1)    |
+        (get_bits(inst, 2, 2) << 5));
+}
 uint32_t shamt(uint32_t inst) {
     // shamt(shift amount) only required for immediate shift instructions
     // shamt[4:5] = imm[5:0]
@@ -250,12 +260,12 @@ CACHE_Instr parse_instruction(struct HART* hart, uint32_t inst) {
                     }; break;
                 case B_TYPE:
                     switch(funct3) {
-                        case BEQ: fn = exec_BEQ; junction = true; isBranch = true; imm_opt = imm_B(inst); break;
-                        case BNE: fn = exec_BNE; junction = true; isBranch = true; imm_opt = imm_B(inst); break;
-                        case BLT: fn = exec_BLT; junction = true; isBranch = true; imm_opt = imm_B(inst); break;
-                        case BGE: fn = exec_BGE; junction = true; isBranch = true; imm_opt = imm_B(inst); break;
-                        case BLTU: fn = exec_BLTU; junction = true; isBranch = true; imm_opt = imm_B(inst); break;
-                        case BGEU: fn = exec_BGEU; junction = true; isBranch = true; imm_opt = imm_B(inst); break;
+                        case BEQ: fn = exec_BEQ; increase = false; junction = true; isBranch = true; imm_opt = imm_B(inst); break;
+                        case BNE: fn = exec_BNE; increase = false; junction = true; isBranch = true; imm_opt = imm_B(inst); break;
+                        case BLT: fn = exec_BLT; increase = false; junction = true; isBranch = true; imm_opt = imm_B(inst); break;
+                        case BGE: fn = exec_BGE; increase = false; junction = true; isBranch = true; imm_opt = imm_B(inst); break;
+                        case BLTU: fn = exec_BLTU; increase = false; junction = true; isBranch = true; imm_opt = imm_B(inst); break;
+                        case BGEU: fn = exec_BGEU; increase = false; junction = true; isBranch = true; imm_opt = imm_B(inst); break;
                     }; break;
                 case JAL: fn = exec_JAL; increase = false; junction = true; isBranch = true; imm_opt = imm_J(inst); break;
                 case JALR: fn = exec_JALR; increase = false; junction = true; break; // Not making it branch for JIT cuz we cant predict if it will jmp inside local block or not
@@ -280,7 +290,7 @@ CACHE_Instr parse_instruction(struct HART* hart, uint32_t inst) {
                             }; break;
                     }; break;
 
-                default: hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false); break;
+                default: hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false); std::cout << "[WARNING] Unknown instruction: " << inst << std::endl; break;
             }
             //if(increase) pc += 4;
         } else {
@@ -288,7 +298,7 @@ CACHE_Instr parse_instruction(struct HART* hart, uint32_t inst) {
             int funct3 = (inst >> 13) & 0x7;
             int funct4 = (inst >> 12) & 0xF;
             int funct5 = (inst >> 10) & 0x3;
-            int funct6 = (inst >> 10) & 0x1F;
+            int funct6 = (inst >> 10) & 0x3F;
             switch(OP) {
                 case 0: {
                     switch(funct3) {
@@ -302,7 +312,7 @@ CACHE_Instr parse_instruction(struct HART* hart, uint32_t inst) {
                 case 1: {
                     switch(funct3) {
                         case 0: {
-                            if(inst == 0x1) {
+                            if(get_bits(inst, 11, 7) == 0) {
                                 fn = exec_C_NOP;
                             } else {
                                 fn = exec_C_ADDI;
@@ -310,7 +320,7 @@ CACHE_Instr parse_instruction(struct HART* hart, uint32_t inst) {
                         }; break;
                         case 1: 
                             {
-                                // fn = exec_C_JAL; increase = false; junction = true;
+                                // fn = exec_C_JAL; junction = true; isBranch = true; imm_opt = C_imm_J(inst);
                                 // Uncomment this if u planning making a fully working 32-bit arch
                                 fn = exec_C_ADDIW;
                             } break;
@@ -344,9 +354,9 @@ CACHE_Instr parse_instruction(struct HART* hart, uint32_t inst) {
                                 }
                             }
                         }; break;
-                        case 5: fn = exec_C_J; increase = false; junction = true; isBranch = true; imm_opt = imm_J(inst); break;
-                        case 6: fn = exec_C_BEQZ; isBranch = true; imm_opt = imm_B(inst); break;
-                        case 7: fn = exec_C_BNEZ; isBranch = true; imm_opt = imm_B(inst); break;
+                        case 5: fn = exec_C_J; increase = false; junction = true; isBranch = true; imm_opt = C_imm_J(inst); break;
+                        case 6: fn = exec_C_BEQZ; increase = false; isBranch = true; imm_opt = imm_B(inst); break;
+                        case 7: fn = exec_C_BNEZ; increase = false; isBranch = true; imm_opt = imm_B(inst); break;
                     }
                 }; break;
                 case 2: {
@@ -359,7 +369,7 @@ CACHE_Instr parse_instruction(struct HART* hart, uint32_t inst) {
                                 case 8: {
                                     uint64_t i = get_bits(inst,6,2);
                                     switch(i) {
-                                        case 0: fn = exec_C_JR; increase = false; junction = true; break;
+                                        case 0: fn = exec_C_JR; increase = false; junction = true; isBranch = true; imm_opt = C_imm_J(inst); break;
                                         default: fn = exec_C_MV; break;
                                     }
                                 }; break;
@@ -369,7 +379,7 @@ CACHE_Instr parse_instruction(struct HART* hart, uint32_t inst) {
                                     if(i == 0 && i1 == 0) {
                                         fn = exec_C_EBREAK; junction = true;
                                     } else if(i == 0 && i1 != 0) {
-                                        fn = exec_C_JALR; increase = false; junction = true;
+                                        fn = exec_C_JALR; increase = false; junction = true; isBranch = true; imm_opt = C_imm_J(inst);
                                     } else if(i != 0 && i1 != 0) {
                                         fn = exec_C_ADD;
                                     }
@@ -380,11 +390,11 @@ CACHE_Instr parse_instruction(struct HART* hart, uint32_t inst) {
                         case 7: fn = exec_C_SDSP; break;
                     }
                 }; break;
-                default: hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false); break;
+                default: hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false); std::cout << "[WARNING] Unknown instruction: " << inst << std::endl; break;
             }
             //if(increase) pc += 2;
         }
-
+        
         CACHE_Instr dec = CACHE_Instr{fn, increase,junction,inst,isBranch,imm_opt,CACHE_DecodedOperands()};
         instr_cache[inst] = dec;
         return dec;

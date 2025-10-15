@@ -59,12 +59,13 @@ Copyright 2025 Spalishe
 	The Broken Insts:
 		none
 	TODO:
-		-RV64C
 		-Zba - bit manip
 		-Zbb - bit manip
 		-Zbc - carry-less mul
 		-Zicbom - non-coherent DMA
 		-Zicboz - fast memory zeroing
+
+		-Framebuffer
 
 		-MMU
 		-RV32F

@@ -51,6 +51,8 @@ struct CACHE_DecodedOperands {
     uint64_t jit_virtpc;
     
     std::unordered_map<uint8_t,llvm::StructType*> types;
+
+    bool brb = false;
 };
 struct CACHE_Instr {
     void (*fn)(HART*, uint32_t, CACHE_DecodedOperands*, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>*);

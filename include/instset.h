@@ -30,6 +30,7 @@ uint64_t imm_S(uint32_t inst);
 uint64_t imm_B(uint32_t inst);
 uint64_t imm_U(uint32_t inst);
 uint64_t imm_J(uint32_t inst);
+uint64_t C_imm_J(uint16_t inst);
 uint32_t shamt(uint32_t inst);
 uint32_t shamt64(uint32_t inst);
 int32_t sext(uint32_t val, int bits);

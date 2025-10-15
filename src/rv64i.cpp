@@ -722,8 +722,10 @@ void exec_BEQ(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, st
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
     if(jitd == NULL) {
-        if ((int64_t) hart->regs[rs1_l] == (int64_t) hart->regs[rs2_l])
-            hart->pc = hart->pc + (int64_t) imm - 4;    
+        if ((int64_t) hart->regs[rs1_l] == (int64_t) hart->regs[rs2_l]) {
+            hart->pc = hart->pc + (int64_t) imm;
+        } else hart->pc += 4;
+        opers->brb = true;    
     }
 
     if(!opers->s){
@@ -741,8 +743,10 @@ void exec_BNE(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, st
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
     if(jitd == NULL) {
-	    if ((int64_t) hart->regs[rs1_l] != (int64_t) hart->regs[rs2_l])
-		    hart->pc = hart->pc + (int64_t) imm - 4;
+	    if ((int64_t) hart->regs[rs1_l] != (int64_t) hart->regs[rs2_l]) {
+            hart->pc = hart->pc + (int64_t) imm;
+        } else hart->pc += 4;
+        opers->brb = true;    
     }
 	
     if(!opers->s){
@@ -760,8 +764,10 @@ void exec_BLT(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, st
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
     if(jitd == NULL) {
-        if ((int64_t) hart->regs[rs1_l] < (int64_t) hart->regs[rs2_l])
-            hart->pc = hart->pc + (int64_t) imm - 4;
+        if ((int64_t) hart->regs[rs1_l] < (int64_t) hart->regs[rs2_l]) {
+            hart->pc = hart->pc + (int64_t) imm;
+        } else hart->pc += 4;
+        opers->brb = true;    
     }
 	
     if(!opers->s){
@@ -779,8 +785,10 @@ void exec_BGE(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, st
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
     if(jitd == NULL) {
-        if ((int64_t) hart->regs[rs1_l] >= (int64_t) hart->regs[rs2_l])
-            hart->pc = hart->pc + (int64_t) imm - 4;
+        if ((int64_t) hart->regs[rs1_l] >= (int64_t) hart->regs[rs2_l]) {
+            hart->pc = hart->pc + (int64_t) imm;
+        } else hart->pc += 4;
+        opers->brb = true;    
     }
 	
     if(!opers->s){
@@ -798,8 +806,10 @@ void exec_BLTU(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, s
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
     if(jitd == NULL) {
-        if (hart->regs[rs1_l] < hart->regs[rs2_l])
-            hart->pc = hart->pc + (int64_t) imm - 4;
+        if (hart->regs[rs1_l] < hart->regs[rs2_l]) {
+            hart->pc = hart->pc + (int64_t) imm;
+        } else hart->pc += 4;
+        opers->brb = true;    
     }
 	
     if(!opers->s){
@@ -817,8 +827,10 @@ void exec_BGEU(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, s
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
     if(jitd == NULL) {
-        if (hart->regs[rs1_l] >= hart->regs[rs2_l])
-            hart->pc = hart->pc + (int64_t) imm - 4;
+        if (hart->regs[rs1_l] >= hart->regs[rs2_l]) {
+            hart->pc = hart->pc + (int64_t) imm;
+        } else hart->pc += 4;
+        opers->brb = true;    
     }
 	
     if(!opers->s){
@@ -839,6 +851,7 @@ void exec_JAL(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, st
     if(jitd == NULL) {
         hart->regs[rd_l] = hart->pc+4;
         hart->pc = hart->pc + (int64_t) imm;
+        opers->brb = true;
     }
 	
     if(!opers->s){
