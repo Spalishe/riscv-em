@@ -15,8 +15,8 @@ Copyright 2025 Spalishe
 
 */
 
-#include "../include/devices/i2c_oc.hpp"
-#include "../include/libfdt.hpp"
+#include "../../include/devices/i2c_oc.hpp"
+#include "../../include/libfdt.hpp"
 #include <vector>
 #include <cstdint>
 

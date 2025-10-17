@@ -15,9 +15,9 @@ Copyright 2025 Spalishe
 
 */
 
-#include "../include/devices/uart.hpp"
-#include "../include/devices/plic.hpp"
-#include "../include/libfdt.hpp"
+#include "../../include/devices/uart.hpp"
+#include "../../include/devices/plic.hpp"
+#include "../../include/libfdt.hpp"
 
 UART::UART(uint64_t base, DRAM& ram, PLIC* plic, int irq_num, fdt_node* fdt, uint8_t hartcount)
         : Device(base, 0x100, ram), plic(plic), irq_num(irq_num)

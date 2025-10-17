@@ -14,14 +14,27 @@ Copyright 2025 Spalishe
    limitations under the License.
 
 */
+#pragma once
 
-#include "../../include/devices/dtb.hpp"
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_opengl.h>
+#include <cstdint>
+#include <thread>
+#include <vector>
 
-uint64_t DTB::read(HART* hart,uint64_t addr, uint64_t size) {
-    return dram_load(&ram,addr,size);
-}
+extern SDL_Window* window;
+extern SDL_Renderer* renderer;
+extern GLuint texture;
+extern std::vector<uint32_t> framebuffer;
 
-void DTB::write(HART* hart, uint64_t addr, uint64_t size, uint64_t val) {
-    //dram_store(&ram,addr,32,val);
-    hart->cpu_trap(EXC_STORE_ACCESS_FAULT,addr,false);
-}
+// For exiting from program
+extern SDL_Event event;
+
+extern bool using_SDL;
+extern uint16_t sdl_width;
+extern uint16_t sdl_height;
+
+extern bool SDL_initSDL(uint16_t width, uint16_t height);
+extern void SDL_writePixel(uint64_t pos, uint32_t color);
+extern void SDL_clearTexture();
+extern void SDL_loop();

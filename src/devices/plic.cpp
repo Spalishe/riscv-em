@@ -15,7 +15,7 @@ Copyright 2025 Spalishe
 
 */
 
-#include "../include/devices/plic.hpp"
+#include "../../include/devices/plic.hpp"
 
 PLIC::PLIC(uint64_t base, uint64_t size, DRAM& ram, uint32_t num_sources, fdt_node* fdt, uint8_t hartcount)
     : Device(base, size, ram),

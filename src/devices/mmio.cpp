@@ -15,10 +15,10 @@ Copyright 2025 Spalishe
 
 */
 
-#include "../include/devices/mmio.h"
-#include "../include/cpu.h"
-#include "../include/csr.h"
-#include "../include/dram.h"
+#include "../../include/devices/mmio.h"
+#include "../../include/cpu.h"
+#include "../../include/csr.h"
+#include "../../include/dram.h"
 #include <optional>
 #include <iostream>
 

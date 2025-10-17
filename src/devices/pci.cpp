@@ -15,7 +15,7 @@ Copyright 2025 Spalishe
 
 */
 
-#include "../include/devices/pci.hpp"
+#include "../../include/devices/pci.hpp"
 
 PCI::PCI(uint64_t base, uint64_t size, DRAM& ram,fdt_node* fdt)
         : Device(base, size, ram)

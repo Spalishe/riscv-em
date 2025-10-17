@@ -15,11 +15,11 @@ Copyright 2025 Spalishe
 
 */
 
-#include "../include/libfdt.hpp"
-#include "../include/devices/hid_api.hpp"
-#include "../include/devices/hid_dev.hpp"
-#include "../include/devices/i2c_oc.hpp"
-#include "../include/devices/i2c_hid.hpp"
+#include "../../include/libfdt.hpp"
+#include "../../include/devices/hid_api.hpp"
+#include "../../include/devices/hid_dev.hpp"
+#include "../../include/devices/i2c_oc.hpp"
+#include "../../include/devices/i2c_hid.hpp"
 
 static inline uint64_t bit_mask(uint64_t count)
 {

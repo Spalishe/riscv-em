@@ -18,9 +18,16 @@ Copyright 2025 Spalishe
 
 #include "memory_map.h"
 #include "devices/mmio.h"
+#include "cpu.h"
+#include <vector>
+#include <thread>
+#include <unordered_map>
 
 void reset();
 void poweroff(bool ctrlc);
 void fastexit();
 extern MemoryMap memmap;
 extern MMIO* mmio;
+
+extern std::vector<HART*> hart_list;
+extern std::unordered_map<HART*,std::thread> hart_list_threads;

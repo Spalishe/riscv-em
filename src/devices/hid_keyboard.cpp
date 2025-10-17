@@ -15,9 +15,9 @@ Copyright 2025 Spalishe
 
 */
 
-#include "../include/devices/hid_api.hpp"
-#include "../include/devices/i2c_hid.hpp"
-#include "../include/devices/hid_keyboard.hpp"
+#include "../../include/devices/hid_api.hpp"
+#include "../../include/devices/i2c_hid.hpp"
+#include "../../include/devices/hid_keyboard.hpp"
 
 static inline bool bit_check(uint64_t val, uint64_t pos)
 {

@@ -44,8 +44,8 @@ struct CACHE_DecodedOperands {
     llvm::FunctionCallee trapFunc;
     llvm::FunctionCallee printFunc;
 
-    llvm::Function* amo64Func;
-    llvm::Function* amo32Func;
+    llvm::FunctionCallee amo64Func;
+    llvm::FunctionCallee amo32Func;
 
     std::unordered_map<uint64_t,llvm::BasicBlock*> *branches;
     uint64_t jit_virtpc;
@@ -97,6 +97,8 @@ struct HART {
 
     bool trap_active;
     bool trap_notify;
+
+    bool god_said_to_destroy_this_thread = false; // Why should you name it like this?
 
     DRAM dram;
     MMIO* mmio;

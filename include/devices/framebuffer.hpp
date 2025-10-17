@@ -15,13 +15,14 @@ Copyright 2025 Spalishe
 
 */
 
-#include "../../include/devices/dtb.hpp"
+#pragma once
 
-uint64_t DTB::read(HART* hart,uint64_t addr, uint64_t size) {
-    return dram_load(&ram,addr,size);
-}
+#include "mmio.h"
 
-void DTB::write(HART* hart, uint64_t addr, uint64_t size, uint64_t val) {
-    //dram_store(&ram,addr,32,val);
-    hart->cpu_trap(EXC_STORE_ACCESS_FAULT,addr,false);
-}
+struct FRAMEBUFFER : public Device {
+    FRAMEBUFFER(uint64_t base, DRAM& ram,fdt_node* fdt, uint16_t width, uint16_t height);
+
+    uint64_t read(HART* hart,uint64_t addr, uint64_t size);
+    void write(HART* hart, uint64_t addr, uint64_t size, uint64_t val);
+    void clear();
+};

@@ -158,6 +158,7 @@ uint32_t HART::cpu_fetch() {
 }
 void HART::cpu_loop() {
 	while(true) {
+		if(god_said_to_destroy_this_thread) break;
 		if(trap_active && testing) break;
 		if(stopexec) continue;
 

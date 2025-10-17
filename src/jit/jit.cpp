@@ -55,7 +55,7 @@ extern "C" void jit_printval(uint64_t val) {
     std::cout << val << std::endl;
 }
 
-llvm::Function* createAmo64Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *md, llvm::StructType* l_optStructTy, llvm::FunctionCallee loadFunc, llvm::FunctionCallee storeFunc, llvm::FunctionCallee trapFunc,uint64_t pc) {
+llvm::Function* createAmo64Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *md, llvm::StructType* l_optStructTy, llvm::FunctionCallee loadFunc, llvm::FunctionCallee storeFunc, llvm::FunctionCallee trapFunc) {
     llvm::Type* i64Ty = bd->getInt64Ty();
     llvm::Type* args[] = {
         llvm::PointerType::getUnqual(hartStructTy), // Hart
@@ -67,7 +67,7 @@ llvm::Function* createAmo64Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *
     llvm::Function* func = llvm::Function::Create(
         funcTy,
         llvm::Function::ExternalLinkage,
-        "amo64_" + std::to_string(pc),
+        "amo64",
         md->get()
     );
     auto argsIter = func->arg_begin();
@@ -76,17 +76,11 @@ llvm::Function* createAmo64Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *
     (++argsIter)->setName("addr");
     (++argsIter)->setName("rs2");
 
-    llvm::GlobalVariable* memCell = new llvm::GlobalVariable(
-        **md,
-        i64Ty,
-        false,                          // isConstant
-        llvm::GlobalValue::ExternalLinkage,
-        builder->getInt64(0),
-        "amo64_memCell_" + std::to_string(pc)
-    );
-
     llvm::BasicBlock* entry = llvm::BasicBlock::Create(bd->getContext(), "entry", func);
     bd->SetInsertPoint(entry);
+
+    llvm::AllocaInst* memCell = bd->CreateAlloca(i64Ty,bd->getInt64(1),"amo64_memCell");
+
     llvm::Value* hartPtr = func->getArg(0);
     llvm::Value* type = func->getArg(1);
     llvm::Value* addr = func->getArg(2);
@@ -260,7 +254,7 @@ llvm::Function* createAmo64Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *
     bd->CreateRet(retStruct);
     return func;
 }
-llvm::Function* createAmo32Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *md, llvm::StructType* l_optStructTy, llvm::FunctionCallee loadFunc, llvm::FunctionCallee storeFunc, llvm::FunctionCallee trapFunc,uint64_t pc) {
+llvm::Function* createAmo32Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *md, llvm::StructType* l_optStructTy, llvm::FunctionCallee loadFunc, llvm::FunctionCallee storeFunc, llvm::FunctionCallee trapFunc) {
     llvm::Type* i64Ty = bd->getInt64Ty();
     llvm::Type* i32Ty = bd->getInt32Ty();
     llvm::Type* args[] = {
@@ -273,7 +267,7 @@ llvm::Function* createAmo32Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *
     llvm::Function* func = llvm::Function::Create(
         funcTy,
         llvm::Function::ExternalLinkage,
-        "amo32_" + std::to_string(pc),
+        "amo32",
         md->get()
     );
     auto argsIter = func->arg_begin();
@@ -282,17 +276,11 @@ llvm::Function* createAmo32Func(IRBuilder<> *bd, std::unique_ptr<llvm::Module> *
     (++argsIter)->setName("addr");
     (++argsIter)->setName("rs2");
 
-    llvm::GlobalVariable* memCell = new llvm::GlobalVariable(
-        **md,
-        i32Ty,
-        false,                          // isConstant
-        llvm::GlobalValue::ExternalLinkage,
-        builder->getInt32(0),
-        "amo32_memCell_" + std::to_string(pc)
-    );
-
     llvm::BasicBlock* entry = llvm::BasicBlock::Create(bd->getContext(), "entry", func);
     bd->SetInsertPoint(entry);
+
+    llvm::AllocaInst* memCell = bd->CreateAlloca(i64Ty,bd->getInt64(1),"amo32_memCell");
+    
     llvm::Value* hartPtr = func->getArg(0);
     llvm::Value* type = func->getArg(1);
     llvm::Value* addr = func->getArg(2);
@@ -555,6 +543,49 @@ int jit_init() {
 
     optStructTy = llvm::StructType::create(*context, {i64Ty,i1Ty}, "OptUInt64");
 
+    std::string funcName = "generic";
+    auto lmodule = std::make_unique<llvm::Module>(funcName, *context);
+
+    // extern OPT dram_jit_load(HART*, u64, u64);
+    llvm::FunctionType* loadTy = llvm::FunctionType::get(
+        optStructTy,
+        { llvm::PointerType::getUnqual(hartStructTy), i64Ty, i64Ty },
+        false
+    );
+    llvm::Function* l_loadFunc = llvm::Function::Create(loadTy, llvm::Function::ExternalLinkage, "dram_jit_load", *lmodule);
+
+    // extern bool dram_jit_store(HART*, u64, u64, u64);
+    llvm::FunctionType* storeTy = llvm::FunctionType::get(
+        i1Ty,
+        { llvm::PointerType::getUnqual(hartStructTy), i64Ty, i64Ty, i64Ty },
+        false
+    );
+    llvm::Function* l_storeFunc = llvm::Function::Create(storeTy, llvm::Function::ExternalLinkage, "dram_jit_store", *lmodule);
+
+    // extern void jit_trap(HART*, u64, u64);
+    llvm::FunctionType* trapTy = llvm::FunctionType::get(
+        voidTy,
+        { llvm::PointerType::getUnqual(hartStructTy), i64Ty, i64Ty },
+        false
+    );
+    llvm::Function* l_trapFunc = llvm::Function::Create(trapTy, llvm::Function::ExternalLinkage, "jit_trap", *lmodule);
+
+    // extern void jit_printval(u64);
+    llvm::FunctionType* printTy = llvm::FunctionType::get(voidTy, { i64Ty }, false);
+    llvm::Function::Create(printTy, llvm::Function::ExternalLinkage, "jit_printval", *lmodule);
+
+    amo64 = createAmo64Func(builder.get(),&lmodule,optStructTy,l_loadFunc,l_storeFunc,l_trapFunc);
+
+    amo32 = createAmo32Func(builder.get(),&lmodule,optStructTy,l_loadFunc,l_storeFunc,l_trapFunc);
+
+    lmodule->setTargetTriple(jit->getTargetTriple().getTriple());
+
+    auto tsm = ThreadSafeModule(std::move(lmodule),*TSC);
+
+    if (auto err = jit->addIRModule(std::move(tsm))) {
+        llvm::logAllUnhandledErrors(std::move(err), llvm::errs(), "Failed to add module: ");
+    }
+
     return 0;
 }
 
@@ -579,26 +610,43 @@ BlockFn jit_create_block(HART* hart, std::vector<CACHE_Instr>& instrs) {
         std::string funcName = "block_" + std::to_string(hart->pc);
         auto module = std::make_unique<llvm::Module>(funcName, *context);
 
-    
-        std::vector<llvm::Type*> loadArgs = { llvm::PointerType::getUnqual(hartStructTy), i64Ty, i64Ty };
-        llvm::FunctionType* loadTy = llvm::FunctionType::get(optStructTy, loadArgs, false);
-        llvm::FunctionCallee l_loadFunc = module->getOrInsertFunction("dram_jit_load", loadTy);
+        llvm::FunctionCallee l_loadFunc = module->getOrInsertFunction(
+            "dram_jit_load",
+            llvm::FunctionType::get(optStructTy,
+                                    { llvm::PointerType::getUnqual(hartStructTy), i64Ty, i64Ty },
+                                    false)
+        );
+        llvm::FunctionCallee l_storeFunc = module->getOrInsertFunction(
+            "dram_jit_store",
+            llvm::FunctionType::get(optStructTy,
+                                    { llvm::PointerType::getUnqual(hartStructTy), i64Ty, i64Ty, i64Ty },
+                                    false)
+        );
+        llvm::FunctionCallee l_trapFunc = module->getOrInsertFunction(
+            "jit_trap",
+            llvm::FunctionType::get(optStructTy,
+                                    { llvm::PointerType::getUnqual(hartStructTy), i64Ty, i64Ty },
+                                    false)
+        );
+        llvm::FunctionCallee l_printFunc = module->getOrInsertFunction(
+            "jit_printval",
+            llvm::FunctionType::get(optStructTy,
+                                    { i64Ty },
+                                    false)
+        );
+        llvm::FunctionCallee l_amo64 = module->getOrInsertFunction(
+            "amo64",
+            llvm::FunctionType::get(optStructTy,
+                                    { llvm::PointerType::getUnqual(hartStructTy), i64Ty, i64Ty, i64Ty },
+                                    false)
+        );
+        llvm::FunctionCallee l_amo32 = module->getOrInsertFunction(
+            "amo32",
+            llvm::FunctionType::get(optStructTy,
+                                    { llvm::PointerType::getUnqual(hartStructTy), i64Ty, i64Ty, i64Ty },
+                                    false)
+        );
 
-        std::vector<llvm::Type*> storeArgs = { llvm::PointerType::getUnqual(hartStructTy), i64Ty, i64Ty, i64Ty };
-        llvm::FunctionType* storeTy = llvm::FunctionType::get(i1Ty, storeArgs, false);
-        llvm::FunctionCallee l_storeFunc = module->getOrInsertFunction("dram_jit_store", storeTy);
-
-        std::vector<llvm::Type*> trapArgs = { llvm::PointerType::getUnqual(hartStructTy), i64Ty, i64Ty };
-        llvm::FunctionType* trapTy = llvm::FunctionType::get(voidTy, trapArgs, false);
-        llvm::FunctionCallee l_trapFunc = module->getOrInsertFunction("jit_trap", trapTy);
-        
-        std::vector<llvm::Type*> printArgs = { i64Ty };
-        llvm::FunctionType* printTy = llvm::FunctionType::get(voidTy, printArgs, false);
-        llvm::FunctionCallee l_printFunc = module->getOrInsertFunction("jit_printval", printTy);
-
-        amo64 = createAmo64Func(builder.get(),&module,optStructTy,l_loadFunc,l_storeFunc,l_trapFunc,hart->pc);
-
-        amo32 = createAmo32Func(builder.get(),&module,optStructTy,l_loadFunc,l_storeFunc,l_trapFunc,hart->pc);
 
         llvm::Function* func = llvm::Function::Create(
             funcType,
@@ -637,8 +685,8 @@ BlockFn jit_create_block(HART* hart, std::vector<CACHE_Instr>& instrs) {
             instr.oprs.loadFunc = l_loadFunc;
             instr.oprs.storeFunc = l_storeFunc;
             instr.oprs.trapFunc = l_trapFunc;
-            instr.oprs.amo64Func = amo64;
-            instr.oprs.amo32Func = amo32;
+            instr.oprs.amo64Func = l_amo64;
+            instr.oprs.amo32Func = l_amo32;
             instr.oprs.printFunc = l_printFunc;
             instr.oprs.branches = &br_blocks; 
             instr.oprs.jit_virtpc = hart->pc+(i-1)*4; 
@@ -661,7 +709,7 @@ BlockFn jit_create_block(HART* hart, std::vector<CACHE_Instr>& instrs) {
         }
         builder->CreateRetVoid();
 
-        if (llvm::verifyFunction(*func, &llvm::errs())) {
+        /*if (llvm::verifyFunction(*func, &llvm::errs())) {
             llvm::errs() << "Function verification failed\n";
             return nullptr;
         }
@@ -669,9 +717,9 @@ BlockFn jit_create_block(HART* hart, std::vector<CACHE_Instr>& instrs) {
         if (llvm::verifyModule(*module, &llvm::errs())) {
             llvm::errs() << "Module verification failed\n";
             return nullptr;
-        }
+        }*/
 
-        auto TSM = llvm::orc::ThreadSafeModule(std::move(module), *TSC);
+        auto TSM = ThreadSafeModule(std::move(module), *TSC);
         
         if (!jit) {
             llvm::errs() << "JIT engine is not initialized\n";

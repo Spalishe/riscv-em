@@ -15,8 +15,9 @@ Copyright 2025 Spalishe
 
 */
 
-#include "../include/devices/clint.hpp"
-#include "../include/libfdt.hpp"
+#include "../../include/devices/clint.hpp"
+#include "../../include/libfdt.hpp"
+#include "../../include/main.hpp"
 
 CLINT::CLINT(uint64_t base, DRAM& ram, uint32_t num_harts, fdt_node* fdt)
     : Device(base, 0x10000, ram),
@@ -50,9 +51,9 @@ CLINT::CLINT(uint64_t base, DRAM& ram, uint32_t num_harts, fdt_node* fdt)
     }
 }
 
-void CLINT::start_timer(uint64_t freq_hz, HART* hart) {
+void CLINT::start_timer(uint64_t freq_hz) {
     stop_timer = false;
-    timer_thread = std::thread([this, freq_hz, hart]() {
+    timer_thread = std::thread([this, freq_hz]() {
         using namespace std::chrono;
         auto period = nanoseconds(1'000'000'000ULL / freq_hz);
         auto next_time = steady_clock::now();
@@ -60,8 +61,10 @@ void CLINT::start_timer(uint64_t freq_hz, HART* hart) {
             next_time += period;
             std::this_thread::sleep_until(next_time);
             mtime.fetch_add(1, std::memory_order_seq_cst);
-            hart->csrs[TIME] = mtime.load(std::memory_order_seq_cst);
-            update_mip(hart); // You should update this for all harts
+            for(HART* hrt : hart_list) {
+                hrt->csrs[TIME] = mtime.load(std::memory_order_seq_cst);
+                update_mip(hrt); // You should update this for all harts
+            }
         }
     });
 }

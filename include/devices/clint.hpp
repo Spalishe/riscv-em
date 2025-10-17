@@ -28,7 +28,7 @@ struct CLINT : public Device {
     std::thread timer_thread;
 
     CLINT(uint64_t base, DRAM& ram, uint32_t num_harts, fdt_node* fdt);
-    void start_timer(uint64_t freq_hz, HART* hart);
+    void start_timer(uint64_t freq_hz);
     void stop_timer_thread();
     uint64_t read(HART* hart, uint64_t addr, uint64_t size);
     void write(HART* hart, uint64_t addr, uint64_t size, uint64_t value);

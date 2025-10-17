@@ -30,6 +30,7 @@ Copyright 2025 Spalishe
 #include "../include/devices/i2c_oc.hpp"
 #include "../include/devices/i2c_hid.hpp"
 #include "../include/devices/hid_keyboard.hpp"
+#include "../include/devices/framebuffer.hpp"
 #include "../include/devices/virtio_blk.hpp"
 
 #include <linux/input.h>
@@ -37,6 +38,8 @@ Copyright 2025 Spalishe
 #include <fcntl.h>
 #include <unistd.h>
 #include <termios.h>
+
+#include "../include/sdl.hpp"
 
 #include "../include/memory_map.h"
 #include "../include/libfdt.hpp"
@@ -54,18 +57,18 @@ Copyright 2025 Spalishe
 /*
 	What should i add to functionality if i want to add 2 harts:
 		- FENCE
-		- CLINT Timer Update
 
 	The Broken Insts:
 		none
 	TODO:
+		-Simple Framebuffer
+		-RTC GoldFish
+
 		-Zba - bit manip
 		-Zbb - bit manip
 		-Zbc - carry-less mul
 		-Zicbom - non-coherent DMA
 		-Zicboz - fast memory zeroing
-
-		-Framebuffer
 
 		-MMU
 		-RV32F
@@ -130,9 +133,17 @@ fdt_node* fdt;
 HART* hart;
 MMIO* mmio;
 CLINT* clint;
+FRAMEBUFFER* fb;
+uint16_t fb_width = 640;
+uint16_t fb_height = 480;
+
+bool shutdown = false;
 
 bool kb_running = true;
 std::thread kb_t;
+
+std::vector<HART*> hart_list;
+std::unordered_map<HART*,std::thread> hart_list_threads;
 
 void add_devices_and_map() {
 	memmap.add_region(DRAM_BASE, DRAM_SIZE);
@@ -231,14 +242,10 @@ void add_devices_and_map() {
 	memmap.add_region(0x0C000000, 0x400000);
 	PLIC* plic = new PLIC(0x0C000000,0x400000,hart->dram,64,(dtb_has ? NULL : fdt),1);
 	mmio->add(plic);
-
+	
 	memmap.add_region(0x1000000, 0x1000);
 	SYSCON* syscon = new SYSCON(0x1000000,0x1000,hart->dram,(dtb_has ? NULL : fdt));
 	mmio->add(syscon);
-
-	/*memmap.add_region(0x30000000, 0x10000000);
-	PCI* pci = new PCI(0x30000000,0x10000000,hart->dram,(dtb_has ? NULL : fdt));
-	mmio->add(pci);*/
 	
 	memmap.add_region(0x10000000, 0x100);
 	UART* uart = new UART(0x10000000,hart->dram,plic,irq_num,(dtb_has ? NULL : fdt),1);
@@ -254,7 +261,7 @@ void add_devices_and_map() {
 	irq_num ++;
 	if(!debug) {
 		kb_running = true;
-		kb_t = std::thread([&uart]() {
+		kb_t = std::thread([]() {
 			TermiosGuard tguard = TermiosGuard();
 
 			while (kb_running) {
@@ -275,7 +282,7 @@ void add_devices_and_map() {
 						}
 						else {
 							for (int i = 0; i < n; i++) {
-								uart->receive_byte(buf[i]);
+								dynamic_cast<UART*>(mmio->devices[3])->receive_byte(buf[i]);
 							}
 						}
         			}
@@ -288,8 +295,18 @@ void add_devices_and_map() {
 	clint = new CLINT(0x02000000,hart->dram,1,(dtb_has ? NULL : fdt));
 	uint64_t clint_freq = 10'000'0;
 	if(!dtb_has) fdt_node_add_prop_u32(fdt_node_find(fdt,"cpus"), "timebase-frequency", clint_freq);
-	clint->start_timer(clint_freq,hart);
+	clint->start_timer(clint_freq);
 	mmio->add(clint);
+	
+	if(using_SDL) {
+		memmap.add_region(0x18000000, fb_width*fb_height*4);
+		fb = new FRAMEBUFFER(0x18000000,hart->dram,(dtb_has ? NULL : fdt),fb_width,fb_height);
+		mmio->add(fb);
+	}
+
+	/*memmap.add_region(0x30000000, 0x10000000);
+	PCI* pci = new PCI(0x30000000,0x10000000,hart->dram,(dtb_has ? NULL : fdt));
+	mmio->add(pci);*/
 
 	if(image_has) {
 		memmap.add_region(0x10001000, 0x1000);
@@ -300,6 +317,14 @@ void add_devices_and_map() {
 	}
 }
 
+void sdl_loop() {
+	while(true) {
+		if(shutdown || !using_SDL) break;
+		SDL_loop();
+	}
+	shutdown = false;
+}
+
 void poweroff(bool ctrlc) {
 	kb_running = false;
 	if(!ctrlc) {
@@ -307,24 +332,44 @@ void poweroff(bool ctrlc) {
 			kb_t.join();
 	} else kb_t.detach();
 	clint->stop_timer_thread();
+	for(HART* hrt : hart_list) {
+		hrt->god_said_to_destroy_this_thread = true;
+		hart_list_threads[hrt].join();
+		delete hrt;
+	}
+	shutdown = true;
 	std::_Exit(1);
 }
 
 void fastexit() {
 	clint->stop_timer_thread();
+	for(HART* hrt : hart_list) {
+		hrt->god_said_to_destroy_this_thread = true;
+		hart_list_threads[hrt].join();
+		delete hrt;
+	}
+	shutdown = true;
 	std::_Exit(1);
 }
 
 void reset() {
+	shutdown = true;
 	kb_running = false;
 	if (kb_t.joinable())
 		kb_t.join();
 	kb_t.detach();
 	clint->stop_timer_thread();
-	
+
 	fdt_node_free(fdt);
 
-	delete hart;
+	for(HART* hrt : hart_list) {
+		hrt->god_said_to_destroy_this_thread = true;
+		hart_list_threads[hrt].join();
+		delete hrt;
+	}
+
+	hart_list.clear();
+
 	delete mmio;
 	delete clint;
 	
@@ -332,6 +377,10 @@ void reset() {
 	hart->dram.mmap = &memmap;
 	mmio = new MMIO(hart->dram);
 	hart->mmio = mmio;
+
+	hart_list.push_back(hart);
+	
+	if(using_SDL) fb->clear();
 
 	add_devices_and_map();
 
@@ -365,7 +414,10 @@ void reset() {
 		hart->cpu_readfile(file, DRAM_BASE,false);
 	}
 
-	hart->cpu_start(debug,dtb_path_in_memory,nojit);
+	for (HART* hrt : hart_list) {
+		hart_list_threads[hrt] = std::thread(&HART::cpu_start,hart,debug,dtb_path_in_memory,nojit);
+	}
+	sdl_loop();
 }
 
 int main(int argc, char* argv[]) {
@@ -383,6 +435,8 @@ int main(int argc, char* argv[]) {
 	parser.addArgument("--nojit", "Disables JIT(for debugging, SLOW)", false, false, Argparser::ArgumentType::def);
 
 	parser.parse();
+    
+	SDL_initSDL(fb_width,fb_height);
 
 	kernel_has = parser.getDefined(1);
 	if(kernel_has) 
@@ -446,6 +500,8 @@ int main(int argc, char* argv[]) {
 	mmio = new MMIO(hart->dram);
 	hart->mmio = mmio;
 
+	hart_list.push_back(hart);
+
 	add_devices_and_map();
 	
 	//memmap.add_region(dtb_path_in_memory, 0x1000);
@@ -506,7 +562,9 @@ int main(int argc, char* argv[]) {
 	}
 
 	if(!testing_enabled) {
-		hart->cpu_start(debug,dtb_path_in_memory,nojit);
+		for (HART* hrt : hart_list) {
+			hart_list_threads[hrt] = std::thread(&HART::cpu_start,hrt,debug,dtb_path_in_memory,nojit);
+		}
 	} else {
 		std::vector<std::string> failed;
 		int succeded = 0;
@@ -541,9 +599,22 @@ int main(int argc, char* argv[]) {
 			kb_t.join();
 		kb_t.detach();
 		clint->stop_timer_thread();
+
+		for(HART* hrt : hart_list) {
+			hrt->god_said_to_destroy_this_thread = true;
+			hart_list_threads[hrt].join();
+			delete hrt;
+		}
 		
 		exit(0);
 	}
+	
+	sdl_loop();
+
+	for(HART* hrt : hart_list) {
+		hart_list_threads[hrt].join();
+	}
+	
 	return 0;
 	
 }

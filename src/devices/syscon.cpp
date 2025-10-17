@@ -15,8 +15,8 @@ Copyright 2025 Spalishe
 
 */
 
-#include "../include/devices/syscon.hpp"
-#include "../include/main.hpp"
+#include "../../include/devices/syscon.hpp"
+#include "../../include/main.hpp"
 
 SYSCON::SYSCON(uint64_t base, uint64_t size, DRAM& ram,fdt_node* fdt)
         : Device(base, size, ram)

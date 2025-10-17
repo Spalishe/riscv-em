@@ -15,7 +15,14 @@ add_executable(riscvem ${SOURCES} ${DEVICE_SOURCES} ${JIT_SOURCES})
 find_package(LLVM REQUIRED CONFIG)
 target_link_libraries(riscvem PRIVATE LLVM)
 
-set(CMAKE_CXX_FLAGS_DEBUG "-latomic -O3 -march=native -g")
+find_package(SDL3 REQUIRED CONFIG)
+target_link_libraries(riscvem PRIVATE SDL3)
+
+set(OpenGL_GL_PREFERENCE GLVND)
+find_package(OpenGL REQUIRED)
+target_link_libraries(riscvem PRIVATE OpenGL)
+
+set(CMAKE_CXX_FLAGS_DEBUG "-latomic -O4 -march=native -g")
 set(CMAKE_CXX_FLAGS_RELEASE "-latomic -O3 -march=native")
 
 target_include_directories(riscvem PRIVATE include)
