@@ -21,10 +21,11 @@ Copyright 2025 Spalishe
 #include "cpu.h"
 #include <vector>
 #include <thread>
+#include <atomic>
 #include <unordered_map>
 
 void reset();
-void poweroff(bool ctrlc);
+void poweroff(bool ctrlc, bool isNotMain = false);
 void fastexit();
 extern MemoryMap memmap;
 extern MMIO* mmio;

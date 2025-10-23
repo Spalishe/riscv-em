@@ -145,6 +145,9 @@ std::thread kb_t;
 std::vector<HART*> hart_list;
 std::unordered_map<HART*,std::thread> hart_list_threads;
 
+//WHY
+std::atomic<bool> remove_california = false;
+
 void add_devices_and_map() {
 	memmap.add_region(DRAM_BASE, DRAM_SIZE);
 
@@ -277,7 +280,7 @@ void add_devices_and_map() {
 					if (n > 0) {
 						// Ctrl+Alt+C
 						if (n >= 2 && buf[0] == 0x1B && buf[1] == 0x03) {
-							poweroff(true);
+							poweroff(false,true);
 							break;
 						}
 						else {
@@ -319,33 +322,41 @@ void add_devices_and_map() {
 
 void sdl_loop() {
 	while(true) {
+		if(remove_california) poweroff(false,false);
 		if(shutdown || !using_SDL) break;
 		SDL_loop();
 	}
 	shutdown = false;
 }
 
-void poweroff(bool ctrlc) {
-	kb_running = false;
-	if(!ctrlc) {
-		if (kb_t.joinable())
-			kb_t.join();
-	} else kb_t.detach();
-	clint->stop_timer_thread();
-	for(HART* hrt : hart_list) {
-		hrt->god_said_to_destroy_this_thread = true;
-		hart_list_threads[hrt].join();
-		delete hrt;
+void poweroff(bool ctrlc, bool isNotMain) {
+	if(isNotMain) {
+		remove_california = true;
+		return;
+	} else {
+		kb_running = false;
+		if(!ctrlc) {
+			if (kb_t.joinable())
+				kb_t.join();
+		} else kb_t.detach();
+		clint->stop_timer_thread();
+		for(HART* hrt : hart_list) {
+			hrt->god_said_to_destroy_this_thread = true;
+			if (hart_list_threads[hrt].joinable())
+				hart_list_threads[hrt].join();
+			delete hrt;
+		}
+		shutdown = true;
+		exit(0);
 	}
-	shutdown = true;
-	std::_Exit(1);
 }
 
 void fastexit() {
 	clint->stop_timer_thread();
 	for(HART* hrt : hart_list) {
 		hrt->god_said_to_destroy_this_thread = true;
-		hart_list_threads[hrt].join();
+		if (hart_list_threads[hrt].joinable())
+			hart_list_threads[hrt].join();
 		delete hrt;
 	}
 	shutdown = true;
@@ -364,7 +375,8 @@ void reset() {
 
 	for(HART* hrt : hart_list) {
 		hrt->god_said_to_destroy_this_thread = true;
-		hart_list_threads[hrt].join();
+		if (hart_list_threads[hrt].joinable())
+			hart_list_threads[hrt].join();
 		delete hrt;
 	}
 

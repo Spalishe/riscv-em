@@ -39,8 +39,6 @@ uint64_t FRAMEBUFFER::read(HART* hart,uint64_t addr, uint64_t size) {
 }
 
 void FRAMEBUFFER::write(HART* hart, uint64_t addr, uint64_t size, uint64_t val) {
-    uint64_t bytes = size / 8;
-
     if (addr > base + framebuffer.size()*4) {
         std::cerr << "FB: invalid write " << std::hex << addr << std::endl;
         return;
@@ -50,18 +48,14 @@ void FRAMEBUFFER::write(HART* hart, uint64_t addr, uint64_t size, uint64_t val) 
 
     uint64_t offset = addr - base;
     uint64_t pixel_index = offset / 4;
-    uint64_t byte_offset = offset % 4;
 
-    if (base + pixel_index * 4 + 3 < base + framebuffer.size()*4) {
+    uint8_t r = hart->dram.mmap->load(base + pixel_index * 4 + 0, 8);
+    uint8_t g = hart->dram.mmap->load(base + pixel_index * 4 + 1, 8);
+    uint8_t b = hart->dram.mmap->load(base + pixel_index * 4 + 2, 8);
 
-        uint8_t r = hart->dram.mmap->load(base + pixel_index * 4 + 0, 8);
-        uint8_t g = hart->dram.mmap->load(base + pixel_index * 4 + 1, 8);
-        uint8_t b = hart->dram.mmap->load(base + pixel_index * 4 + 2, 8);
+    uint32_t color = (0xFF << 24) | (r << 16) | (g << 8) | b;
 
-        uint32_t color = (0xFF << 24) | (r << 16) | (g << 8) | b;
-
-        SDL_writePixel(pixel_index, color);
-    }
+    SDL_writePixel(pixel_index, color);
 }
 
 

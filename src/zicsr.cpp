@@ -23,18 +23,28 @@ Copyright 2025 Spalishe
 
 // ZiCSR
 
+bool compatible_mode(uint64_t csr_level, uint64_t cur_mode) {
+    if(csr_level == 3) {
+        return cur_mode == 3;
+    } else if(csr_level == 2) {
+        return (cur_mode == 3) || (cur_mode == 1);
+    } else if(csr_level == 2) {
+        return (cur_mode == 3) || (cur_mode == 1) || (cur_mode == 0);
+    }
+    return true;
+}
+
 bool csr_accessible(uint16_t csr_addr, uint64_t current_priv, bool write) {
     uint64_t csr_level;
 
     if (csr_addr >= 0x000 && csr_addr <= 0x0FF) csr_level = 0;
     else if (csr_addr >= 0x100 && csr_addr <= 0x1FF) csr_level = 1;
-    // REMOVE 0x744 AFTER TESTING!!!!!!!!!!!!!!!!!
     else if ((csr_addr >= 0x300 && csr_addr <= 0x3FF) || (csr_addr >= 0xB00 && csr_addr <= 0xBFF) || (csr_addr >= 0xF00 && csr_addr <= 0xFFF)) csr_level = 3;
     else {
         csr_level = 0;
     }
 
-    if ((current_priv) < (csr_level)) {
+    if (!compatible_mode(csr_level,current_priv)) {
         return false;
     }
 
@@ -42,10 +52,15 @@ bool csr_accessible(uint16_t csr_addr, uint64_t current_priv, bool write) {
         || csr_addr == 0xF12
         || csr_addr == 0xF13
         || csr_addr == 0xF14
-        || csr_addr == 0xB80
-        || csr_addr == 0xB82
+        || csr_addr == 0xF15
         || csr_addr == 0xC00
         || csr_addr == 0xC01
+        || csr_addr == 0xC02
+        || (csr_addr >= 0xC03 && csr_addr <= 0xC1F)
+        || csr_addr == 0xC80
+        || csr_addr == 0xC81
+        || csr_addr == 0xC82
+        || (csr_addr >= 0xC83 && csr_addr <= 0xC9F)
     ) {
         return !write; // RO
     }
@@ -58,6 +73,7 @@ void exec_CSRRW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, 
     uint64_t imm = opers->s ? opers->imm : imm_Zicsr(inst);
 
     if(!csr_accessible(imm,hart->mode,true)) {
+        if(hart->dbg) std::cout << "MODE: " << hart->mode << std::endl;
         hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,hart->mode,false);
     }
     if(jitd == NULL) {
@@ -82,6 +98,7 @@ void exec_CSRRS(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, 
     uint64_t imm = opers->s ? opers->imm : imm_Zicsr(inst);
 
     if(!csr_accessible(imm,hart->mode,(rs1_l != 0))) {
+        if(hart->dbg) std::cout << "MODE: " << hart->mode << std::endl;
         hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,hart->mode,false);
     }
     if(jitd == NULL) {
@@ -108,6 +125,7 @@ void exec_CSRRC(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, 
     uint64_t imm = opers->s ? opers->imm : imm_Zicsr(inst);
 
     if(!csr_accessible(imm,hart->mode,(rs1_l != 0))) {
+        if(hart->dbg) std::cout << "MODE: " << hart->mode << std::endl;
         hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,hart->mode,false);
     }
     if(jitd == NULL) {
@@ -135,6 +153,7 @@ void exec_CSRRWI(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers,
     uint64_t imm = opers->s ? opers->imm : imm_Zicsr(inst);
 
     if(!csr_accessible(imm,hart->mode,true)) {
+        if(hart->dbg) std::cout << "MODE: " << hart->mode << std::endl;
         hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,hart->mode,false);
     }
     if(jitd == NULL) {
@@ -159,6 +178,7 @@ void exec_CSRRSI(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers,
     uint64_t imm = opers->s ? opers->imm : imm_Zicsr(inst);
 
     if(!csr_accessible(imm,hart->mode,(rs1_l != 0))) {
+        if(hart->dbg) std::cout << "MODE: " << hart->mode << std::endl;
         hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,hart->mode,false);
     }
     if(jitd == NULL) {
@@ -185,6 +205,7 @@ void exec_CSRRCI(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers,
     uint64_t imm = opers->s ? opers->imm : imm_Zicsr(inst);
 
     if(!csr_accessible(imm,hart->mode,(rs1_l != 0))) {
+        if(hart->dbg) std::cout << "MODE: " << hart->mode << std::endl;
         hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,hart->mode,false);
     }
     if(jitd == NULL) {

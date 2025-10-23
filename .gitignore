@@ -8,7 +8,6 @@
 dtb.dtb
 dtb.dts
 fw_jump.elf
-Image
 Image.bin
 kernel
 minimal.dtb
@@ -16,7 +15,10 @@ minimal.dts
 qemu.dtb
 qemu.dts
 qlog.txt
-rootfs.ext2
 sdcard.img
 fakekernel.bin
 fakekernel.S
+memory_map.h.gcov
+cpu.cpp.gcov
+.gitignore
+disk.img
