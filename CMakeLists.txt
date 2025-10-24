@@ -22,10 +22,7 @@ set(OpenGL_GL_PREFERENCE GLVND)
 find_package(OpenGL REQUIRED)
 target_link_libraries(riscvem PRIVATE OpenGL)
 
-target_compile_options(riscvem PRIVATE -O0 -g -fprofile-arcs -ftest-coverage)
-target_link_options(riscvem PRIVATE -fprofile-arcs -ftest-coverage)
-
-set(CMAKE_CXX_FLAGS_DEBUG "-latomic -O0 -march=native -g")
+set(CMAKE_CXX_FLAGS_DEBUG "-latomic -O3 -march=native -g")
 set(CMAKE_CXX_FLAGS_RELEASE "-latomic -O3 -march=native")
 
 target_include_directories(riscvem PRIVATE include)

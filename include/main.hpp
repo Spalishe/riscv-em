@@ -24,7 +24,7 @@ Copyright 2025 Spalishe
 #include <atomic>
 #include <unordered_map>
 
-void reset();
+void reset(bool isNotMain = false);
 void poweroff(bool ctrlc, bool isNotMain = false);
 void fastexit();
 extern MemoryMap memmap;

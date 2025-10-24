@@ -19,6 +19,7 @@ Copyright 2025 Spalishe
 #include <cstdint>
 #include <vector>
 #include <stdexcept>
+#include <cstring>
 #include <unordered_map>
 
 struct MemoryRegion {
@@ -69,6 +70,14 @@ struct MemoryMap {
             }
             default: throw std::invalid_argument("Invalid load size");
         }
+    }
+
+    void copy_mem(uint64_t addr, uint64_t size, void* buffer) {
+        MemoryRegion* r = find_region(addr);
+        uint8_t* p = r->ptr(addr);
+        if ((addr + size) > (r->base_addr + r->size))
+            size = (r->base_addr + r->size) - addr;
+        memcpy(buffer, p, size);
     }
 
     void store(uint64_t addr, uint64_t size, uint64_t value) {

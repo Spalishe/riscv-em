@@ -90,9 +90,7 @@ uint32_t switch_endian(uint32_t const input)
                  | (input & 0xff000000) >> 24;
 }
 
-std::unordered_map<uint32_t, CACHE_Instr> instr_cache;
-
-CACHE_Instr parse_instruction(struct HART* hart, uint32_t inst) {
+CACHE_Instr parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
 	int OP = inst & 3;
 	bool increase = true;
 	bool junction = false;
@@ -100,9 +98,9 @@ CACHE_Instr parse_instruction(struct HART* hart, uint32_t inst) {
     uint32_t imm_opt = 0;
 	void (*fn)(HART*, uint32_t, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*,llvm::Function*,llvm::Value*>*);
 
-	auto it1 = instr_cache.find(inst);
-    if(it1 != instr_cache.end()) {
-        return instr_cache[inst];
+    CACHE_Instr cache = hart->instr_cache[(pc >> 2) & 0x1FFF];
+    if(cache.valid && cache.pc == pc) {
+        return cache;
     } else {
         if(OP == 3) {
             int opcode = inst & 0x7f;
@@ -395,8 +393,8 @@ CACHE_Instr parse_instruction(struct HART* hart, uint32_t inst) {
             //if(increase) pc += 2;
         }
         
-        CACHE_Instr dec = CACHE_Instr{fn, increase,junction,inst,isBranch,imm_opt,CACHE_DecodedOperands()};
-        instr_cache[inst] = dec;
+        CACHE_Instr dec = CACHE_Instr{fn, increase,junction,inst,isBranch,imm_opt,CACHE_DecodedOperands(),true,pc};
+        hart->instr_cache[(pc >> 2) & 0x1FFF] = dec;
         return dec;
     }
 }

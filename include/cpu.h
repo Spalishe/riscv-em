@@ -62,6 +62,8 @@ struct CACHE_Instr {
     bool isBr;
     uint32_t imm_optional;
     CACHE_DecodedOperands oprs;
+    bool valid = false;
+    uint64_t pc;
 };
 
 using BlockFn = void(*)(HART*);
@@ -92,22 +94,26 @@ struct HART {
     std::unordered_map<uint64_t, std::vector<CACHE_Instr>> instr_block_cache; // as key put PC
     std::unordered_map<uint64_t, uint64_t> instr_block_cache_count_executed; // as key put PC
     std::unordered_map<uint64_t, BlockFn> instr_block_cache_jit; // as key put PC
-    
+    CACHE_Instr instr_cache[8192]; // L1 ??
+
 	bool stopexec;
 
     bool trap_active;
     bool trap_notify;
 
     bool god_said_to_destroy_this_thread = false; // Why should you name it like this?
+    uint32_t fetch_buffer[8];
+    uint64_t fetch_pc; 
 
     DRAM dram;
     MMIO* mmio;
 
     void cpu_start(bool debug, uint64_t dtb_path, bool nojit);
     int cpu_start_testing(bool nojit);
-    uint32_t cpu_fetch();
+    uint32_t cpu_fetch(uint64_t _pc);
     void cpu_loop();
-    void cpu_execute(uint32_t inst);
+    void cpu_execute();
+    void cpu_execute_inst(uint32_t inst);
     uint64_t cpu_readfile(std::string path, uint64_t addr, bool bigendian);
     void print_d(const std::string& fmt, ...);
     void cpu_trap(uint64_t cause, uint64_t tval, bool is_interrupt);

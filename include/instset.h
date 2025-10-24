@@ -37,7 +37,7 @@ int32_t sext(uint32_t val, int bits);
 uint32_t get_bits(uint32_t inst, int hi, int lo);
 uint32_t switch_endian(uint32_t const input);
 
-extern CACHE_Instr parse_instruction(struct HART* hart, uint32_t inst);
+extern CACHE_Instr parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc);
 
 //// RV32I
 // R-Type

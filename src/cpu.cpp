@@ -60,6 +60,17 @@ void HART::print_d(const std::string& fmt, ...) {
 	}
 }
 
+uint32_t HART::cpu_fetch(uint64_t _pc) {
+	uint64_t fetch_buffer_end = fetch_pc + 28;
+	if(_pc < fetch_pc || _pc > fetch_buffer_end) {
+		// Refetch
+		memmap.copy_mem(_pc,32,&fetch_buffer);
+		fetch_pc = _pc;
+	}
+	uint8_t fetch_indx = (_pc - fetch_pc) / 4;
+	return fetch_buffer[fetch_indx];
+}
+
 void HART::cpu_start(bool debug, uint64_t dtb_path, bool nojit) {
 	for(int i=0; i<32; i++) regs[i] = 0;
 	for(int i=0; i<4069; i++) csrs[i] = 0;
@@ -90,6 +101,10 @@ void HART::cpu_start(bool debug, uint64_t dtb_path, bool nojit) {
 	csrs[MIMPID] = 0;
 	csrs[MHARTID] = 0;
 	csrs[MSTATUS] = 0xA00000000;
+
+    uint32_t fetch_buffer[8];
+    uint64_t fetch_pc; 
+    uint8_t fetch_buffer_i; 
 
 	mode = 3;
 	/*
@@ -139,7 +154,7 @@ int HART::cpu_start_testing(bool nojit) {
 	cpu_loop();
 	return regs[10];
 }
-uint32_t HART::cpu_fetch() {
+/*uint32_t HART::cpu_fetch() {
 	uint64_t upc = (block_enabled ? virt_pc : pc);
 	if (upc % 2 != 0) {
 		cpu_trap(EXC_INST_ADDR_MISALIGNED,upc,false);
@@ -150,12 +165,12 @@ uint32_t HART::cpu_fetch() {
 		inst = (uint32_t) *val;
 	}
 	if(dbg && dbg_showinst) {
-		std::cout << "Next instruction: 0x";
+		std::cout << "New instruction: 0x";
 		printf("%.8X",inst);
 		std::cout << std::endl;
 	}
 	return inst;
-}
+}*/
 void HART::cpu_loop() {
 	while(true) {
 		if(god_said_to_destroy_this_thread) break;
@@ -252,7 +267,7 @@ void HART::cpu_loop() {
 					std::cout << "Specify a instruction number" << std::endl;
 					continue;
 				} else {
-					HART::cpu_execute(inst);
+					HART::cpu_execute_inst(inst);
 				}
 			}
 			else if(line.rfind("test",0) == 0) {
@@ -269,16 +284,13 @@ void HART::cpu_loop() {
 						count = "1";
 					for(int i = 0; i < std::stoi(count); ++i) {
 						if(stopexec) continue;
-						uint32_t inst = cpu_fetch();
-						cpu_execute(inst);
+						cpu_execute();
 						if(pc == breakpoint && breakpoint != 0) break;
 					}
 				} else {
 					while(true) {
 						if(stopexec) continue;
-						uint32_t inst = cpu_fetch();
-						if(inst == 0) break;
-						cpu_execute(inst);
+						cpu_execute();
 						if(pc == breakpoint && breakpoint != 0) break;
 					}
 				}
@@ -397,17 +409,12 @@ void HART::cpu_loop() {
 		} else {
 			Device* dev = mmio->devices[1];
 			dynamic_cast<PLIC*>(dev)->plic_service(this);
-			uint32_t inst = cpu_fetch();
-			if(inst == 0) {
-				cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false);
-			} else
-				cpu_execute(inst);
+			cpu_execute();
 		}
 	}
 }
 
-void HART::cpu_execute(uint32_t inst) {
-	int OP = inst & 3;
+void HART::cpu_execute() {
 	bool increase = true;
 	bool junction = false;
 	void (*fn)(HART*, uint32_t);
@@ -427,8 +434,8 @@ void HART::cpu_execute(uint32_t inst) {
 			jfn(this);
 		} else {
 			for(auto &in : instr_block_cache[pc]) {
-				auto [fn_b, incr_b,__2,inst_b,isBr,immopt,oprs] = in;
-				(void)__2; // unused
+				auto [fn_b, incr_b,__2,inst_b,isBr,immopt,oprs,__3,__4] = in;
+				(void)__2; (void)__3; (void)__2;  // unused
 				if(trap_notify) {trap_notify = false;}
 				bool brb = false;
 				fn_b(this,inst_b,&oprs,NULL);
@@ -443,9 +450,32 @@ void HART::cpu_execute(uint32_t inst) {
 		instr_block_cache_count_executed[pc_v] += 1;
 		virt_pc = pc;
 	} else {
-		CACHE_Instr instr = parse_instruction(this,inst);
-		auto [fn, incr, j, _, isBr, immopt, oprs] = instr;
+		uint64_t upc = (block_enabled ? virt_pc : pc);
+		if (upc % 2 != 0) {
+			cpu_trap(EXC_INST_ADDR_MISALIGNED,upc,false);
+		}
+		uint32_t inst = 0;
+    	CACHE_Instr instr = instr_cache[(upc >> 2) & 0x1FFF];
+		if(instr.valid && instr.pc == upc) {
+			inst = instr.inst;
+		} else {
+			inst = cpu_fetch(upc);
+			if(inst == 0) {
+				cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false);
+			}
+			instr = parse_instruction(this,inst,upc);
+		}
+		if(dbg && dbg_showinst) {
+			std::cout << "New instruction: 0x";
+			printf("%.8X",inst);
+			std::cout << std::endl;
+		}
+		
+		auto [fn, incr, j, _, isBr, immopt, oprs, __1, __2] = instr;
+		(void)__1;
+		(void)__2;
 		int32_t immo = (int32_t)immopt;
+		int OP = inst & 3;
 		if(block_enabled) {
 			if(!j) {
 				instr_block.push_back(instr);
@@ -477,8 +507,8 @@ void HART::cpu_execute(uint32_t inst) {
 						instr_block_cache[pc] = cp;
 						instr_block_cache_count_executed[pc] = 1;
 						for(auto &in : instr_block) {
-							auto [fn_b, incr_b,__2,inst_b,isBr,immopt,oprs] = in;
-							(void)__2; // unused
+							auto [fn_b, incr_b,__2,inst_b,isBr,immopt,oprs,__3,__4] = in;
+							(void)__2; (void)__3; (void)__2;  // unused
 							if(trap_notify) {trap_notify = false;}
 							fn_b(this,inst_b,&oprs,NULL);
 							brb = oprs.brb;
@@ -509,6 +539,20 @@ void HART::cpu_execute(uint32_t inst) {
 		}
 	}
 }
+void HART::cpu_execute_inst(uint32_t ins) {
+	int OP = ins & 3;
+	CACHE_Instr instr = parse_instruction(this,ins,0);
+	auto [fn, incr, j, _, isBr, immopt, oprs,__1,__2] = instr;
+	(void)__1;
+	(void)__2;
+	int32_t immo = (int32_t)immopt;
+	fn(this,ins,&oprs,NULL);
+	if(incr) {pc += (OP == 3 ? 4 : 2);}
+
+	csrs[CYCLE] += 1;
+	regs[0] = 0;
+}
+
 uint64_t HART::cpu_readfile(std::string path, uint64_t addr, bool bigendian) {
     std::ifstream file(path, std::ios::binary | std::ios::ate);
     if (!file.is_open()) {

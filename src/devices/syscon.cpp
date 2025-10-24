@@ -61,7 +61,7 @@ void SYSCON::write(HART* hart, uint64_t addr, uint64_t size, uint64_t val) {
                 }; break;
                 case 0x7777: {
                     //Reboot
-                    reset();
+                    reset(true);
                 }; break;
             }; break;
     }

@@ -147,6 +147,7 @@ std::unordered_map<HART*,std::thread> hart_list_threads;
 
 //WHY
 std::atomic<bool> remove_california = false;
+std::atomic<bool> reset_pending = false;
 
 void add_devices_and_map() {
 	memmap.add_region(DRAM_BASE, DRAM_SIZE);
@@ -323,6 +324,7 @@ void add_devices_and_map() {
 void sdl_loop() {
 	while(true) {
 		if(remove_california) poweroff(false,false);
+		if(reset_pending) reset(false);
 		if(shutdown || !using_SDL) break;
 		SDL_loop();
 	}
@@ -363,73 +365,78 @@ void fastexit() {
 	std::_Exit(1);
 }
 
-void reset() {
-	shutdown = true;
-	kb_running = false;
-	if (kb_t.joinable())
-		kb_t.join();
-	kb_t.detach();
-	clint->stop_timer_thread();
+void reset(bool isNotMain) {
+	if(isNotMain) {
+		reset_pending = true;
+		return;
+	} else {
+		reset_pending = false;
+		shutdown = true;
+		kb_running = false;
+		if (kb_t.joinable())
+			kb_t.join();
+		clint->stop_timer_thread();
 
-	fdt_node_free(fdt);
+		fdt_node_free(fdt);
 
-	for(HART* hrt : hart_list) {
-		hrt->god_said_to_destroy_this_thread = true;
-		if (hart_list_threads[hrt].joinable())
-			hart_list_threads[hrt].join();
-		delete hrt;
-	}
-
-	hart_list.clear();
-
-	delete mmio;
-	delete clint;
-	
-	hart = new HART();
-	hart->dram.mmap = &memmap;
-	mmio = new MMIO(hart->dram);
-	hart->mmio = mmio;
-
-	hart_list.push_back(hart);
-	
-	if(using_SDL) fb->clear();
-
-	add_devices_and_map();
-
-	if(!dtb_has) {
-		size_t dtb_size = fdt_size(fdt);
-		void* buffer = malloc(dtb_size);
-
-		size_t size = fdt_serialize(fdt,buffer,0x1000,0);
-
-		if(dtb_dump_has) {
-			FILE* f = fopen(dtb_dump_path.c_str(), "wb");
-			fwrite(buffer, 1, size, f);
-			fclose(f);
+		for(HART* hrt : hart_list) {
+			hrt->god_said_to_destroy_this_thread = true;
+			if (hart_list_threads[hrt].joinable())
+				hart_list_threads[hrt].join();
+			delete hrt;
 		}
 
-		uint8_t* bytes = static_cast<uint8_t*>(buffer);
-		for (size_t i = 0; i < dtb_size; ++i) {
-			dram_store(&hart->dram,dtb_path_in_memory+i,8,bytes[i]);
-		}	
+		hart_list.clear();
 
-		free(buffer);
-	} else {
-		hart->cpu_readfile(dtb_path, dtb_path_in_memory, false);
-	}
+		delete mmio;
+		delete clint;
+		
+		hart = new HART();
+		hart->dram.mmap = &memmap;
+		mmio = new MMIO(hart->dram);
+		hart->mmio = mmio;
 
-	if (kernel_has) {
-		hart->cpu_readfile(kernel_path, DRAM_BASE + 0x200000,false);
-	}
+		hart_list.push_back(hart);
+		
+		if(using_SDL) fb->clear();
 
-	if (!file.empty()) {
-		hart->cpu_readfile(file, DRAM_BASE,false);
-	}
+		add_devices_and_map();
 
-	for (HART* hrt : hart_list) {
-		hart_list_threads[hrt] = std::thread(&HART::cpu_start,hart,debug,dtb_path_in_memory,nojit);
+		if(!dtb_has) {
+			size_t dtb_size = fdt_size(fdt);
+			void* buffer = malloc(dtb_size);
+
+			size_t size = fdt_serialize(fdt,buffer,0x1000,0);
+
+			if(dtb_dump_has) {
+				FILE* f = fopen(dtb_dump_path.c_str(), "wb");
+				fwrite(buffer, 1, size, f);
+				fclose(f);
+			}
+
+			uint8_t* bytes = static_cast<uint8_t*>(buffer);
+			for (size_t i = 0; i < dtb_size; ++i) {
+				dram_store(&hart->dram,dtb_path_in_memory+i,8,bytes[i]);
+			}	
+
+			free(buffer);
+		} else {
+			hart->cpu_readfile(dtb_path, dtb_path_in_memory, false);
+		}
+
+		if (kernel_has) {
+			hart->cpu_readfile(kernel_path, DRAM_BASE + 0x200000,false);
+		}
+
+		if (!file.empty()) {
+			hart->cpu_readfile(file, DRAM_BASE,false);
+		}
+
+		for (HART* hrt : hart_list) {
+			hart_list_threads[hrt] = std::thread(&HART::cpu_start,hart,debug,dtb_path_in_memory,nojit);
+		}
+		sdl_loop();
 	}
-	sdl_loop();
 }
 
 int main(int argc, char* argv[]) {
