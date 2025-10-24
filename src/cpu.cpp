@@ -450,7 +450,8 @@ void HART::cpu_execute() {
 		instr_block_cache_count_executed[pc_v] += 1;
 		virt_pc = pc;
 	} else {
-		uint64_t upc = (block_enabled ? virt_pc : pc);
+		instr_block_cache_count_executed[pc] += 1;
+		uint64_t upc = ((block_enabled && instr_block_cache_count_executed[pc] >= PC_EXECUTE_COUNT_TO_BLOCK) ? virt_pc : pc);
 		if (upc % 2 != 0) {
 			cpu_trap(EXC_INST_ADDR_MISALIGNED,upc,false);
 		}
@@ -476,7 +477,7 @@ void HART::cpu_execute() {
 		(void)__2;
 		int32_t immo = (int32_t)immopt;
 		int OP = inst & 3;
-		if(block_enabled) {
+		if(block_enabled && instr_block_cache_count_executed[pc] >= PC_EXECUTE_COUNT_TO_BLOCK) {
 			if(!j) {
 				instr_block.push_back(instr);
 				virt_pc += (OP == 3 ? 4 : 2);
@@ -533,7 +534,7 @@ void HART::cpu_execute() {
 		} else {
 			fn(this,inst,&oprs,NULL);
 			if(incr) {pc += (OP == 3 ? 4 : 2);}
-
+			virt_pc = pc;
 			csrs[CYCLE] += 1;
 			regs[0] = 0;
 		}

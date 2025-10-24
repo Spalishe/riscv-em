@@ -28,6 +28,7 @@ Copyright 2025 Spalishe
 #include "llvm/IR/IRBuilder.h"
 
 #define BLOCK_EXECUTE_COUNT_TO_JIT 1000
+#define PC_EXECUTE_COUNT_TO_BLOCK 10
 
 struct MMIO;
 
