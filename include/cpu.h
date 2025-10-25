@@ -112,6 +112,7 @@ struct HART {
     void cpu_start(bool debug, uint64_t dtb_path, bool nojit);
     int cpu_start_testing(bool nojit);
     uint32_t cpu_fetch(uint64_t _pc);
+    void cpu_check_interrupts();
     void cpu_loop();
     void cpu_execute();
     void cpu_execute_inst(uint32_t inst);

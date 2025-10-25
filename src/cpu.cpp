@@ -100,7 +100,8 @@ void HART::cpu_start(bool debug, uint64_t dtb_path, bool nojit) {
 	csrs[MARCHID] = 0; 
 	csrs[MIMPID] = 0;
 	csrs[MHARTID] = 0;
-	csrs[MSTATUS] = 0xA00000000;
+	csrs[MIDELEG] = 5188;
+	csrs[MSTATUS] = (0xA00000000);
 
     uint32_t fetch_buffer[8];
     uint64_t fetch_pc; 
@@ -110,8 +111,8 @@ void HART::cpu_start(bool debug, uint64_t dtb_path, bool nojit) {
 	/*
 		Just for reminder the ids:
 			0 - User
-			1 - Superuser
-			2 - Hyperuser (who even needs that??)
+			1 - Supervisor
+			2 - Hypervisor (who even needs that??)
 			3 - Machine
 	*/
 
@@ -375,6 +376,9 @@ void HART::cpu_loop() {
 					regs[std::stoi(reg)] = std::stoi(value);
 				}
 			}
+			else if(line.rfind("getmode",0) == 0) {
+				std::cout << (mode == 0 ? "User" : (mode == 1 ? "Supervisor" : (mode == 2 ? "Hypervisor" : "Machine"))) << std::endl;
+			}
 			else if(line.rfind("getcsr",0) == 0) {
 				std::string ignore;
 				std::string reg;
@@ -434,6 +438,7 @@ void HART::cpu_execute() {
 			jfn(this);
 		} else {
 			for(auto &in : instr_block_cache[pc]) {
+				cpu_check_interrupts();
 				auto [fn_b, incr_b,__2,inst_b,isBr,immopt,oprs,__3,__4] = in;
 				(void)__2; (void)__3; (void)__2;  // unused
 				if(trap_notify) {trap_notify = false;}
@@ -508,6 +513,7 @@ void HART::cpu_execute() {
 						instr_block_cache[pc] = cp;
 						instr_block_cache_count_executed[pc] = 1;
 						for(auto &in : instr_block) {
+							cpu_check_interrupts();
 							auto [fn_b, incr_b,__2,inst_b,isBr,immopt,oprs,__3,__4] = in;
 							(void)__2; (void)__3; (void)__2;  // unused
 							if(trap_notify) {trap_notify = false;}
@@ -523,7 +529,8 @@ void HART::cpu_execute() {
 					}
 					if(!brb) {
 						fn(this,inst,&oprs,NULL);
-						if(incr) {pc += (OP == 3 ? 4 : 2);}
+						if(trap_notify) {brb = true; trap_notify = false;}
+						if(incr && !brb) {pc += (OP == 3 ? 4 : 2);}
 					}
 					virt_pc = pc;
 
@@ -532,8 +539,10 @@ void HART::cpu_execute() {
 				}
 			}
 		} else {
+			cpu_check_interrupts();
 			fn(this,inst,&oprs,NULL);
-			if(incr) {pc += (OP == 3 ? 4 : 2);}
+			if(incr && !trap_notify) {pc += (OP == 3 ? 4 : 2);}
+			if(trap_notify) {trap_notify = false;}
 			virt_pc = pc;
 			csrs[CYCLE] += 1;
 			regs[0] = 0;
@@ -595,23 +604,6 @@ static inline uint64_t mcause_encode(bool interrupt, uint64_t code) {
         return (interrupt ? (1U << 31) : 0U) | (code & ~(1U<<31));
 }
 
-// Helper: map interrupt cause code -> corresponding MIP bit index
-static inline int cause_to_mipbit(int cause) {
-    switch(cause) {
-        case IRQ_MEXT: return MIP_MEIP;
-        case IRQ_SEXT: return MIP_SEIP;
-        case IRQ_UEXT: return MIP_UEIP;
-        case IRQ_MTIMER: return MIP_MTIP;
-        case IRQ_STIMER: return MIP_STIP;
-        case IRQ_UTIMER: return MIP_UTIP;
-        case IRQ_MSW: return MIP_MSIP;
-        case IRQ_SSW: return MIP_SSIP;
-        case IRQ_USW: return MIP_USIP;
-        default: 
-            // For platform interrupts >=16 you would map differently
-            return -1;
-    }
-}
 
 void HART::cpu_trap(uint64_t cause, uint64_t tval, bool is_interrupt) {
 	trap_active = true;
@@ -674,15 +666,18 @@ void HART::cpu_trap(uint64_t cause, uint64_t tval, bool is_interrupt) {
 
         // Compute target PC from stvec
         uint64_t stvec = csrs[STVEC];
-        uint64_t mode = stvec & TVEC_MODE_MASK;
+        uint64_t v_mode = stvec & TVEC_MODE_MASK;
         uint64_t base = stvec & TVEC_BASE_MASK;
-        if (mode == 0) {
+        if (v_mode == 0) {
             pc = base;
-        } else if (mode == 1 && is_interrupt) {
+			virt_pc = base;
+        } else if (v_mode == 1 && is_interrupt) {
             // vectored only for interrupts
             pc = base + 4 * cause;
+			virt_pc = base + 4 * cause;
         } else {
             pc = base; // fallback
+			virt_pc = base;
         }
 
     } else {
@@ -709,18 +704,72 @@ void HART::cpu_trap(uint64_t cause, uint64_t tval, bool is_interrupt) {
 
         // Compute target PC from mtvec
         uint64_t mtvec = csrs[MTVEC];
-        uint64_t mode = mtvec & TVEC_MODE_MASK;
+        uint64_t v_mode = mtvec & TVEC_MODE_MASK;
         uint64_t base = mtvec & TVEC_BASE_MASK;
-        if (mode == 0) {
+        if (v_mode == 0) {
             pc = base;
-        } else if (mode == 1 && is_interrupt) {
+			virt_pc = base;
+        } else if (v_mode == 1 && is_interrupt) {
             pc = base + 4 * cause;
+			virt_pc = base + 4 * cause;
         } else {
             pc = base;
+			virt_pc = base;
         }
     }
 }
 
+void HART::cpu_check_interrupts() {
+    uint64_t mip = csrs[MIP];
+    uint64_t mie = csrs[MIE];
+    uint64_t mstatus = csrs[MSTATUS];
+    uint64_t sstatus = csrs[SSTATUS];
+    uint64_t mideleg = csrs[MIDELEG];
+
+    bool m_ie_glob = (mstatus >> MSTATUS_MIE_BIT) & 1;
+    bool s_ie_glob = (sstatus >> SSTATUS_SIE_BIT) & 1;
+
+    uint64_t m_irq_mask = (1ULL << MIP_MEIP) | (1ULL << MIP_MSIP) | (1ULL << MIP_MTIP);
+    uint64_t m_pending = mip & m_irq_mask;
+    uint64_t m_enabled = mie & m_pending;
+    if (m_ie_glob && m_enabled) {
+        if (m_enabled & (1ULL << MIP_MEIP)) {
+            cpu_trap(IRQ_MEXT, 0, true);
+            return;
+        } else if (m_enabled & (1ULL << MIP_MSIP)) {
+            cpu_trap(IRQ_MSW, 0, true);
+            return;
+        } else if (m_enabled & (1ULL << MIP_MTIP)) {
+            cpu_trap(IRQ_MTIMER, 0, true);
+            return;
+        }
+    }
+    uint64_t s_irq_mask = (1ULL << MIP_SEIP) | (1ULL << MIP_SSIP) | (1ULL << MIP_STIP);
+    if (mode == 3 || mode == 1) {
+        uint64_t s_pending = mip & s_irq_mask;
+        uint64_t s_view_pending = s_pending;
+        bool s_glob_ie;
+        if (mode == 1) {
+            s_view_pending &= mideleg;
+            s_glob_ie = s_ie_glob;
+        } else {
+            s_glob_ie = m_ie_glob;
+        }
+        uint64_t s_enabled = mie & s_view_pending;
+        if (s_glob_ie && s_enabled) {
+            if (s_enabled & (1ULL << MIP_SEIP)) {
+                cpu_trap(IRQ_SEXT, 0, true);
+                return;
+            } else if (s_enabled & (1ULL << MIP_SSIP)) {
+                cpu_trap(IRQ_SSW, 0, true);
+                return;
+            } else if (s_enabled & (1ULL << MIP_STIP)) {
+                cpu_trap(IRQ_STIMER, 0, true);
+                return;
+            }
+        }
+    }
+}
 
 // Those functions existing just for header files btw
 uint64_t HART::h_cpu_csr_read(uint64_t addr) {

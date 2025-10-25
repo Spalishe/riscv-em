@@ -192,3 +192,14 @@ Copyright 2025 Spalishe
 #define MIP_HSIP 2
 #define MIP_SSIP 1
 #define MIP_USIP 0
+
+#define MIE_MEIE_BIT 11
+#define MIE_MSIE_BIT 3
+#define MIE_MTIP_BIT 7
+#define SIE_SEIE_BIT 9
+#define MIE_SEIE_BIT 9
+#define SIE_SSIE_BIT 1
+#define MIE_SSIE_BIT 1
+#define SIE_STIE_BIT 5
+#define MIE_STIE_BIT 5
+#define SIP_STIP_BIT 5

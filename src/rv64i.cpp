@@ -929,3 +929,8 @@ void exec_ECALL(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, 
 void exec_EBREAK(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
 	hart->cpu_trap(EXC_BREAKPOINT,hart->pc,false);
 }
+
+
+void exec_FENCE(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
+    if(hart->dbg) hart->print_d("{0x%.8X} [FENCE] there is only 1 hart so its nop rn",hart->pc);
+}

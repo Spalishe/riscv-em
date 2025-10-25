@@ -325,8 +325,8 @@ void sdl_loop() {
 	while(true) {
 		if(remove_california) poweroff(false,false);
 		if(reset_pending) reset(false);
-		if(shutdown || !using_SDL) break;
-		SDL_loop();
+		if(shutdown) break;
+		if(using_SDL) SDL_loop();
 	}
 	shutdown = false;
 }
@@ -452,10 +452,13 @@ int main(int argc, char* argv[]) {
 	parser.addArgument("--debug", "Enables DEBUG mode", false, false, Argparser::ArgumentType::def);
 	parser.addArgument("--tests", "Enables TESTING mode(dev only)", false, false, Argparser::ArgumentType::def);
 	parser.addArgument("--nojit", "Disables JIT(for debugging, SLOW)", false, false, Argparser::ArgumentType::def);
+	parser.addArgument("--nographic", "Disables Framebuffer", false, false, Argparser::ArgumentType::def);
 
 	parser.parse();
     
-	SDL_initSDL(fb_width,fb_height);
+	using_SDL = !parser.getDefined(8);
+	if(using_SDL)
+		SDL_initSDL(fb_width,fb_height);
 
 	kernel_has = parser.getDefined(1);
 	if(kernel_has) 

@@ -249,7 +249,7 @@ void exec_AMOMAX_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* oper
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
     if(jitd == NULL) {
-    uint64_t addr = hart->regs[rs1_l];
+        uint64_t addr = hart->regs[rs1_l];
         uint64_t rs2_val = hart->regs[rs2_l];
 
         std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint64_t a, uint64_t b){ return std::max(int64_t(a), int64_t(b)); }); 
@@ -543,7 +543,7 @@ void exec_AMOMIN_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* oper
 void exec_AMOMAX_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
     uint64_t rd_l = opers->s ? opers->rs1 : rd(inst);
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
-    uint64_t rs2_l = opers->s ? opers->rs1 : rs2(inst);
+    uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
     if(jitd == NULL) {
         uint64_t addr = hart->regs[rs1_l];
@@ -551,7 +551,7 @@ void exec_AMOMAX_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* oper
 
         std::optional<uint64_t> val = AMO32(hart, addr, rs2_val, [](uint32_t a, uint32_t b){ return std::max(int32_t(a), int32_t(b)); }); 
         if(val.has_value()) {
-            hart->regs[rd_l] = *val;
+            hart->regs[rd_l] = (uint64_t)(int64_t)(int32_t) *val;
         }
     }
 
