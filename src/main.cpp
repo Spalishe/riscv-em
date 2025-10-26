@@ -44,6 +44,7 @@ Copyright 2025 Spalishe
 #include "../include/memory_map.h"
 #include "../include/libfdt.hpp"
 #include "../include/main.hpp"
+#include "../include/gdbstub.hpp"
 #include "../include/jit_h.hpp"
 #include <string>
 #include <vector>
@@ -109,6 +110,8 @@ MemoryMap memmap;
 
 std::string file;
 bool debug = false;
+
+bool gdb_stub = false;
 
 std::string kernel_path;
 bool kernel_has = false;
@@ -239,8 +242,8 @@ void add_devices_and_map() {
 
 	uint64_t irq_num = 1;
 
-	memmap.add_region(0x00000000, 1024*1024*12); // Do not make it round 16 mb, or it will override syscon
-	ROM* rom = new ROM(0,1024*1024*12,hart->dram);
+	memmap.add_region(0x00001000, 1024*1024*4); // Do not make it round 16 mb, or it will override syscon
+	ROM* rom = new ROM(0x00001000,1024*1024*4,hart->dram);
 	mmio->add(rom);
 
 	memmap.add_region(0x0C000000, 0x400000);
@@ -349,6 +352,7 @@ void poweroff(bool ctrlc, bool isNotMain) {
 			delete hrt;
 		}
 		shutdown = true;
+		GDB_Stop();
 		exit(0);
 	}
 }
@@ -433,7 +437,7 @@ void reset(bool isNotMain) {
 		}
 
 		for (HART* hrt : hart_list) {
-			hart_list_threads[hrt] = std::thread(&HART::cpu_start,hart,debug,dtb_path_in_memory,nojit);
+			hart_list_threads[hrt] = std::thread(&HART::cpu_start,hart,debug,dtb_path_in_memory,nojit,gdb_stub);
 		}
 		sdl_loop();
 	}
@@ -450,13 +454,14 @@ int main(int argc, char* argv[]) {
 	parser.addArgument("--dtb", "Use specified FDT instead of auto-generated",false,false,Argparser::ArgumentType::str);
 	parser.addArgument("--dumpdtb", "Dumps auto-generated FDT to file",false,false,Argparser::ArgumentType::str);
 	parser.addArgument("--debug", "Enables DEBUG mode", false, false, Argparser::ArgumentType::def);
+	parser.addArgument("--gdb", "Starts GDB Stub on port 1234", false, false, Argparser::ArgumentType::def);
 	parser.addArgument("--tests", "Enables TESTING mode(dev only)", false, false, Argparser::ArgumentType::def);
 	parser.addArgument("--nojit", "Disables JIT(for debugging, SLOW)", false, false, Argparser::ArgumentType::def);
 	parser.addArgument("--nographic", "Disables Framebuffer", false, false, Argparser::ArgumentType::def);
 
 	parser.parse();
     
-	using_SDL = !parser.getDefined(8);
+	using_SDL = !parser.getDefined(9);
 	if(using_SDL)
 		SDL_initSDL(fb_width,fb_height);
 
@@ -479,8 +484,10 @@ int main(int argc, char* argv[]) {
 	debug = parser.getDefined(5);
 	if(debug)
 		std::cout << "[DEBUG] Entered debug mode." << std::endl;
+	
+	gdb_stub = parser.getDefined(6);
 
-	testing_enabled = parser.getDefined(6);
+	testing_enabled = parser.getDefined(7);
 	if(testing_enabled) {
 		std::cout << "[TESTING] You entered testing mode." << std::endl;
 		std::cout << "[TESTING] In this mode, ./tests folder will be iterated by .bin files" << std::endl;
@@ -502,7 +509,7 @@ int main(int argc, char* argv[]) {
 
 		std::cout << "[TESTING] CPU will iterate over " << i << " files" << std::endl;	
 	}
-	nojit = parser.getDefined(7);
+	nojit = parser.getDefined(8);
 	if(!nojit) jit_init();
 
 	bool file_has = parser.getDefined(0);
@@ -585,8 +592,9 @@ int main(int argc, char* argv[]) {
 
 	if(!testing_enabled) {
 		for (HART* hrt : hart_list) {
-			hart_list_threads[hrt] = std::thread(&HART::cpu_start,hrt,debug,dtb_path_in_memory,nojit);
+			hart_list_threads[hrt] = std::thread(&HART::cpu_start,hrt,debug,dtb_path_in_memory,nojit,gdb_stub);
 		}
+		if(gdb_stub) GDB_Create(hart_list[0]);
 	} else {
 		std::vector<std::string> failed;
 		int succeded = 0;

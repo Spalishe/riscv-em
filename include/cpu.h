@@ -82,6 +82,7 @@ struct HART {
 	uint8_t reservation_size;
 
     bool testing;
+    bool gdbstub;
     bool dbg;
     bool dbg_showinst = true;
     bool dbg_singlestep;
@@ -109,7 +110,7 @@ struct HART {
     DRAM dram;
     MMIO* mmio;
 
-    void cpu_start(bool debug, uint64_t dtb_path, bool nojit);
+    void cpu_start(bool debug, uint64_t dtb_path, bool nojit, bool gdbstub);
     int cpu_start_testing(bool nojit);
     uint32_t cpu_fetch(uint64_t _pc);
     void cpu_check_interrupts();

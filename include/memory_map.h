@@ -21,6 +21,7 @@ Copyright 2025 Spalishe
 #include <stdexcept>
 #include <cstring>
 #include <unordered_map>
+#include <optional>
 
 struct MemoryRegion {
     uint64_t base_addr;
@@ -39,6 +40,11 @@ struct MemoryRegion {
     uint8_t* ptr(uint64_t addr) {
         if(addr < base_addr || addr >= base_addr + size)
             throw std::out_of_range("Memory access out of region");
+        return data + (addr - base_addr);
+    }
+    std::optional<uint8_t*> ptr_safe(uint64_t addr) {
+        if(addr < base_addr || addr >= base_addr + size)
+            return std::nullopt;
         return data + (addr - base_addr);
     }
 };
@@ -69,6 +75,25 @@ struct MemoryMap {
                 return val;
             }
             default: throw std::invalid_argument("Invalid load size");
+        }
+    }
+
+    std::optional<uint64_t> load_safe(uint64_t addr, uint64_t size) {
+        std::optional<MemoryRegion*> r = find_region_safe(addr);
+        if(!r.has_value()) return std::nullopt;
+        std::optional<uint8_t*> p = r.value()->ptr_safe(addr);
+        if(!p.has_value()) return std::nullopt;
+        switch(size) {
+            case 8:  return p.value()[0];
+            case 16: return p.value()[0] | ((uint64_t)p.value()[1] << 8);
+            case 32: return p.value()[0] | ((uint64_t)p.value()[1] << 8)
+                       | ((uint64_t)p.value()[2] << 16) | ((uint64_t)p.value()[3] << 24);
+            case 64: {
+                uint64_t val = 0;
+                for(int i=0;i<8;i++) val |= ((uint64_t)p.value()[i] << (i*8));
+                return val;
+            }
+            default: return std::nullopt;
         }
     }
 
@@ -107,5 +132,15 @@ private:
             }
         }
         throw std::out_of_range("Address not mapped in MemoryMap");
+    }
+    std::optional<MemoryRegion*> find_region_safe(uint64_t addr) {
+        if(cache.find(addr) != cache.end()) {return cache[addr];}
+        for(auto* r : regions) {
+            if(addr >= r->base_addr && addr < r->base_addr + r->size) {
+                cache[addr] = r;
+                return r;
+            }
+        }
+        return std::nullopt;
     }
 };

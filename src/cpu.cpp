@@ -71,7 +71,7 @@ uint32_t HART::cpu_fetch(uint64_t _pc) {
 	return fetch_buffer[fetch_indx];
 }
 
-void HART::cpu_start(bool debug, uint64_t dtb_path, bool nojit) {
+void HART::cpu_start(bool debug, uint64_t dtb_path, bool nojit, bool gdbstub) {
 	for(int i=0; i<32; i++) regs[i] = 0;
 	for(int i=0; i<4069; i++) csrs[i] = 0;
 	regs[0] = 0x00;
@@ -80,6 +80,7 @@ void HART::cpu_start(bool debug, uint64_t dtb_path, bool nojit) {
 	virt_pc = pc;
 	dbg_singlestep = false;
 	dbg     = debug;
+	this->gdbstub = gdbstub;
 
 	id = 0;
 
@@ -155,28 +156,12 @@ int HART::cpu_start_testing(bool nojit) {
 	cpu_loop();
 	return regs[10];
 }
-/*uint32_t HART::cpu_fetch() {
-	uint64_t upc = (block_enabled ? virt_pc : pc);
-	if (upc % 2 != 0) {
-		cpu_trap(EXC_INST_ADDR_MISALIGNED,upc,false);
-	}
-	uint32_t inst = 0;
-	std::optional<uint64_t> val = dram.mmap->load(upc,32);
-	if(val.has_value()) {
-		inst = (uint32_t) *val;
-	}
-	if(dbg && dbg_showinst) {
-		std::cout << "New instruction: 0x";
-		printf("%.8X",inst);
-		std::cout << std::endl;
-	}
-	return inst;
-}*/
 void HART::cpu_loop() {
 	while(true) {
 		if(god_said_to_destroy_this_thread) break;
 		if(trap_active && testing) break;
 		if(stopexec) continue;
+		if(gdbstub) continue;
 
 		if(reservation_valid) {
 			uint64_t val = dram_load(&(dram),reservation_addr,reservation_size);
