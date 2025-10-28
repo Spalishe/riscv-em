@@ -62,7 +62,10 @@ Copyright 2025 Spalishe
 	The Broken Insts:
 		none
 	TODO:
-		-Simple Framebuffer
+		-CSR Write/Read functions:
+			Must Replace:
+				JIT (Don't touch rn, there still chance of removing it)
+		- Counter CSRs
 		-RTC GoldFish
 
 		-Zba - bit manip

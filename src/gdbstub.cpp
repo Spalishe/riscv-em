@@ -3,19 +3,24 @@
 #include "../include/devices/plic.hpp"
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <format>
 #include <sstream>
 #include <algorithm>
 
 using namespace std;
+#pragma error disable 
 
 uint32_t gdb_socket;
 uint32_t gdb_recv;
 sockaddr_in gdb_address;
 bool gdb_isR;
 HART* gdb_hart;
-bool gdb_exec = true;
+atomic<bool> gdb_exec = true;
+atomic<bool> gdb_sigint = false;
 std::vector<uint64_t> gdb_bp;
+
+thread gdb_execth;
 
 string gdb_xml;
 
@@ -89,6 +94,29 @@ vector<tuple<string,uint32_t,char,optional<vector<tuple<string,uint8_t,uint8_t>>
         {"TW", 21, 21},
         {"TSR", 22, 22},
     }},
+    {"cycle", CYCLE, 'c', nullopt},
+    {"misa", MISA, 'c', nullopt},
+    {"medeleg", MEDELEG, 'c', nullopt},
+    {"mideleg", MIDELEG, 'c', nullopt},
+    {"mie", MIE, 'c', nullopt},
+    {"mip", MIP, 'c', nullopt},
+    {"mtvec", MTVEC, 'c', nullopt},
+    {"mcounteren", MCOUNTEREN, 'c', nullopt},
+    {"mscratch", MSCRATCH, 'c', nullopt},
+    {"mepc", MEPC, 'c', nullopt},
+    {"mcause", MCAUSE, 'c', nullopt},
+    {"mtval", MTVAL, 'c', nullopt},
+    {"sedeleg", SEDELEG, 'c', nullopt},
+    {"sideleg", SIDELEG, 'c', nullopt},
+    {"sie", SIE, 'c', nullopt},
+    {"sip", SIP, 'c', nullopt},
+    {"stvec", STVEC, 'c', nullopt},
+    {"scounteren", SCOUNTEREN, 'c', nullopt},
+    {"sscratch", SSCRATCH, 'c', nullopt},
+    {"sepc", SEPC, 'c', nullopt},
+    {"scause", SCAUSE, 'c', nullopt},
+    {"stval", STVAL, 'c', nullopt},
+    {"priv", 0, 'v', nullopt},
 };
 
 string GDB_CreateXML() {
@@ -107,6 +135,25 @@ string GDB_CreateXML() {
         if(get<2>(cur_reg) == 'g')
         {
             output << format(R"(    <reg name="{}" bitsize="{}" regnum="{}")", get<0>(cur_reg), 64, get<1>(cur_reg));
+            if(get<3>(cur_reg).has_value()) {
+                output << ">" << endl;
+                for(auto &dat : *get<3>(cur_reg)) {
+                    output << format(R"(      <field name="{}" start="{}" end="{}"/>)", get<0>(dat), get<1>(dat), get<2>(dat)) << endl;
+                }
+                output << "    </reg>" << endl;
+            } else {
+                output << "/>" << endl;
+            }
+        }
+    }
+    output << "  </feature>" << endl;
+    output << R"(  <feature name="org.gnu.gdb.riscv.virtual">)" << endl;
+    for(uint64_t i = 0; i < xml_data.size(); i++)
+    {
+        auto cur_reg = xml_data.at(i);
+        if(get<2>(cur_reg) == 'v')
+        {
+            output << format(R"(    <reg name="{}" bitsize="{}")", get<0>(cur_reg), 64);
             if(get<3>(cur_reg).has_value()) {
                 output << ">" << endl;
                 for(auto &dat : *get<3>(cur_reg)) {
@@ -148,7 +195,7 @@ void GDB_Create(HART* hart) {
 
     sockaddr_in serverAddress;
     serverAddress.sin_family = AF_INET;
-    serverAddress.sin_port = htons(1234);
+    serverAddress.sin_port = htons(1512);
     serverAddress.sin_addr.s_addr = INADDR_ANY;
 
     // binding socket.
@@ -160,7 +207,7 @@ void GDB_Create(HART* hart) {
         close(gdb_socket);
         return;
     }
-    cout << "[GDB] Stub created on port 1234" << endl;
+    cout << "[GDB] Stub created on port 1512" << endl;
 
     gdb_isR = true;
     GDB_Loop();
@@ -175,7 +222,13 @@ void GDB_Stop() {
 
 uint32_t GDB_send(string buffer, uint32_t flags = 0) {
     if(debug) cout << "[GDB] Send: " << buffer << endl;
-    return send(gdb_recv, buffer.c_str(), buffer.size(), flags);
+    size_t total = 0;
+    while (total < buffer.size() ) {
+        ssize_t sent = send(gdb_recv, buffer.c_str() + total, buffer.size() - total, flags);
+        if (sent <= 0) return sent; // error or disconnect
+        total += sent;
+    }
+    return total;
 }
 uint32_t GDB_sendPacket(string buffer, uint32_t flags = 0) {
     uint8_t sum = 0;
@@ -184,14 +237,20 @@ uint32_t GDB_sendPacket(string buffer, uint32_t flags = 0) {
     }
     buffer = format("${:}#{:02x}\0",buffer,sum);
     if(debug) cout << "[GDB] Send: " << buffer << endl;
-    return send(gdb_recv, buffer.c_str(), buffer.size(), flags);
+    size_t total = 0;
+    while (total < buffer.size() ) {
+        ssize_t sent = send(gdb_recv, buffer.c_str() + total, buffer.size() - total, flags);
+        if (sent <= 0) return sent; // error or disconnect
+        total += sent;
+    }
+    return total;
 }
 string GDB_unformatPacket(string buffer) {
     buffer = buffer.substr(1);
     return buffer.substr(0,buffer.size()-3);
 }
 
-void GDB_parsePacket(char* buffer) {
+void GDB_parsePacket(const char* buffer) {
     if(buffer[0] == '$') {
         string packet = GDB_unformatPacket(string(buffer));
         if(packet.starts_with("qSupported:")) {
@@ -223,38 +282,42 @@ void GDB_parsePacket(char* buffer) {
             {
                 case 'c': {
                     gdb_exec = true;
-                    bool prevState = gdb_hart->trap_active;
-                    while(true) {
-                        if(gdb_hart->god_said_to_destroy_this_thread) break;
-                        if(gdb_hart->stopexec) continue;
-                        if(!gdb_exec) break;
+                    gdb_execth = thread([]() {
+                        bool prevState = gdb_hart->trap_active;
+                        while(true) {
+                            if(gdb_hart->god_said_to_destroy_this_thread) break;
+                            if(gdb_hart->stopexec) continue;
+                            if(!gdb_exec) break;
 
-                        auto it = find(gdb_bp.begin(), gdb_bp.end(), gdb_hart->pc);
-                        if(it != gdb_bp.end()) {
-                            gdb_exec = false;
-                            break;
-                        }
-
-                        if(gdb_hart->reservation_valid) {
-                            uint64_t val = dram_load(&(gdb_hart->dram),gdb_hart->reservation_addr,gdb_hart->reservation_size);
-                            if(val != gdb_hart->reservation_value) {
-                                gdb_hart->reservation_valid = false;
-                            }
-                        }
-
-                        if(gdb_hart->trap_active != prevState) {
-                            if(gdb_hart->trap_active) {
+                            auto it = find(gdb_bp.begin(), gdb_bp.end(), gdb_hart->pc);
+                            if(it != gdb_bp.end()) {
+                                gdb_exec = false;
                                 break;
-                            } else {
-                                prevState = gdb_hart->trap_active;
                             }
-                        }
 
-                        Device* dev = mmio->devices[1];
-                        dynamic_cast<PLIC*>(dev)->plic_service(gdb_hart);
-                        gdb_hart->cpu_execute();
-                    }
-                    GDB_sendPacket("S05");
+                            if(gdb_hart->reservation_valid) {
+                                uint64_t val = dram_load(&(gdb_hart->dram),gdb_hart->reservation_addr,gdb_hart->reservation_size);
+                                if(val != gdb_hart->reservation_value) {
+                                    gdb_hart->reservation_valid = false;
+                                }
+                            }
+                            
+                            if(gdb_hart->trap_active != prevState) {
+                                if(gdb_hart->trap_active) {
+                                    break;
+                                } else {
+                                    prevState = gdb_hart->trap_active;
+                                }
+                            }
+
+                            Device* dev = mmio->devices[1];
+                            dynamic_cast<PLIC*>(dev)->plic_service(gdb_hart);
+                            gdb_hart->cpu_execute();
+                        }
+                        GDB_sendPacket(gdb_sigint ? "S02" : "S05");
+                        gdb_sigint = false;
+                    });
+                    gdb_execth.detach();
 
                     break;
                 }
@@ -266,41 +329,46 @@ void GDB_parsePacket(char* buffer) {
                     GDB_sendPacket("");
                     break;
             }
+            return;
         }
         if(packet.starts_with("c")) {
             gdb_exec = true;
-            bool prevState = gdb_hart->trap_active;
-            while(true) {
-                if(gdb_hart->god_said_to_destroy_this_thread) break;
-                if(gdb_hart->stopexec) continue;
-                if(!gdb_exec) break;
+            gdb_execth = thread([]() {
+                bool prevState = gdb_hart->trap_active;
+                while(true) {
+                    if(gdb_hart->god_said_to_destroy_this_thread) break;
+                    if(gdb_hart->stopexec) continue;
+                    if(!gdb_exec) break;
 
-                auto it = find(gdb_bp.begin(), gdb_bp.end(), gdb_hart->pc);
-                if(it != gdb_bp.end()) {
-                    gdb_exec = false;
-                    break;
-                }
-
-                if(gdb_hart->reservation_valid) {
-                    uint64_t val = dram_load(&(gdb_hart->dram),gdb_hart->reservation_addr,gdb_hart->reservation_size);
-                    if(val != gdb_hart->reservation_value) {
-                        gdb_hart->reservation_valid = false;
-                    }
-                }
-                
-                if(gdb_hart->trap_active != prevState) {
-                    if(gdb_hart->trap_active) {
+                    auto it = find(gdb_bp.begin(), gdb_bp.end(), gdb_hart->pc);
+                    if(it != gdb_bp.end()) {
+                        gdb_exec = false;
                         break;
-                    } else {
-                        prevState = gdb_hart->trap_active;
                     }
-                }
 
-                Device* dev = mmio->devices[1];
-                dynamic_cast<PLIC*>(dev)->plic_service(gdb_hart);
-                gdb_hart->cpu_execute();
-            }
-            GDB_sendPacket("S05");
+                    if(gdb_hart->reservation_valid) {
+                        uint64_t val = dram_load(&(gdb_hart->dram),gdb_hart->reservation_addr,gdb_hart->reservation_size);
+                        if(val != gdb_hart->reservation_value) {
+                            gdb_hart->reservation_valid = false;
+                        }
+                    }
+                    
+                    if(gdb_hart->trap_active != prevState) {
+                        if(gdb_hart->trap_active) {
+                            break;
+                        } else {
+                            prevState = gdb_hart->trap_active;
+                        }
+                    }
+
+                    Device* dev = mmio->devices[1];
+                    dynamic_cast<PLIC*>(dev)->plic_service(gdb_hart);
+                    gdb_hart->cpu_execute();
+                }
+                GDB_sendPacket(gdb_sigint ? "S02" : "S05");
+                gdb_sigint = false;
+            });
+            gdb_execth.detach();
             return;
         }
         if(packet.starts_with("s")) {
@@ -342,10 +410,13 @@ void GDB_parsePacket(char* buffer) {
                 //pc
                 GDB_sendPacket(to_little_endian_hex(gdb_hart->pc));
             } else if(idx > 32 && idx < 64) {
-                //fpu
+                if(idx == 33) {
+                    //priv
+                    GDB_sendPacket(to_little_endian_hex(gdb_hart->mode));
+                }
             } else if(idx >= 64) {
                 //csr
-                GDB_sendPacket(to_little_endian_hex(gdb_hart->csrs[idx]));
+                GDB_sendPacket(to_little_endian_hex(gdb_hart->csr_read(idx)));
             }
             return;
         }
@@ -469,10 +540,13 @@ void GDB_Loop() {
     if(debug) cout << "[GDB] Awaiting for client.." << endl;
     // accepting connection request
     gdb_recv = accept(gdb_socket, nullptr, nullptr);
+    int flag = 1;
+    setsockopt(gdb_recv, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(int));
 
     if(debug) cout << "[GDB] Client connected" << endl;
     char buffer[4096] = { 0 };
     while(gdb_isR) {
+        if(remove_california) break;
         memset(&buffer,0,sizeof(buffer));
         int received = recv(gdb_recv, buffer, sizeof(buffer), 0);
         if(received == 0) {
@@ -483,10 +557,25 @@ void GDB_Loop() {
             if(debug) cout << "[GDB] Client error: " << received << endl;
             break;
         }
-        if(debug) cout << "[GDB] Recv: " << buffer << endl;
-        if(buffer[0] != '-' && buffer[0] != '+') {
+        if(debug) cout << "[GDB] Recv: " << buffer << " (first byte: " << (uint16_t)buffer[0] << ")" << endl;
+        if(buffer[0] == '$') {
             GDB_send("+\0",0);
             GDB_parsePacket(buffer);
+        }
+        if(buffer[0] == 3) {
+            //SIGINT
+            GDB_send("+\0",0);
+            gdb_sigint = true;
+            gdb_exec = false;
+        }
+        if(buffer[0] == '-' || buffer[0] == '+') {
+            if(buffer[1] == '$') {
+                // new packet right after ack
+                string str = string(buffer);
+                str.erase(0, 1);
+                GDB_send("+\0",0);
+                GDB_parsePacket(str.c_str());
+            }
         }
     }
     close(gdb_recv);

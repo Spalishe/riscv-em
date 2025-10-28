@@ -102,7 +102,9 @@ void HART::cpu_start(bool debug, uint64_t dtb_path, bool nojit, bool gdbstub) {
 	csrs[MIMPID] = 0;
 	csrs[MHARTID] = 0;
 	csrs[MIDELEG] = 5188;
+	csrs[MIP] = 0x80;
 	csrs[MSTATUS] = (0xA00000000);
+	csrs[SSTATUS] = (0x200000000);
 
     uint32_t fetch_buffer[8];
     uint64_t fetch_pc; 
@@ -433,6 +435,8 @@ void HART::cpu_execute() {
 				if(trap_notify) {trap_notify = false; brb = true; break;}
 				if(!isBr || !brb) {pc += ((inst_b & 3) == 3 ? 4 : 2);}
 				csrs[CYCLE] += 1;
+				csrs[TIME] += 1;
+				csrs[INSTRET] += 1;
 				regs[0] = 0;
 				if(isBr && brb) break; 
 			}
@@ -507,6 +511,8 @@ void HART::cpu_execute() {
 							if(trap_notify) {trap_notify = false; brb = true; break;}
 							if(!isBr || !brb) {pc += ((inst_b & 3) == 3 ? 4 : 2);}
 							csrs[CYCLE] += 1;
+							csrs[TIME] += 1;
+							csrs[INSTRET] += 1;
 							regs[0] = 0;
 							if(isBr && brb) break;
 						}
@@ -520,6 +526,8 @@ void HART::cpu_execute() {
 					virt_pc = pc;
 
 					csrs[CYCLE] += 1;
+					csrs[TIME] += 1;
+					csrs[INSTRET] += 1;
 					regs[0] = 0;
 				}
 			}
@@ -530,6 +538,8 @@ void HART::cpu_execute() {
 			if(trap_notify) {trap_notify = false;}
 			virt_pc = pc;
 			csrs[CYCLE] += 1;
+			csrs[TIME] += 1;
+			csrs[INSTRET] += 1;
 			regs[0] = 0;
 		}
 	}
@@ -545,6 +555,8 @@ void HART::cpu_execute_inst(uint32_t ins) {
 	if(incr) {pc += (OP == 3 ? 4 : 2);}
 
 	csrs[CYCLE] += 1;
+	csrs[TIME] += 1;
+	csrs[INSTRET] += 1;
 	regs[0] = 0;
 }
 
@@ -633,24 +645,24 @@ void HART::cpu_trap(uint64_t cause, uint64_t tval, bool is_interrupt) {
 
     if (delegate_to_s) {
         // Supervisor trap handling (write sepc/scause/stval, update sstatus, jump to stvec)
-        csrs[SEPC] = pc;
-        csrs[SCAUSE] = mcause_encode(is_interrupt, cause);
-        csrs[STVAL] = tval;
+		csr_write(SEPC,pc);
+		csr_write(SCAUSE,mcause_encode(is_interrupt, cause));
+		csr_write(STVAL,tval);
 
         // Update sstatus: SPIE <- SIE; SIE <- 0; SPP <- old privilege (0 for U, 1 for S)
-        uint64_t sstatus = csrs[SSTATUS];
+        uint64_t sstatus = csr_read(SSTATUS);
         uint64_t old_sie = (sstatus >> SSTATUS_SIE_BIT) & 1ULL;
         // clear SPIE, SPP, SIE
         sstatus &= ~((1ULL<<SSTATUS_SPIE_BIT) | (1ULL<<SSTATUS_SPP_BIT) | (1ULL<<SSTATUS_SIE_BIT));
         if (old_sie) sstatus |= (1ULL<<SSTATUS_SPIE_BIT);
         if (cur_mode == 1) sstatus |= (1ULL<<SSTATUS_SPP_BIT); // set SPP if came from S; else leave 0 for U
-        csrs[SSTATUS] = sstatus;
+		csr_write(SSTATUS,sstatus);
 
         // Switch to S-mode
         mode = 1;
 
         // Compute target PC from stvec
-        uint64_t stvec = csrs[STVEC];
+        uint64_t stvec = csr_read(STVEC);
         uint64_t v_mode = stvec & TVEC_MODE_MASK;
         uint64_t base = stvec & TVEC_BASE_MASK;
         if (v_mode == 0) {
@@ -708,7 +720,7 @@ void HART::cpu_check_interrupts() {
     uint64_t mip = csrs[MIP];
     uint64_t mie = csrs[MIE];
     uint64_t mstatus = csrs[MSTATUS];
-    uint64_t sstatus = csrs[SSTATUS];
+    uint64_t sstatus = csr_read(SSTATUS);
     uint64_t mideleg = csrs[MIDELEG];
 
     bool m_ie_glob = (mstatus >> MSTATUS_MIE_BIT) & 1;
@@ -756,13 +768,51 @@ void HART::cpu_check_interrupts() {
     }
 }
 
+uint64_t HART::csr_read(uint64_t addr) {
+	switch(addr) {
+		case SSTATUS:
+			return csrs[MSTATUS] & 0x80000003000DE762; // Bit mask for S-bits
+		case SIE:
+			return csrs[MIE] & 0x222;
+		case SIP:
+			return csrs[MIP] & 0x222;
+		case SCAUSE:
+			return (csrs[MCAUSE] >> 63) == 1 ? (csrs[MCAUSE] & 0x8000000000000222) : csrs[MCAUSE];
+		default:
+			return csrs[addr];
+	}
+}
+void HART::csr_write(uint64_t addr,uint64_t val) {
+	switch(addr) {
+		case SSTATUS:
+			csrs[MSTATUS] = (csrs[MSTATUS] & ~0x80000003000DE762) | (val & 0x80000003000DE762); // Bit mask for S-bits
+			break;
+		case SIE:
+			csrs[MIE] = (csrs[MIE] & ~0x222) | (val & 0x222);
+			break;
+		case SIP:
+			csrs[MIP] = (csrs[MIP] & ~0x222) | (val & 0x222);
+			break;
+		case SCAUSE:
+			if(val >> 63 == 1) {
+				csrs[MCAUSE] = (csrs[MCAUSE] & ~0x8000000000000222) | (val & 0x8000000000000222);
+			} else {
+				csrs[MCAUSE] = val;
+			}
+			break;
+		default:
+			csrs[addr] = val;
+			break;
+	}
+}
+
 // Those functions existing just for header files btw
 uint64_t HART::h_cpu_csr_read(uint64_t addr) {
-	return csrs[addr];
+	return csr_read(addr);
 }
 
 void HART::h_cpu_csr_write(uint64_t addr, uint64_t value) {
-	csrs[addr] = value;
+	csr_write(addr,value);
 }
 
 uint8_t HART::h_cpu_id() {

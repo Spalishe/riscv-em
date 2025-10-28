@@ -121,6 +121,9 @@ struct HART {
     void print_d(const std::string& fmt, ...);
     void cpu_trap(uint64_t cause, uint64_t tval, bool is_interrupt);
 
+    uint64_t csr_read(uint64_t addr);
+    void csr_write(uint64_t addr,uint64_t val);
+
     uint64_t h_cpu_csr_read(uint64_t addr);
     void h_cpu_csr_write(uint64_t addr, uint64_t value);
     uint8_t h_cpu_id();

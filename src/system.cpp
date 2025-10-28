@@ -26,8 +26,8 @@ bool interrupt_pending_and_enabled(struct HART *hart, bool for_wfi = false) {
     uint64_t mie      = hart->csrs[MIE];
     uint64_t mideleg  = hart->csrs[MIDELEG];
     uint64_t mstatus  = hart->csrs[MSTATUS];
-    uint64_t sstatus  = hart->csrs[SSTATUS];
-    uint64_t sie      = hart->csrs[SIE];
+    uint64_t sstatus  = hart->csr_read(SSTATUS);
+    uint64_t sie      = hart->csr_read(SIE);
 
     uint64_t pending_locally_enabled = mip & mie;
     if (for_wfi) {
@@ -61,7 +61,6 @@ bool interrupt_pending_and_enabled(struct HART *hart, bool for_wfi = false) {
 void exec_WFI(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
     uint64_t mstatus = hart->csrs[MSTATUS];
     bool tw = (mstatus >> 21) & 1;
-    std::cout << mstatus << "   " << tw << "   " << (uint32_t)hart->mode << std::endl;
     
     if (hart->mode == 0) { // U
         goto trapcpu;
@@ -103,16 +102,16 @@ void exec_SRET(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, s
         return;
     }
 
-    if(get_bits(hart->csrs[MSTATUS],8,8) == 1) {
+    if(get_bits(hart->csr_read(SSTATUS),8,8) == 1) {
         hart->mode = 1;
     } else {
         hart->mode = 0;
     }
 
-    hart->csrs[SSTATUS] = bit_set_to(hart->csrs[SSTATUS],1,bit_check(hart->csrs[SSTATUS],5));
-    hart->csrs[SSTATUS] = bit_set_to(hart->csrs[SSTATUS],5,true);
-    hart->csrs[SSTATUS] = bit_set_to(hart->csrs[SSTATUS],8,false);
-    hart->pc = hart->csrs[SEPC];
+    hart->csr_write(SSTATUS, bit_set_to(hart->csr_read(SSTATUS),1,bit_check(hart->csr_read(SSTATUS),5)));
+    hart->csr_write(SSTATUS, bit_set_to(hart->csr_read(SSTATUS),5,true));
+    hart->csr_write(SSTATUS, bit_set_to(hart->csr_read(SSTATUS),8,false));
+    hart->pc = hart->csr_read(SEPC);
 
     hart->trap_active = false;
     if(hart->dbg) hart->print_d("{0x%.8X} [SRET] ahh returned from exc",hart->pc);
@@ -123,7 +122,7 @@ void exec_MRET(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, s
     }
 
     hart->csrs[MSTATUS] = bit_set_to(hart->csrs[MSTATUS],3,bit_check(hart->csrs[MSTATUS],7));
-    hart->csrs[SSTATUS] = bit_set_to(hart->csrs[SSTATUS],7,true);
+    hart->csrs[MSTATUS] = bit_set_to(hart->csrs[MSTATUS],7,true);
 
     if(get_bits(hart->csrs[MSTATUS],12,11) == 0) {
         hart->mode = 0;
@@ -133,8 +132,8 @@ void exec_MRET(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, s
         hart->mode = 3;
     }
 
-    hart->csrs[SSTATUS] = bit_set_to(hart->csrs[SSTATUS],11,false);
-    hart->csrs[SSTATUS] = bit_set_to(hart->csrs[SSTATUS],12,false);
+    hart->csrs[MSTATUS] = bit_set_to(hart->csrs[MSTATUS],11,false);
+    hart->csrs[MSTATUS] = bit_set_to(hart->csrs[MSTATUS],12,false);
 
     hart->pc = hart->csrs[MEPC];
     

@@ -123,7 +123,32 @@ Copyright 2025 Spalishe
 #define MCOUNTINHIBIT 0x320 // MRW Machine counter-inhibit register.
 #define MHPMEVENT3    0x323 // MRW Machine performance-monitoring event selector.
 #define MHPMEVENT4    0x324 // MRW Machine performance-monitoring event selector.
-//#define ...
+#define MHPMEVENT5    0x325 // MRW Machine performance-monitoring event selector.
+#define MHPMEVENT6    0x326 // MRW Machine performance-monitoring event selector.
+#define MHPMEVENT7    0x327 // MRW Machine performance-monitoring event selector.
+#define MHPMEVENT8    0x328 // MRW Machine performance-monitoring event selector.
+#define MHPMEVENT9    0x329 // MRW Machine performance-monitoring event selector.
+#define MHPMEVENT10    0x32A // MRW Machine performance-monitoring event selector.
+#define MHPMEVENT11    0x32B // MRW Machine performance-monitoring event selector.
+#define MHPMEVENT12    0x32C // MRW Machine performance-monitoring event selector.
+#define MHPMEVENT13    0x32D // MRW Machine performance-monitoring event selector.
+#define MHPMEVENT14    0x32E // MRW Machine performance-monitoring event selector.
+#define MHPMEVENT15    0x32F // MRW Machine performance-monitoring event selector.
+#define MHPMEVENT16    0x330 // MRW Machine performance-monitoring event selector.
+#define MHPMEVENT17    0x331 // MRW Machine performance-monitoring event selector.
+#define MHPMEVENT18    0x332 // MRW Machine performance-monitoring event selector.
+#define MHPMEVENT19    0x333 // MRW Machine performance-monitoring event selector.
+#define MHPMEVENT20    0x334 // MRW Machine performance-monitoring event selector.
+#define MHPMEVENT21    0x335 // MRW Machine performance-monitoring event selector.
+#define MHPMEVENT22    0x336 // MRW Machine performance-monitoring event selector.
+#define MHPMEVENT23    0x337 // MRW Machine performance-monitoring event selector.
+#define MHPMEVENT24    0x338 // MRW Machine performance-monitoring event selector.
+#define MHPMEVENT25    0x339 // MRW Machine performance-monitoring event selector.
+#define MHPMEVENT26    0x33A // MRW Machine performance-monitoring event selector.
+#define MHPMEVENT27    0x33B // MRW Machine performance-monitoring event selector.
+#define MHPMEVENT28    0x33C // MRW Machine performance-monitoring event selector.
+#define MHPMEVENT29    0x33D // MRW Machine performance-monitoring event selector.
+#define MHPMEVENT30    0x33E // MRW Machine performance-monitoring event selector.
 #define MHPMEVENT31 0x33F // MRW Machine performance-monitoring event selector.
 
 //Debug/Trace Registers (shared with Debug Mode)

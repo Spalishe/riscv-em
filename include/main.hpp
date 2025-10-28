@@ -34,3 +34,4 @@ extern std::vector<HART*> hart_list;
 extern std::unordered_map<HART*,std::thread> hart_list_threads;
 
 extern bool debug;
+extern std::atomic<bool> remove_california;
