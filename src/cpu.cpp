@@ -147,7 +147,7 @@ int HART::cpu_start_testing(bool nojit) {
 	reservation_addr = 0;
 	reservation_size = 32;
 
-	csrs[MISA] = riscv_mkmisa("imasu");
+	csrs[MISA] = riscv_mkmisa("ima");
 	csrs[MVENDORID] = 0; 
 	csrs[MARCHID] = 0; 
 	csrs[MIMPID] = 0;
@@ -162,7 +162,8 @@ void HART::cpu_loop() {
 	while(true) {
 		if(god_said_to_destroy_this_thread) break;
 		if(trap_active && testing) break;
-		if(stopexec) continue;
+		cpu_check_interrupts();
+		if(stopexec) {continue;}
 		if(gdbstub) continue;
 
 		if(reservation_valid) {
@@ -635,7 +636,7 @@ void HART::cpu_trap(uint64_t cause, uint64_t tval, bool is_interrupt) {
     // Decide whether to delegate to S-mode:
     bool can_delegate_to_s = (cur_mode != 3); // only traps from U or S can be delegated
     bool delegate_to_s = false;
-    if (can_delegate_to_s) {
+    if (can_delegate_to_s && cur_mode < 3) {
         if (is_interrupt) {
             if ( (mideleg >> cause) & 1ULL ) delegate_to_s = true;
         } else {
@@ -670,8 +671,9 @@ void HART::cpu_trap(uint64_t cause, uint64_t tval, bool is_interrupt) {
 			virt_pc = base;
         } else if (v_mode == 1 && is_interrupt) {
             // vectored only for interrupts
-            pc = base + 4 * cause;
-			virt_pc = base + 4 * cause;
+            uint64_t vector = cause & 0xF;
+			pc = base + 4 * vector;
+			virt_pc = base + 4 * vector;
         } else {
             pc = base; // fallback
 			virt_pc = base;
@@ -707,8 +709,9 @@ void HART::cpu_trap(uint64_t cause, uint64_t tval, bool is_interrupt) {
             pc = base;
 			virt_pc = base;
         } else if (v_mode == 1 && is_interrupt) {
-            pc = base + 4 * cause;
-			virt_pc = base + 4 * cause;
+            uint64_t vector = cause & 0xF;
+			pc = base + 4 * vector;
+			virt_pc = base + 4 * vector;
         } else {
             pc = base;
 			virt_pc = base;
@@ -727,6 +730,10 @@ void HART::cpu_check_interrupts() {
     bool s_ie_glob = (sstatus >> SSTATUS_SIE_BIT) & 1;
 
     uint64_t m_irq_mask = (1ULL << MIP_MEIP) | (1ULL << MIP_MSIP) | (1ULL << MIP_MTIP);
+	if (mode == 3 && m_ie_glob && (mip & (1ULL << MIP_MTIP))) {
+		cpu_trap(IRQ_MTIMER, 0, true);
+		return;
+	}
     uint64_t m_pending = mip & m_irq_mask;
     uint64_t m_enabled = mie & m_pending;
     if (m_ie_glob && m_enabled) {

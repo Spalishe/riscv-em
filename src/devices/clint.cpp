@@ -62,7 +62,7 @@ void CLINT::start_timer(uint64_t freq_hz) {
             std::this_thread::sleep_until(next_time);
             mtime.fetch_add(1, std::memory_order_seq_cst);
             for(HART* hrt : hart_list) {
-                hrt->csrs[TIME] = mtime.load(std::memory_order_seq_cst);
+                //hrt->csrs[TIME] = mtime.load(std::memory_order_seq_cst);
                 update_mip(hrt); // You should update this for all harts
             }
         }
@@ -93,8 +93,7 @@ uint64_t CLINT::read(HART* hart, uint64_t addr, uint64_t size) {
     // MTIME
 
     uint64_t current_time = mtime.load(std::memory_order_seq_cst);
-    if (off == 0xBFF8) return (uint32_t)(current_time & 0xFFFFFFFFULL);
-    if (off == 0xBFFC) return (uint32_t)(current_time >> 32);
+    if (off == 0xBFF8) return current_time;
 
     return 0;
 }
@@ -107,6 +106,7 @@ void CLINT::write(HART* hart, uint64_t addr, uint64_t size, uint64_t value) {
         uint32_t hart_id = off / 4;
         if (hart_id < msip.size()) {
             msip[hart_id] = value & 1;
+            update_mip(hart);
         }
     }
     // MTIMECMP
@@ -116,6 +116,11 @@ void CLINT::write(HART* hart, uint64_t addr, uint64_t size, uint64_t value) {
             mtimecmp[hart_id] = value;
             update_mip(hart);
         }
+    }
+    // MTIME 
+    else if(off == 0xBFF8) {
+        mtime.store(value,std::memory_order_seq_cst);
+        update_mip(hart);
     }
 }
 
