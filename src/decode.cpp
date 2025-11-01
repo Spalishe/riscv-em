@@ -96,7 +96,7 @@ CACHE_Instr parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
 	bool junction = false;
     bool isBranch = false;
     uint32_t imm_opt = 0;
-	void (*fn)(HART*, uint32_t, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*,llvm::Function*,llvm::Value*>*);
+	void (*fn)(HART*, uint32_t, CACHE_DecodedOperands* opers);
 
     CACHE_Instr cache = hart->instr_cache[(pc >> 2) & 0x1FFF];
     if(cache.valid && cache.pc == pc) {

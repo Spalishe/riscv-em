@@ -45,12 +45,12 @@ Copyright 2025 Spalishe
 #include "../include/libfdt.hpp"
 #include "../include/main.hpp"
 #include "../include/gdbstub.hpp"
-#include "../include/jit_h.hpp"
 #include <string>
 #include <vector>
 #include <random>
 
 #include <stdio.h>
+#include <signal.h>
 #include <sys/types.h>
 #include <dirent.h>
 #include <filesystem>
@@ -96,17 +96,16 @@ bool hasValue(char* arr[], int arrlen, std::string match) {
 	return has;
 }
 
-struct TermiosGuard {
-	struct termios oldt;
-	struct termios newt;
-	TermiosGuard() {
-		tcgetattr(STDIN_FILENO, &oldt);
-		newt = oldt;
-		newt.c_lflag &= ~(ICANON | ECHO | ISIG);
-		tcsetattr(STDIN_FILENO, TCSANOW, &newt);
-	};
-    ~TermiosGuard() { tcsetattr(STDIN_FILENO, TCSANOW, &oldt); }
-};
+struct termios oldt;
+struct termios newt;
+bool termios_override;
+void termios_reset(int signum) {
+	tcsetattr(STDIN_FILENO, TCSAFLUSH, &oldt);
+	_exit(signum);
+}
+void termios_reset_noexit() {
+	tcsetattr(STDIN_FILENO, TCSAFLUSH, &oldt);
+}
 
 MemoryMap memmap;
 
@@ -271,9 +270,23 @@ void add_devices_and_map() {
 	irq_num ++;
 	if(!debug) {
 		kb_running = true;
-		kb_t = std::thread([]() {
-			TermiosGuard tguard = TermiosGuard();
+		struct sigaction sa;
+		sa.sa_handler = termios_reset;
+		sigemptyset(&sa.sa_mask);
+		sa.sa_flags = 0;
+		sigaction(SIGINT, &sa, NULL);
+		sigaction(SIGKILL, &sa, NULL);
+		sigaction(SIGTERM, &sa, NULL);
+		sigaction(SIGABRT, &sa, NULL);
+		sigaction(SIGSEGV, &sa, NULL);
 
+		termios_override = true;
+		tcgetattr(STDIN_FILENO, &oldt);
+		tcgetattr(STDIN_FILENO, &newt);
+		newt.c_lflag &= ~(ICANON | ECHO | ISIG);
+		tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+		
+		kb_t = std::thread([]() {
 			while (kb_running) {
 				fd_set fds;
 				FD_ZERO(&fds);
@@ -343,6 +356,7 @@ void poweroff(bool ctrlc, bool isNotMain) {
 		return;
 	} else {
 		kb_running = false;
+		if(termios_override) {termios_reset_noexit();}
 		if(!ctrlc) {
 			if (kb_t.joinable())
 				kb_t.join();
@@ -369,7 +383,7 @@ void fastexit() {
 		delete hrt;
 	}
 	shutdown = true;
-	std::_Exit(1);
+	if(termios_override) {termios_reset(1);}
 }
 
 void reset(bool isNotMain) {
@@ -440,7 +454,7 @@ void reset(bool isNotMain) {
 		}
 
 		for (HART* hrt : hart_list) {
-			hart_list_threads[hrt] = std::thread(&HART::cpu_start,hart,debug,dtb_path_in_memory,nojit,gdb_stub);
+			hart_list_threads[hrt] = std::thread(&HART::cpu_start,hart,debug,dtb_path_in_memory,gdb_stub);
 		}
 		sdl_loop();
 	}
@@ -459,12 +473,11 @@ int main(int argc, char* argv[]) {
 	parser.addArgument("--debug", "Enables DEBUG mode", false, false, Argparser::ArgumentType::def);
 	parser.addArgument("--gdb", "Starts GDB Stub on port 1234", false, false, Argparser::ArgumentType::def);
 	parser.addArgument("--tests", "Enables TESTING mode(dev only)", false, false, Argparser::ArgumentType::def);
-	parser.addArgument("--nojit", "Disables JIT(for debugging, SLOW)", false, false, Argparser::ArgumentType::def);
 	parser.addArgument("--nographic", "Disables Framebuffer", false, false, Argparser::ArgumentType::def);
 
 	parser.parse();
-    
-	using_SDL = !parser.getDefined(9);
+
+	using_SDL = !parser.getDefined(8);
 	if(using_SDL)
 		SDL_initSDL(fb_width,fb_height);
 
@@ -512,8 +525,6 @@ int main(int argc, char* argv[]) {
 
 		std::cout << "[TESTING] CPU will iterate over " << i << " files" << std::endl;	
 	}
-	nojit = parser.getDefined(8);
-	if(!nojit) jit_init();
 
 	bool file_has = parser.getDefined(0);
 	if(file_has) {
@@ -595,7 +606,7 @@ int main(int argc, char* argv[]) {
 
 	if(!testing_enabled) {
 		for (HART* hrt : hart_list) {
-			hart_list_threads[hrt] = std::thread(&HART::cpu_start,hrt,debug,dtb_path_in_memory,nojit,gdb_stub);
+			hart_list_threads[hrt] = std::thread(&HART::cpu_start,hrt,debug,dtb_path_in_memory,gdb_stub);
 		}
 		if(gdb_stub) GDB_Create(hart_list[0]);
 	} else {
@@ -608,8 +619,7 @@ int main(int argc, char* argv[]) {
 			}
 			std::cout << "[TESTING] Executing file " << val << "... ";
 			hart->cpu_readfile(val, DRAM_BASE,false);
-			int out = hart->cpu_start_testing(nojit);
-			if(!nojit) jit_reset();
+			int out = hart->cpu_start_testing();
 			if(out != 0) {
 				std::cout << "[\033[31mFAIL\033[0m] A0 = " << out << std::endl;	
 				failed.push_back(val);

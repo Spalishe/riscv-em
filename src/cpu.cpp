@@ -24,7 +24,6 @@ Copyright 2025 Spalishe
 #include "../include/instset.h"
 #include "../include/csr.h"
 #include "../include/main.hpp"
-#include "../include/jit_h.hpp"
 #include "../include/devices/plic.hpp"
 #include <cstdio>
 #include <cstdarg>
@@ -71,7 +70,7 @@ uint32_t HART::cpu_fetch(uint64_t _pc) {
 	return fetch_buffer[fetch_indx];
 }
 
-void HART::cpu_start(bool debug, uint64_t dtb_path, bool nojit, bool gdbstub) {
+void HART::cpu_start(bool debug, uint64_t dtb_path, bool gdbstub) {
 	for(int i=0; i<32; i++) regs[i] = 0;
 	for(int i=0; i<4069; i++) csrs[i] = 0;
 	regs[0] = 0x00;
@@ -83,8 +82,6 @@ void HART::cpu_start(bool debug, uint64_t dtb_path, bool nojit, bool gdbstub) {
 	this->gdbstub = gdbstub;
 
 	id = 0;
-
-	jit_enabled = !nojit;
 
 	stopexec = false;
 	regs[10] = id;
@@ -121,12 +118,11 @@ void HART::cpu_start(bool debug, uint64_t dtb_path, bool nojit, bool gdbstub) {
 
 	cpu_loop();
 }
-int HART::cpu_start_testing(bool nojit) {
+int HART::cpu_start_testing() {
 	testing = true;
 	trap_active = false;
 	trap_notify = false;
 	//block_enabled = false;
-	instr_block_cache_jit.clear();
 	instr_block.clear();
 	for(int i=0; i<32; i++) regs[i] = 0;
 	for(int i=0; i<4069; i++) csrs[i] = 0;
@@ -139,8 +135,6 @@ int HART::cpu_start_testing(bool nojit) {
 
 	stopexec = false;
 	regs[10] = id;
-
-	jit_enabled = !nojit;
 
 	reservation_valid = false;
 	reservation_value = 0;
@@ -412,35 +406,23 @@ void HART::cpu_execute() {
 	void (*fn)(HART*, uint32_t);
 
 	auto it1 = instr_block_cache.find(pc);
-	auto it2 = instr_block_cache_jit.find(pc);
-	if(jit_enabled && it2 != instr_block_cache_jit.end()) {
-		if(dbg) std::cout << "JIT EXECUTED: " << pc << std::endl;
-		instr_block_cache_jit[pc](this);
-		virt_pc = pc;
-	} else if(it1 != instr_block_cache.end()) {
+	if(it1 != instr_block_cache.end()) {
 		uint64_t pc_v = pc;
-		if(instr_block_cache_count_executed[pc_v] > BLOCK_EXECUTE_COUNT_TO_JIT && jit_enabled){
-			BlockFn jfn = jit_create_block(this,instr_block_cache[pc_v]);
-			if(dbg) std::cout << "JIT COMPILED: " << pc_v << std::endl;
-			instr_block_cache_jit[pc_v] = jfn;
-			jfn(this);
-		} else {
-			for(auto &in : instr_block_cache[pc]) {
-				cpu_check_interrupts();
-				auto [fn_b, incr_b,__2,inst_b,isBr,immopt,oprs,__3,__4] = in;
-				(void)__2; (void)__3; (void)__2;  // unused
-				if(trap_notify) {trap_notify = false;}
-				bool brb = false;
-				fn_b(this,inst_b,&oprs,NULL);
-				brb = oprs.brb;
-				if(trap_notify) {trap_notify = false; brb = true; break;}
-				if(!isBr || !brb) {pc += ((inst_b & 3) == 3 ? 4 : 2);}
-				csrs[CYCLE] += 1;
-				csrs[TIME] += 1;
-				csrs[INSTRET] += 1;
-				regs[0] = 0;
-				if(isBr && brb) break; 
-			}
+		for(auto &in : instr_block_cache[pc]) {
+			cpu_check_interrupts();
+			auto [fn_b, incr_b,__2,inst_b,isBr,immopt,oprs,__3,__4] = in;
+			(void)__2; (void)__3; (void)__2;  // unused
+			if(trap_notify) {trap_notify = false;}
+			bool brb = false;
+			fn_b(this,inst_b,&oprs);
+			brb = oprs.brb;
+			if(trap_notify) {trap_notify = false; brb = true; break;}
+			if(!isBr || !brb) {pc += ((inst_b & 3) == 3 ? 4 : 2);}
+			csrs[CYCLE] += 1;
+			csrs[TIME] += 1;
+			csrs[INSTRET] += 1;
+			regs[0] = 0;
+			if(isBr && brb) break; 
 		}
 		instr_block_cache_count_executed[pc_v] += 1;
 		virt_pc = pc;
@@ -507,7 +489,7 @@ void HART::cpu_execute() {
 							auto [fn_b, incr_b,__2,inst_b,isBr,immopt,oprs,__3,__4] = in;
 							(void)__2; (void)__3; (void)__2;  // unused
 							if(trap_notify) {trap_notify = false;}
-							fn_b(this,inst_b,&oprs,NULL);
+							fn_b(this,inst_b,&oprs);
 							brb = oprs.brb;
 							if(trap_notify) {trap_notify = false; brb = true; break;}
 							if(!isBr || !brb) {pc += ((inst_b & 3) == 3 ? 4 : 2);}
@@ -520,7 +502,7 @@ void HART::cpu_execute() {
 						instr_block.clear();
 					}
 					if(!brb) {
-						fn(this,inst,&oprs,NULL);
+						fn(this,inst,&oprs);
 						if(trap_notify) {brb = true; trap_notify = false;}
 						if(incr && !brb) {pc += (OP == 3 ? 4 : 2);}
 					}
@@ -534,7 +516,7 @@ void HART::cpu_execute() {
 			}
 		} else {
 			cpu_check_interrupts();
-			fn(this,inst,&oprs,NULL);
+			fn(this,inst,&oprs);
 			if(incr && !trap_notify) {pc += (OP == 3 ? 4 : 2);}
 			if(trap_notify) {trap_notify = false;}
 			virt_pc = pc;
@@ -552,7 +534,7 @@ void HART::cpu_execute_inst(uint32_t ins) {
 	(void)__1;
 	(void)__2;
 	int32_t immo = (int32_t)immopt;
-	fn(this,ins,&oprs,NULL);
+	fn(this,ins,&oprs);
 	if(incr) {pc += (OP == 3 ? 4 : 2);}
 
 	csrs[CYCLE] += 1;

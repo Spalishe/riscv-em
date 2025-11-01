@@ -58,7 +58,7 @@ bool interrupt_pending_and_enabled(struct HART *hart, bool for_wfi = false) {
 }
 
 
-void exec_WFI(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
+void exec_WFI(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t mstatus = hart->csrs[MSTATUS];
     bool tw = (mstatus >> 21) & 1;
     
@@ -96,7 +96,7 @@ inline bool bit_check(uint64_t number, uint64_t n) {
     return (number >> n) & (uint64_t)1;
 }
 
-void exec_SRET(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
+void exec_SRET(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     if(hart->mode == 0) {
         hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,hart->mode,false);
         return;
@@ -116,7 +116,7 @@ void exec_SRET(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, s
     hart->trap_active = false;
     if(hart->dbg) hart->print_d("{0x%.8X} [SRET] ahh returned from exc",hart->pc);
 }
-void exec_MRET(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
+void exec_MRET(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     if(get_bits(hart->csrs[MSTATUS],12,11) != 3) {
         hart->csrs[MSTATUS] = bit_set_to(hart->csrs[MSTATUS],17,false);
     }
@@ -140,7 +140,7 @@ void exec_MRET(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, s
     hart->trap_active = false;
     if(hart->dbg) hart->print_d("{0x%.8X} [MRET] ahh returned from exc",hart->pc);
 }
-void exec_SFENCE_VMA(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
+void exec_SFENCE_VMA(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rs1v = rs1(inst);
     uint64_t rs2v = rs2(inst);
     uint64_t mstatus = hart->csrs[MSTATUS];

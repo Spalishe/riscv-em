@@ -25,9 +25,6 @@ Copyright 2025 Spalishe
 #include <unordered_map>
 #include <tuple>
 
-#include "llvm/IR/IRBuilder.h"
-
-#define BLOCK_EXECUTE_COUNT_TO_JIT 1000
 #define PC_EXECUTE_COUNT_TO_BLOCK 10
 
 struct MMIO;
@@ -40,23 +37,10 @@ struct CACHE_DecodedOperands {
     uint8_t rd, rs1, rs2;
     uint32_t imm;
 
-    llvm::FunctionCallee loadFunc;
-    llvm::FunctionCallee storeFunc;
-    llvm::FunctionCallee trapFunc;
-    llvm::FunctionCallee printFunc;
-
-    llvm::FunctionCallee amo64Func;
-    llvm::FunctionCallee amo32Func;
-
-    std::unordered_map<uint64_t,llvm::BasicBlock*> *branches;
-    uint64_t jit_virtpc;
-    
-    std::unordered_map<uint8_t,llvm::StructType*> types;
-
     bool brb = false;
 };
 struct CACHE_Instr {
-    void (*fn)(HART*, uint32_t, CACHE_DecodedOperands*, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>*);
+    void (*fn)(HART*, uint32_t, CACHE_DecodedOperands*);
     bool incr;
     bool j;
     uint32_t inst;
@@ -66,8 +50,6 @@ struct CACHE_Instr {
     bool valid = false;
     uint64_t pc;
 };
-
-using BlockFn = void(*)(HART*);
 
 struct HART {
     uint64_t regs[32];
@@ -89,13 +71,11 @@ struct HART {
 	uint64_t breakpoint;
 	uint8_t id;
     
-    bool jit_enabled = true;
     bool block_enabled = true;
 
     std::vector<CACHE_Instr> instr_block; // instruction function, instruction itself
     std::unordered_map<uint64_t, std::vector<CACHE_Instr>> instr_block_cache; // as key put PC
     std::unordered_map<uint64_t, uint64_t> instr_block_cache_count_executed; // as key put PC
-    std::unordered_map<uint64_t, BlockFn> instr_block_cache_jit; // as key put PC
     CACHE_Instr instr_cache[8192]; // L1 ??
 
 	bool stopexec;
@@ -110,8 +90,8 @@ struct HART {
     DRAM dram;
     MMIO* mmio;
 
-    void cpu_start(bool debug, uint64_t dtb_path, bool nojit, bool gdbstub);
-    int cpu_start_testing(bool nojit);
+    void cpu_start(bool debug, uint64_t dtb_path, bool gdbstub);
+    int cpu_start_testing();
     uint32_t cpu_fetch(uint64_t _pc);
     void cpu_check_interrupts();
     void cpu_loop();

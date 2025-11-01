@@ -18,7 +18,6 @@ Copyright 2025 Spalishe
 #include "../include/instset.h"
 #include "../include/cpu.h"
 #include "../include/csr.h"
-#include "../include/jit_insts.hpp"
 #include <iostream>
 
 // ZiCSR
@@ -69,7 +68,7 @@ bool csr_accessible(uint16_t csr_addr, uint64_t current_priv, bool write) {
 
     return true;
 }
-void exec_CSRRW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
+void exec_CSRRW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rd_l = opers->s ? opers->rd : rd(inst);
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t imm = opers->s ? opers->imm : imm_Zicsr(inst);
@@ -84,14 +83,13 @@ void exec_CSRRW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, 
         if(hart->dbg) std::cout << "MODE: " << (uint32_t)hart->mode << std::endl;
         hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false);
     }
-    if(jitd == NULL && !hart->trap_notify) {
-        uint64_t init_val = hart->csr_read(imm);
-        if (rs1_l != 0)
-            hart->csr_write(imm,hart->regs[rs1_l]);
-            
-        if (rd_l != 0) {
-            hart->regs[rd_l] = init_val;
-        }
+
+    uint64_t init_val = hart->csr_read(imm);
+    if (rs1_l != 0)
+        hart->csr_write(imm,hart->regs[rs1_l]);
+        
+    if (rd_l != 0) {
+        hart->regs[rd_l] = init_val;
     }
 
     if(!opers->s){
@@ -100,10 +98,9 @@ void exec_CSRRW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, 
         opers->imm = imm;
         opers->s = true;
     }
-    if(jitd != NULL && !hart->trap_notify) jit_ZICSR_R(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd), 0);
 	if(hart->dbg) hart->print_d("{0x%.8X} [CSRRW] rs1: %d; rd: %d; imm: int %d uint %u",hart->pc,rs1_l,rd_l,(int64_t) imm, imm);
 }
-void exec_CSRRS(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
+void exec_CSRRS(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rd_l = opers->s ? opers->rd : rd(inst);
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t imm = opers->s ? opers->imm : imm_Zicsr(inst);
@@ -118,14 +115,13 @@ void exec_CSRRS(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, 
         if(hart->dbg) std::cout << "MODE: " << (uint32_t)hart->mode << std::endl;
         hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false);
     }
-    if(jitd == NULL && !hart->trap_notify) {
-        uint64_t init_val = hart->csr_read(imm);
-        if (rs1_l != 0) {
-            uint64_t mask = hart->regs[rs1_l];
-            hart->csr_write(imm,init_val | mask);
-        }
-        hart->regs[rd_l] = init_val;
+
+    uint64_t init_val = hart->csr_read(imm);
+    if (rs1_l != 0) {
+        uint64_t mask = hart->regs[rs1_l];
+        hart->csr_write(imm,init_val | mask);
     }
+    hart->regs[rd_l] = init_val;
 
     if(!opers->s){
         opers->rd = rd_l;
@@ -133,10 +129,9 @@ void exec_CSRRS(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, 
         opers->imm = imm;
         opers->s = true;
     }
-    if(jitd != NULL && !hart->trap_notify) jit_ZICSR_R(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd), 1);
 	if(hart->dbg) hart->print_d("{0x%.8X} [CSRRS] rs1: %d; rd: %d; imm: int %d uint %u",hart->pc,rs1_l,rd_l,(int64_t) imm, imm);
 }
-void exec_CSRRC(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
+void exec_CSRRC(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rd_l = opers->s ? opers->rd : rd(inst);
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t imm = opers->s ? opers->imm : imm_Zicsr(inst);
@@ -151,14 +146,13 @@ void exec_CSRRC(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, 
         if(hart->dbg) std::cout << "MODE: " << (uint32_t)hart->mode << std::endl;
         hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false);
     }
-    if(jitd == NULL && !hart->trap_notify) {
-        uint64_t init_val = hart->csrs[imm];
-        if (rs1_l != 0) {
-            uint64_t mask = hart->regs[rs1_l];
-            hart->csr_write(imm,init_val & ~mask);
-        }
-        hart->regs[rd_l] = init_val;
+
+    uint64_t init_val = hart->csrs[imm];
+    if (rs1_l != 0) {
+        uint64_t mask = hart->regs[rs1_l];
+        hart->csr_write(imm,init_val & ~mask);
     }
+    hart->regs[rd_l] = init_val;
 
     if(!opers->s){
         opers->rd = rd_l;
@@ -166,11 +160,10 @@ void exec_CSRRC(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, 
         opers->imm = imm;
         opers->s = true;
     }
-    if(jitd != NULL && !hart->trap_notify) jit_ZICSR_R(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd), 2);
 	if(hart->dbg) hart->print_d("{0x%.8X} [CSRRC] rs1: %d; rd: %d; imm: int %d uint %u",hart->pc,rs1_l,rd_l,(int64_t) imm, imm);
 }
 
-void exec_CSRRWI(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
+void exec_CSRRWI(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rd_l = opers->s ? opers->rd : rd(inst);
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t imm = opers->s ? opers->imm : imm_Zicsr(inst);
@@ -185,13 +178,12 @@ void exec_CSRRWI(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers,
         if(hart->dbg) std::cout << "MODE: " << (uint32_t)hart->mode << std::endl;
         hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false);
     }
-    if(jitd == NULL && !hart->trap_notify) {
-        if (rd_l != 0) {
-            hart->regs[rd_l] = hart->csr_read(imm);
-        }
-        if (rs1_l != 0)
-            hart->csr_write(imm,rs1_l);
+
+    if (rd_l != 0) {
+        hart->regs[rd_l] = hart->csr_read(imm);
     }
+    if (rs1_l != 0)
+        hart->csr_write(imm,rs1_l);
 
     if(!opers->s){
         opers->rd = rd_l;
@@ -199,10 +191,9 @@ void exec_CSRRWI(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers,
         opers->imm = imm;
         opers->s = true;
     }
-    if(jitd != NULL) jit_ZICSR_I(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd), 0);
 	if(hart->dbg) hart->print_d("{0x%.8X} [CSRRWI] rs1: %d; rd: %d; imm: int %d uint %u",hart->pc,rs1_l,rd_l,(int64_t) imm, imm);
 }
-void exec_CSRRSI(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
+void exec_CSRRSI(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rd_l = opers->s ? opers->rd : rd(inst);
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t imm = opers->s ? opers->imm : imm_Zicsr(inst);
@@ -217,14 +208,13 @@ void exec_CSRRSI(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers,
         if(hart->dbg) std::cout << "MODE: " << (uint32_t)hart->mode << std::endl;
         hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false);
     }
-    if(jitd == NULL && !hart->trap_notify) {
-        uint64_t init_val = hart->csr_read(imm);
-        if (rs1_l != 0) {
-            uint64_t mask = rs1_l;
-            hart->csr_write(imm,init_val | mask);
-        }
-        hart->regs[rd_l] = init_val;
+
+    uint64_t init_val = hart->csr_read(imm);
+    if (rs1_l != 0) {
+        uint64_t mask = rs1_l;
+        hart->csr_write(imm,init_val | mask);
     }
+    hart->regs[rd_l] = init_val;
 
     if(!opers->s){
         opers->rd = rd_l;
@@ -232,10 +222,9 @@ void exec_CSRRSI(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers,
         opers->imm = imm;
         opers->s = true;
     }
-    if(jitd != NULL && !hart->trap_notify) jit_ZICSR_I(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd), 1);
 	if(hart->dbg) hart->print_d("{0x%.8X} [CSRRSI] rs1: %d; rd: %d; imm: int %d uint %u",hart->pc,rs1_l,rd_l,(int64_t) imm, imm);
 }
-void exec_CSRRCI(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
+void exec_CSRRCI(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rd_l = opers->s ? opers->rd : rd(inst);
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t imm = opers->s ? opers->imm : imm_Zicsr(inst);
@@ -250,14 +239,13 @@ void exec_CSRRCI(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers,
         if(hart->dbg) std::cout << "MODE: " << (uint32_t)hart->mode << std::endl;
         hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false);
     }
-    if(jitd == NULL && !hart->trap_notify) {
-        uint64_t init_val = hart->csr_read(imm);
-        if (rs1_l != 0) {
-            uint64_t mask = rs1_l;
-            hart->csr_write(imm,init_val & ~mask);
-        }
-        hart->regs[rd_l] = init_val;
+
+    uint64_t init_val = hart->csr_read(imm);
+    if (rs1_l != 0) {
+        uint64_t mask = rs1_l;
+        hart->csr_write(imm,init_val & ~mask);
     }
+    hart->regs[rd_l] = init_val;
 
     if(!opers->s){
         opers->rd = rd_l;
@@ -265,6 +253,5 @@ void exec_CSRRCI(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers,
         opers->imm = imm;
         opers->s = true;
     }
-    if(jitd != NULL && !hart->trap_notify) jit_ZICSR_I(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd), 2);
 	if(hart->dbg) hart->print_d("{0x%.8X} [CSRRCI] rs1: %d; rd: %d; imm: int %d uint %u",hart->pc,rs1_l,rd_l,(int64_t) imm, imm);
 }

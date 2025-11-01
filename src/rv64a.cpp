@@ -18,27 +18,24 @@ Copyright 2025 Spalishe
 #include "../include/instset.h"
 #include "../include/cpu.h"
 #include "../include/csr.h"
-#include "../include/jit_insts.hpp"
 #include <iostream>
 
-void exec_LR_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
+void exec_LR_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rd_l = opers->s ? opers->rd : rd(inst);
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
 
-    if(jitd == NULL) {
-        uint64_t addr = hart->regs[rs1_l];
+    uint64_t addr = hart->regs[rs1_l];
 
-        if(addr % 8 != 0) {
-            hart->cpu_trap(EXC_LOAD_ADDR_MISALIGNED,addr,false);
-        } else {
-            std::optional<uint64_t> val = hart->mmio->load(hart,addr,64);
-            if(val.has_value()) {
-                hart->regs[rd_l] = *val;
-                hart->reservation_addr = addr;
-                hart->reservation_size = 64;
-                hart->reservation_valid = true;
-                hart->reservation_value = *val;
-            }
+    if(addr % 8 != 0) {
+        hart->cpu_trap(EXC_LOAD_ADDR_MISALIGNED,addr,false);
+    } else {
+        std::optional<uint64_t> val = hart->mmio->load(hart,addr,64);
+        if(val.has_value()) {
+            hart->regs[rd_l] = *val;
+            hart->reservation_addr = addr;
+            hart->reservation_size = 64;
+            hart->reservation_valid = true;
+            hart->reservation_value = *val;
         }
     }
         
@@ -47,25 +44,22 @@ void exec_LR_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, s
         opers->rs1 = rs1_l;
         opers->s = true;
     }
-    if(jitd != NULL) jit_LR_D(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd));
     if(hart->dbg) hart->print_d("{0x%.8X} [LR.D] rd: %d; rs1: %d",hart->pc,rd_l,rs1_l);
 }
-void exec_SC_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
+void exec_SC_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rd_l = opers->s ? opers->rd : rd(inst);
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
-    if(jitd == NULL) {
-        uint64_t addr = hart->regs[rs1_l];
+    uint64_t addr = hart->regs[rs1_l];
 
-        if(hart->reservation_valid && hart->reservation_size == 64 && hart->reservation_addr == addr) {
-            hart->mmio->store(hart,addr, 64, hart->regs[rs2_l]);
-            hart->regs[rd_l] = 0;
-        } else {
-            hart->regs[rd_l] = 1;
-        }
-        hart->reservation_valid = false;
+    if(hart->reservation_valid && hart->reservation_size == 64 && hart->reservation_addr == addr) {
+        hart->mmio->store(hart,addr, 64, hart->regs[rs2_l]);
+        hart->regs[rd_l] = 0;
+    } else {
+        hart->regs[rd_l] = 1;
     }
+    hart->reservation_valid = false;
 	
     if(!opers->s){
         opers->rd = rd_l;
@@ -73,7 +67,6 @@ void exec_SC_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, s
         opers->rs2 = rs2_l;
         opers->s = true;
     }
-    if(jitd != NULL) jit_SC_D(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd));
     if(hart->dbg) hart->print_d("{0x%.8X} [SC.D] rd: %d; rs1: %d; rs2: %d",hart->pc,rd_l,rs1_l,rs2_l);
 }
 
@@ -99,19 +92,17 @@ std::optional<uint64_t> AMO(HART* hart, uint64_t addr, uint64_t rs2, Functor op)
     return t;
 }
 
-void exec_AMOSWAP_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
+void exec_AMOSWAP_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rd_l = opers->s ? opers->rd : rd(inst);
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
-    if(jitd == NULL) {
-        uint64_t addr = hart->regs[rs1_l];
-        uint64_t rs2_val = hart->regs[rs2_l];
+    uint64_t addr = hart->regs[rs1_l];
+    uint64_t rs2_val = hart->regs[rs2_l];
 
-        std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint64_t a, uint64_t b){ return b; }); 
-        if(val.has_value()) {
-            hart->regs[rd_l] = *val;
-        }
+    std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint64_t a, uint64_t b){ return b; }); 
+    if(val.has_value()) {
+        hart->regs[rd_l] = *val;
     }
 	
     if(!opers->s){
@@ -120,22 +111,19 @@ void exec_AMOSWAP_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* ope
         opers->rs2 = rs2_l;
         opers->s = true;
     }
-    if(jitd != NULL) jit_AMOSWAP_D(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd));
     if(hart->dbg) hart->print_d("{0x%.8X} [AMOSWAP.D] rd: %d; rs1: %d; rs2: %d",hart->pc,rd_l,rs1_l,rs2_l);
 }
-void exec_AMOADD_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
+void exec_AMOADD_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rd_l = opers->s ? opers->rd : rd(inst);
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
-    if(jitd == NULL) {
-        uint64_t addr = hart->regs[rs1_l];
-        uint64_t rs2_val = hart->regs[rs2_l];
+    uint64_t addr = hart->regs[rs1_l];
+    uint64_t rs2_val = hart->regs[rs2_l];
 
-        std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint64_t a, uint64_t b){ return a+b; }); 
-        if(val.has_value()) {
-            hart->regs[rd_l] = *val;
-        }
+    std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint64_t a, uint64_t b){ return a+b; }); 
+    if(val.has_value()) {
+        hart->regs[rd_l] = *val;
     }
 	
     if(!opers->s){
@@ -144,22 +132,19 @@ void exec_AMOADD_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* oper
         opers->rs2 = rs2_l;
         opers->s = true;
     }
-    if(jitd != NULL) jit_AMOADD_D(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd));
     if(hart->dbg) hart->print_d("{0x%.8X} [AMOADD.D] rd: %d; rs1: %d; rs2: %d",hart->pc,rd_l,rs1_l,rs2_l);
 }
-void exec_AMOXOR_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
+void exec_AMOXOR_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rd_l = opers->s ? opers->rd : rd(inst);
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
-    if(jitd == NULL) {
-        uint64_t addr = hart->regs[rs1_l];
-        uint64_t rs2_val = hart->regs[rs2_l];
+    uint64_t addr = hart->regs[rs1_l];
+    uint64_t rs2_val = hart->regs[rs2_l];
 
-        std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint64_t a, uint64_t b){ return a^b; }); 
-        if(val.has_value()) {
-            hart->regs[rd_l] = *val;
-        }
+    std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint64_t a, uint64_t b){ return a^b; }); 
+    if(val.has_value()) {
+        hart->regs[rd_l] = *val;
     }
 	
     if(!opers->s){
@@ -168,22 +153,19 @@ void exec_AMOXOR_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* oper
         opers->rs2 = rs2_l;
         opers->s = true;
     }
-    if(jitd != NULL) jit_AMOXOR_D(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd));
     if(hart->dbg) hart->print_d("{0x%.8X} [AMOXOR.D] rd: %d; rs1: %d; rs2: %d",hart->pc,rd_l,rs1_l,rs2_l);
 }
-void exec_AMOAND_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
+void exec_AMOAND_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rd_l = opers->s ? opers->rd : rd(inst);
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
-    if(jitd == NULL) {
-        uint64_t addr = hart->regs[rs1_l];
-        uint64_t rs2_val = hart->regs[rs2_l];
+    uint64_t addr = hart->regs[rs1_l];
+    uint64_t rs2_val = hart->regs[rs2_l];
 
-        std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint64_t a, uint64_t b){ return a&b; }); 
-        if(val.has_value()) {
-            hart->regs[rd_l] = *val;
-        }
+    std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint64_t a, uint64_t b){ return a&b; }); 
+    if(val.has_value()) {
+        hart->regs[rd_l] = *val;
     }
 
     if(!opers->s){
@@ -192,22 +174,19 @@ void exec_AMOAND_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* oper
         opers->rs2 = rs2_l;
         opers->s = true;
     }
-    if(jitd != NULL) jit_AMOAND_D(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd));
     if(hart->dbg) hart->print_d("{0x%.8X} [AMOAND.D] rd: %d; rs1: %d; rs2: %d",hart->pc,rd_l,rs1_l,rs2_l);
 }
-void exec_AMOOR_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
+void exec_AMOOR_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rd_l = opers->s ? opers->rd : rd(inst);
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
-    if(jitd == NULL) {
-        uint64_t addr = hart->regs[rs1_l];
-        uint64_t rs2_val = hart->regs[rs2_l];
+    uint64_t addr = hart->regs[rs1_l];
+    uint64_t rs2_val = hart->regs[rs2_l];
 
-        std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint64_t a, uint64_t b){ return a|b; }); 
-        if(val.has_value()) {
-            hart->regs[rd_l] = *val;
-        }
+    std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint64_t a, uint64_t b){ return a|b; }); 
+    if(val.has_value()) {
+        hart->regs[rd_l] = *val;
     }
 	
     if(!opers->s){
@@ -216,22 +195,19 @@ void exec_AMOOR_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers
         opers->rs2 = rs2_l;
         opers->s = true;
     }
-    if(jitd != NULL) jit_AMOOR_D(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd));
     if(hart->dbg) hart->print_d("{0x%.8X} [AMOOR.D] rd: %d; rs1: %d; rs2: %d",hart->pc,rd_l,rs1_l,rs2_l);
 }
-void exec_AMOMIN_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
+void exec_AMOMIN_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rd_l = opers->s ? opers->rd : rd(inst);
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
-    if(jitd == NULL) {
-        uint64_t addr = hart->regs[rs1_l];
-        uint64_t rs2_val = hart->regs[rs2_l];
+    uint64_t addr = hart->regs[rs1_l];
+    uint64_t rs2_val = hart->regs[rs2_l];
 
-        std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint64_t a, uint64_t b){ return std::min(int64_t(a), int64_t(b)); }); 
-        if(val.has_value()) {
-            hart->regs[rd_l] = *val;
-        }
+    std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint64_t a, uint64_t b){ return std::min(int64_t(a), int64_t(b)); }); 
+    if(val.has_value()) {
+        hart->regs[rd_l] = *val;
     }
 	
     if(!opers->s){
@@ -240,22 +216,19 @@ void exec_AMOMIN_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* oper
         opers->rs2 = rs2_l;
         opers->s = true;
     }
-    if(jitd != NULL) jit_AMOMIN_D(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd));
     if(hart->dbg) hart->print_d("{0x%.8X} [AMOMIN.D] rd: %d; rs1: %d; rs2: %d",hart->pc,rd_l,rs1_l,rs2_l);
 }
-void exec_AMOMAX_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
+void exec_AMOMAX_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rd_l = opers->s ? opers->rd : rd(inst);
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
-    if(jitd == NULL) {
-        uint64_t addr = hart->regs[rs1_l];
-        uint64_t rs2_val = hart->regs[rs2_l];
+    uint64_t addr = hart->regs[rs1_l];
+    uint64_t rs2_val = hart->regs[rs2_l];
 
-        std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint64_t a, uint64_t b){ return std::max(int64_t(a), int64_t(b)); }); 
-        if(val.has_value()) {
-            hart->regs[rd_l] = *val;
-        }
+    std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint64_t a, uint64_t b){ return std::max(int64_t(a), int64_t(b)); }); 
+    if(val.has_value()) {
+        hart->regs[rd_l] = *val;
     }
         
     if(!opers->s){
@@ -264,46 +237,40 @@ void exec_AMOMAX_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* oper
         opers->rs2 = rs2_l;
         opers->s = true;
     }
-    if(jitd != NULL) jit_AMOMAX_D(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd));
     if(hart->dbg) hart->print_d("{0x%.8X} [AMOMAX.D] rd: %d; rs1: %d; rs2: %d",hart->pc,rd_l,rs1_l,rs2_l);
 }
-void exec_AMOMINU_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
+void exec_AMOMINU_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rd_l = opers->s ? opers->rd : rd(inst);
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
-    if(jitd == NULL) {
-        uint64_t addr = hart->regs[rs1_l];
-        uint64_t rs2_val = hart->regs[rs2_l];
+    uint64_t addr = hart->regs[rs1_l];
+    uint64_t rs2_val = hart->regs[rs2_l];
 
-        std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint64_t a, uint64_t b){ return std::min(a,b); }); 
-        if(val.has_value()) {
-            hart->regs[rd_l] = *val;
-        }
+    std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint64_t a, uint64_t b){ return std::min(a,b); }); 
+    if(val.has_value()) {
+        hart->regs[rd_l] = *val;
     }
-	
+
     if(!opers->s){
         opers->rd = rd_l;
         opers->rs1 = rs1_l;
         opers->rs2 = rs2_l;
         opers->s = true;
     }
-    if(jitd != NULL) jit_AMOUMIN_D(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd));
     if(hart->dbg) hart->print_d("{0x%.8X} [AMOMINU.D] rd: %d; rs1: %d; rs2: %d",hart->pc,rd_l,rs1_l,rs2_l);
 }
-void exec_AMOMAXU_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
+void exec_AMOMAXU_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rd_l = opers->s ? opers->rd : rd(inst);
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
-    if(jitd == NULL) {
-        uint64_t addr = hart->regs[rs1_l];
-        uint64_t rs2_val = hart->regs[rs2_l];
+    uint64_t addr = hart->regs[rs1_l];
+    uint64_t rs2_val = hart->regs[rs2_l];
 
-        std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint64_t a, uint64_t b){ return std::max(a,b); }); 
-        if(val.has_value()) {
-            hart->regs[rd_l] = *val;
-        }
+    std::optional<uint64_t> val = AMO(hart, addr, rs2_val, [](uint64_t a, uint64_t b){ return std::max(a,b); }); 
+    if(val.has_value()) {
+        hart->regs[rd_l] = *val;
     }
 	
     if(!opers->s){
@@ -312,30 +279,27 @@ void exec_AMOMAXU_D(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* ope
         opers->rs2 = rs2_l;
         opers->s = true;
     }
-    if(jitd != NULL) jit_AMOUMAX_D(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd));
     if(hart->dbg) hart->print_d("{0x%.8X} [AMOMAXU.D] rd: %d; rs1: %d; rs2: %d",hart->pc,rd_l,rs1_l,rs2_l);
 }
 
 /// RV32A
 
-void exec_LR_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
+void exec_LR_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rd_l = opers->s ? opers->rd : rd(inst);
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
 
-    if(jitd == NULL) {
-        uint64_t addr = hart->regs[rs1_l];
+    uint64_t addr = hart->regs[rs1_l];
 
-        if(addr % 4 != 0) {
-            hart->cpu_trap(EXC_LOAD_ADDR_MISALIGNED,addr,false);
-        } else {
-            std::optional<uint64_t> val = hart->mmio->load(hart,addr,32);
-            if(val.has_value()) {
-                hart->regs[rd_l] = (uint64_t)(uint32_t) *val;
-                hart->reservation_addr = addr;
-                hart->reservation_size = 32;
-                hart->reservation_valid = true;
-                hart->reservation_value = (uint64_t)(uint32_t) *val;
-            }
+    if(addr % 4 != 0) {
+        hart->cpu_trap(EXC_LOAD_ADDR_MISALIGNED,addr,false);
+    } else {
+        std::optional<uint64_t> val = hart->mmio->load(hart,addr,32);
+        if(val.has_value()) {
+            hart->regs[rd_l] = (uint64_t)(uint32_t) *val;
+            hart->reservation_addr = addr;
+            hart->reservation_size = 32;
+            hart->reservation_valid = true;
+            hart->reservation_value = (uint64_t)(uint32_t) *val;
         }
     }
 
@@ -344,25 +308,22 @@ void exec_LR_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, s
         opers->rs1 = rs1_l;
         opers->s = true;
     }
-    if(jitd != NULL) jit_LR_W(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd));
     if(hart->dbg) hart->print_d("{0x%.8X} [LR.W] rd: %d; rs1: %d",hart->pc,rd_l,rs1_l);
 }
-void exec_SC_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
+void exec_SC_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rd_l = opers->s ? opers->rs1 : rd(inst);
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs1 : rs2(inst);
 
-    if(jitd == NULL) {
-        uint64_t addr = hart->regs[rs1_l];
+    uint64_t addr = hart->regs[rs1_l];
 
-        if(hart->reservation_valid && hart->reservation_size == 32 && hart->reservation_addr == addr) {
-            hart->mmio->store(hart,addr, 32, (uint32_t)hart->regs[rs2_l]);
-            hart->regs[rd_l] = 0;
-        } else {
-            hart->regs[rd_l] = 1;
-        }
-        hart->reservation_valid = false;
+    if(hart->reservation_valid && hart->reservation_size == 32 && hart->reservation_addr == addr) {
+        hart->mmio->store(hart,addr, 32, (uint32_t)hart->regs[rs2_l]);
+        hart->regs[rd_l] = 0;
+    } else {
+        hart->regs[rd_l] = 1;
     }
+    hart->reservation_valid = false;
 
     if(!opers->s){
         opers->rd = rd_l;
@@ -370,7 +331,6 @@ void exec_SC_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, s
         opers->rs2 = rs2_l;
         opers->s = true;
     }
-    if(jitd != NULL) jit_SC_W(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd));
     if(hart->dbg) hart->print_d("{0x%.8X} [SC.W] rd: %d; rs1: %d; rs2: %d",hart->pc,rd_l,rs1_l,rs2_l);
 }
 
@@ -396,19 +356,17 @@ std::optional<uint32_t> AMO32(HART* hart, uint64_t addr, uint32_t rs2, Functor o
     return t;
 }
 
-void exec_AMOSWAP_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
+void exec_AMOSWAP_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rd_l = opers->s ? opers->rs1 : rd(inst);
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs1 : rs2(inst);
 
-    if(jitd == NULL) {
-        uint64_t addr = hart->regs[rs1_l];
-        uint64_t rs2_val = hart->regs[rs2_l];
+    uint64_t addr = hart->regs[rs1_l];
+    uint64_t rs2_val = hart->regs[rs2_l];
 
-        std::optional<uint64_t> val = AMO32(hart, addr, rs2_val, [](uint32_t a, uint32_t b){ return b; }); 
-        if(val.has_value()) {
-            hart->regs[rd_l] = (uint64_t)(int64_t)(int32_t) *val;
-        }
+    std::optional<uint64_t> val = AMO32(hart, addr, rs2_val, [](uint32_t a, uint32_t b){ return b; }); 
+    if(val.has_value()) {
+        hart->regs[rd_l] = (uint64_t)(int64_t)(int32_t) *val;
     }
 
     if(!opers->s){
@@ -417,22 +375,19 @@ void exec_AMOSWAP_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* ope
         opers->rs2 = rs2_l;
         opers->s = true;
     }
-    if(jitd != NULL) jit_AMOSWAP_W(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd));
     if(hart->dbg) hart->print_d("{0x%.8X} [AMOSWAP.W] rd: %d; rs1: %d; rs2: %d",hart->pc,rd_l,rs1_l,rs2_l);
 }
-void exec_AMOADD_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
+void exec_AMOADD_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rd_l = opers->s ? opers->rs1 : rd(inst);
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs1 : rs2(inst);
 
-    if(jitd == NULL) {
-        uint64_t addr = hart->regs[rs1_l];
-        uint64_t rs2_val = hart->regs[rs2_l];
+    uint64_t addr = hart->regs[rs1_l];
+    uint64_t rs2_val = hart->regs[rs2_l];
 
-        std::optional<uint64_t> val = AMO32(hart, addr, rs2_val, [](uint32_t a, uint32_t b){ return a+b; }); 
-        if(val.has_value()) {
-            hart->regs[rd_l] = (uint64_t)(int64_t)(int32_t) *val;
-        }
+    std::optional<uint64_t> val = AMO32(hart, addr, rs2_val, [](uint32_t a, uint32_t b){ return a+b; }); 
+    if(val.has_value()) {
+        hart->regs[rd_l] = (uint64_t)(int64_t)(int32_t) *val;
     }
 
     if(!opers->s){
@@ -441,22 +396,19 @@ void exec_AMOADD_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* oper
         opers->rs2 = rs2_l;
         opers->s = true;
     }
-    if(jitd != NULL) jit_AMOADD_W(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd));
     if(hart->dbg) hart->print_d("{0x%.8X} [AMOADD.W] rd: %d; rs1: %d; rs2: %d",hart->pc,rd_l,rs1_l,rs2_l);
 }
-void exec_AMOXOR_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
+void exec_AMOXOR_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rd_l = opers->s ? opers->rs1 : rd(inst);
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs1 : rs2(inst);
 
-    if(jitd == NULL) {
-        uint64_t addr = hart->regs[rs1_l];
-        uint64_t rs2_val = hart->regs[rs2_l];
+    uint64_t addr = hart->regs[rs1_l];
+    uint64_t rs2_val = hart->regs[rs2_l];
 
-        std::optional<uint64_t> val = AMO32(hart, addr, rs2_val, [](uint32_t a, uint32_t b){ return a^b; }); 
-        if(val.has_value()) {
-            hart->regs[rd_l] = (uint64_t)(int64_t)(int32_t) *val;
-        }
+    std::optional<uint64_t> val = AMO32(hart, addr, rs2_val, [](uint32_t a, uint32_t b){ return a^b; }); 
+    if(val.has_value()) {
+        hart->regs[rd_l] = (uint64_t)(int64_t)(int32_t) *val;
     }
 
     if(!opers->s){
@@ -465,22 +417,19 @@ void exec_AMOXOR_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* oper
         opers->rs2 = rs2_l;
         opers->s = true;
     }
-    if(jitd != NULL) jit_AMOXOR_W(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd));
     if(hart->dbg) hart->print_d("{0x%.8X} [AMOXOR.W] rd: %d; rs1: %d; rs2: %d",hart->pc,rd_l,rs1_l,rs2_l);
 }
-void exec_AMOAND_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
+void exec_AMOAND_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rd_l = opers->s ? opers->rs1 : rd(inst);
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs1 : rs2(inst);
 
-    if(jitd == NULL) {
-        uint64_t addr = hart->regs[rs1_l];
-        uint64_t rs2_val = hart->regs[rs2_l];
+    uint64_t addr = hart->regs[rs1_l];
+    uint64_t rs2_val = hart->regs[rs2_l];
 
-        std::optional<uint64_t> val = AMO32(hart, addr, rs2_val, [](uint32_t a, uint32_t b){ return a&b; }); 
-        if(val.has_value()) {
-            hart->regs[rd_l] = (uint64_t)(int64_t)(int32_t) *val;
-        }
+    std::optional<uint64_t> val = AMO32(hart, addr, rs2_val, [](uint32_t a, uint32_t b){ return a&b; }); 
+    if(val.has_value()) {
+        hart->regs[rd_l] = (uint64_t)(int64_t)(int32_t) *val;
     }
 
     if(!opers->s){
@@ -489,22 +438,19 @@ void exec_AMOAND_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* oper
         opers->rs2 = rs2_l;
         opers->s = true;
     }
-    if(jitd != NULL) jit_AMOAND_W(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd));
     if(hart->dbg) hart->print_d("{0x%.8X} [AMOAND.W] rd: %d; rs1: %d; rs2: %d",hart->pc,rd_l,rs1_l,rs2_l);
 }
-void exec_AMOOR_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
+void exec_AMOOR_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rd_l = opers->s ? opers->rs1 : rd(inst);
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs1 : rs2(inst);
 
-    if(jitd == NULL) {
-        uint64_t addr = hart->regs[rs1_l];
-        uint64_t rs2_val = hart->regs[rs2_l];
+    uint64_t addr = hart->regs[rs1_l];
+    uint64_t rs2_val = hart->regs[rs2_l];
 
-        std::optional<uint64_t> val = AMO32(hart, addr, rs2_val, [](uint32_t a, uint32_t b){ return a|b; }); 
-        if(val.has_value()) {
-            hart->regs[rd_l] = (uint64_t)(int64_t)(int32_t) *val;
-        }
+    std::optional<uint64_t> val = AMO32(hart, addr, rs2_val, [](uint32_t a, uint32_t b){ return a|b; }); 
+    if(val.has_value()) {
+        hart->regs[rd_l] = (uint64_t)(int64_t)(int32_t) *val;
     }
 
     if(!opers->s){
@@ -513,22 +459,19 @@ void exec_AMOOR_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers
         opers->rs2 = rs2_l;
         opers->s = true;
     }
-    if(jitd != NULL) jit_AMOOR_W(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd));
     if(hart->dbg) hart->print_d("{0x%.8X} [AMOOR.W] rd: %d; rs1: %d; rs2: %d",hart->pc,rd_l,rs1_l,rs2_l);
 }
-void exec_AMOMIN_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
+void exec_AMOMIN_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rd_l = opers->s ? opers->rs1 : rd(inst);
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs1 : rs2(inst);
 
-    if(jitd == NULL) {
-        uint64_t addr = hart->regs[rs1_l];
-        uint64_t rs2_val = hart->regs[rs2_l];
+    uint64_t addr = hart->regs[rs1_l];
+    uint64_t rs2_val = hart->regs[rs2_l];
 
-        std::optional<uint64_t> val = AMO32(hart, addr, rs2_val, [](uint32_t a, uint32_t b){ return std::min(int32_t(a), int32_t(b)); }); 
-        if(val.has_value()) {
-            hart->regs[rd_l] = (uint64_t)(int64_t)(int32_t) *val;
-        }
+    std::optional<uint64_t> val = AMO32(hart, addr, rs2_val, [](uint32_t a, uint32_t b){ return std::min(int32_t(a), int32_t(b)); }); 
+    if(val.has_value()) {
+        hart->regs[rd_l] = (uint64_t)(int64_t)(int32_t) *val;
     }
 
     if(!opers->s){
@@ -537,22 +480,19 @@ void exec_AMOMIN_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* oper
         opers->rs2 = rs2_l;
         opers->s = true;
     }
-    if(jitd != NULL) jit_AMOMIN_W(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd));
     if(hart->dbg) hart->print_d("{0x%.8X} [AMOMIN.W] rd: %d; rs1: %d; rs2: %d",hart->pc,rd_l,rs1_l,rs2_l);
 }
-void exec_AMOMAX_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
+void exec_AMOMAX_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rd_l = opers->s ? opers->rs1 : rd(inst);
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
-    if(jitd == NULL) {
-        uint64_t addr = hart->regs[rs1_l];
-        uint64_t rs2_val = hart->regs[rs2_l];
+    uint64_t addr = hart->regs[rs1_l];
+    uint64_t rs2_val = hart->regs[rs2_l];
 
-        std::optional<uint64_t> val = AMO32(hart, addr, rs2_val, [](uint32_t a, uint32_t b){ return std::max(int32_t(a), int32_t(b)); }); 
-        if(val.has_value()) {
-            hart->regs[rd_l] = (uint64_t)(int64_t)(int32_t) *val;
-        }
+    std::optional<uint64_t> val = AMO32(hart, addr, rs2_val, [](uint32_t a, uint32_t b){ return std::max(int32_t(a), int32_t(b)); }); 
+    if(val.has_value()) {
+        hart->regs[rd_l] = (uint64_t)(int64_t)(int32_t) *val;
     }
 
     if(!opers->s){
@@ -561,22 +501,19 @@ void exec_AMOMAX_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* oper
         opers->rs2 = rs2_l;
         opers->s = true;
     }
-    if(jitd != NULL) jit_AMOMAX_W(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd));
     if(hart->dbg) hart->print_d("{0x%.8X} [AMOMAX.W] rd: %d; rs1: %d; rs2: %d",hart->pc,rd_l,rs1_l,rs2_l);
 }
-void exec_AMOMINU_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
+void exec_AMOMINU_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rd_l = opers->s ? opers->rs1 : rd(inst);
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs1 : rs2(inst);
 
-    if(jitd == NULL) {
-        uint64_t addr = hart->regs[rs1_l];
-        uint64_t rs2_val = hart->regs[rs2_l];
+    uint64_t addr = hart->regs[rs1_l];
+    uint64_t rs2_val = hart->regs[rs2_l];
 
-        std::optional<uint64_t> val = AMO32(hart, addr, rs2_val, [](uint32_t a, uint32_t b){ return std::min(uint32_t(a), uint32_t(b)); }); 
-        if(val.has_value()) {
-            hart->regs[rd_l] = (uint64_t)(int64_t)(int32_t)  *val;
-        }
+    std::optional<uint64_t> val = AMO32(hart, addr, rs2_val, [](uint32_t a, uint32_t b){ return std::min(uint32_t(a), uint32_t(b)); }); 
+    if(val.has_value()) {
+        hart->regs[rd_l] = (uint64_t)(int64_t)(int32_t)  *val;
     }
 
     if(!opers->s){
@@ -585,22 +522,19 @@ void exec_AMOMINU_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* ope
         opers->rs2 = rs2_l;
         opers->s = true;
     }
-    if(jitd != NULL) jit_AMOUMIN_W(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd));
     if(hart->dbg) hart->print_d("{0x%.8X} [AMOMINU.W] rd: %d; rs1: %d; rs2: %d",hart->pc,rd_l,rs1_l,rs2_l);
 }
-void exec_AMOMAXU_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers, std::tuple<llvm::IRBuilder<>*, llvm::Function*, llvm::Value*>* jitd) {
+void exec_AMOMAXU_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rd_l = opers->s ? opers->rs1 : rd(inst);
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs1 : rs2(inst);
 
-    if(jitd == NULL) {
-        uint64_t addr = hart->regs[rs1_l];
-        uint64_t rs2_val = hart->regs[rs2_l];
+    uint64_t addr = hart->regs[rs1_l];
+    uint64_t rs2_val = hart->regs[rs2_l];
 
-        std::optional<uint64_t> val = AMO32(hart, addr, rs2_val, [](uint32_t a, uint32_t b){ return std::max(uint32_t(a), uint32_t(b)); }); 
-        if(val.has_value()) {
-            hart->regs[rd_l] = (uint64_t)(int64_t)(int32_t) *val;
-        }
+    std::optional<uint64_t> val = AMO32(hart, addr, rs2_val, [](uint32_t a, uint32_t b){ return std::max(uint32_t(a), uint32_t(b)); }); 
+    if(val.has_value()) {
+        hart->regs[rd_l] = (uint64_t)(int64_t)(int32_t) *val;
     }
 
     if(!opers->s){
@@ -609,6 +543,5 @@ void exec_AMOMAXU_W(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* ope
         opers->rs2 = rs2_l;
         opers->s = true;
     }
-    if(jitd != NULL) jit_AMOUMAX_W(hart, opers, std::get<0>(*jitd), std::get<1>(*jitd), std::get<2>(*jitd));
     if(hart->dbg) hart->print_d("{0x%.8X} [AMOMAXU.W] rd: %d; rs1: %d; rs2: %d",hart->pc,rd_l,rs1_l,rs2_l);
 }
