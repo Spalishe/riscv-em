@@ -419,7 +419,6 @@ void HART::cpu_execute() {
 			if(trap_notify) {trap_notify = false; brb = true; break;}
 			if(!isBr || !brb) {pc += ((inst_b & 3) == 3 ? 4 : 2);}
 			csrs[CYCLE] += 1;
-			csrs[TIME] += 1;
 			csrs[INSTRET] += 1;
 			regs[0] = 0;
 			if(isBr && brb) break; 
@@ -494,7 +493,6 @@ void HART::cpu_execute() {
 							if(trap_notify) {trap_notify = false; brb = true; break;}
 							if(!isBr || !brb) {pc += ((inst_b & 3) == 3 ? 4 : 2);}
 							csrs[CYCLE] += 1;
-							csrs[TIME] += 1;
 							csrs[INSTRET] += 1;
 							regs[0] = 0;
 							if(isBr && brb) break;
@@ -509,7 +507,6 @@ void HART::cpu_execute() {
 					virt_pc = pc;
 
 					csrs[CYCLE] += 1;
-					csrs[TIME] += 1;
 					csrs[INSTRET] += 1;
 					regs[0] = 0;
 				}
@@ -521,7 +518,6 @@ void HART::cpu_execute() {
 			if(trap_notify) {trap_notify = false;}
 			virt_pc = pc;
 			csrs[CYCLE] += 1;
-			csrs[TIME] += 1;
 			csrs[INSTRET] += 1;
 			regs[0] = 0;
 		}
@@ -538,7 +534,6 @@ void HART::cpu_execute_inst(uint32_t ins) {
 	if(incr) {pc += (OP == 3 ? 4 : 2);}
 
 	csrs[CYCLE] += 1;
-	csrs[TIME] += 1;
 	csrs[INSTRET] += 1;
 	regs[0] = 0;
 }

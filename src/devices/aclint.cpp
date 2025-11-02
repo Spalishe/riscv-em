@@ -15,11 +15,14 @@ Copyright 2025 Spalishe
 
 */
 
-#include "../../include/devices/clint.hpp"
+#include "../../include/devices/aclint.hpp"
 #include "../../include/libfdt.hpp"
 #include "../../include/main.hpp"
 
-CLINT::CLINT(uint64_t base, DRAM& ram, uint32_t num_harts, fdt_node* fdt)
+#define ACLINT_MSWI_SIZE   0x4000
+#define ACLINT_MTIMER_SIZE 0x8000
+
+ACLINT::ACLINT(uint64_t base, DRAM& ram, uint32_t num_harts, fdt_node* fdt)
     : Device(base, 0x10000, ram),
         msip(num_harts, 0),
         mtimecmp(num_harts, 0)
@@ -51,7 +54,7 @@ CLINT::CLINT(uint64_t base, DRAM& ram, uint32_t num_harts, fdt_node* fdt)
     }
 }
 
-void CLINT::start_timer(uint64_t freq_hz) {
+void ACLINT::start_timer(uint64_t freq_hz) {
     stop_timer = false;
     timer_thread = std::thread([this, freq_hz]() {
         using namespace std::chrono;
@@ -69,62 +72,63 @@ void CLINT::start_timer(uint64_t freq_hz) {
     });
 }
 
-void CLINT::stop_timer_thread() {
+void ACLINT::stop_timer_thread() {
     stop_timer = true;
     if (timer_thread.joinable())
         timer_thread.join();
 }
 
-uint64_t CLINT::read(HART* hart, uint64_t addr, uint64_t size) {
+uint64_t ACLINT::read(HART* hart, uint64_t addr, uint64_t size) {
     uint64_t off = addr - base;
 
-    // MSIP
-    if (off < 0x4000) {
-        uint32_t hart_id = off / 4;
-        if (hart_id < msip.size())
-            return msip[hart_id];
+    if(off < ACLINT_MSWI_SIZE) {
+        return read_mswi(hart,off);
+    } else if(off >= ACLINT_MSWI_SIZE && off < ACLINT_MTIMER_SIZE) {
+        return read_mtimer(hart,off-ACLINT_MSWI_SIZE);
     }
-    // MTIMECMP
-    else if (off >= 0x4000 && off < 0xBFF8) {
-        uint32_t hart_id = (off - 0x4000) / 8;
-        if (hart_id < mtimecmp.size())
-            return mtimecmp[hart_id];
-    }
-    // MTIME
-
-    uint64_t current_time = mtime.load(std::memory_order_seq_cst);
-    if (off == 0xBFF8) return current_time;
 
     return 0;
 }
 
-void CLINT::write(HART* hart, uint64_t addr, uint64_t size, uint64_t value) {
+void ACLINT::write(HART* hart, uint64_t addr, uint64_t size, uint64_t value) {
     uint64_t off = addr - base;
 
-    // MSIP
-    if (off < 0x4000) {
-        uint32_t hart_id = off / 4;
-        if (hart_id < msip.size()) {
-            msip[hart_id] = value & 1;
-            update_mip(hart);
-        }
-    }
-    // MTIMECMP
-    else if (off >= 0x4000 && off < 0xBFF8) {
-        uint32_t hart_id = (off - 0x4000) / 8;
-        if (hart_id < mtimecmp.size()) {
-            mtimecmp[hart_id] = value;
-            update_mip(hart);
-        }
-    }
-    // MTIME 
-    else if(off == 0xBFF8) {
-        mtime.store(value,std::memory_order_seq_cst);
-        update_mip(hart);
+    if(off < ACLINT_MSWI_SIZE) {
+        write_mswi(hart,off,value);
+    } else if(off >= ACLINT_MSWI_SIZE && off < ACLINT_MTIMER_SIZE) {
+        write_mtimer(hart,off-ACLINT_MSWI_SIZE,value);
     }
 }
 
-void CLINT::update_mip(HART* hart) {
+uint64_t ACLINT::read_mswi(HART* hart, uint64_t offset) {
+    uint64_t hart_id = offset >> 2;
+    uint64_t pending = hart_list[hart_id]->csrs[MIP] & hart_list[hart_id]->csrs[MIE];
+    return (pending >> IRQ_MSW) & 0x1;
+}
+uint64_t ACLINT::read_mtimer(HART* hart, uint64_t offset) {
+    uint64_t hart_id = offset >> 3;
+    if (offset == 0x7FF8) {
+        return mtime.load(std::memory_order_seq_cst);
+    }
+    return mtimecmp[hart_id];
+}
+void ACLINT::write_mswi(HART* hart, uint64_t offset, uint64_t value) {
+    uint64_t hart_id = offset >> 2;
+    msip[hart_id] = value;
+    update_mip(hart_list[hart_id]);
+}
+void ACLINT::write_mtimer(HART* hart, uint64_t offset, uint64_t value) {
+    uint64_t hart_id = offset >> 3;
+    if (offset == 0x7FF8) {
+        mtime.store(value, std::memory_order_seq_cst);
+        return;
+    }
+
+    mtimecmp[hart_id] = value;
+    update_mip(hart_list[hart_id]);
+}
+
+void ACLINT::update_mip(HART* hart) {
     uint64_t mip = hart->h_cpu_csr_read(MIP);
     uint32_t hart_id = hart->h_cpu_id();
 

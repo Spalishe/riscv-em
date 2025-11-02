@@ -57,6 +57,10 @@ static inline uint64_t plic_ctx_reg_offset(uint64_t off) { return (off - PLIC_OF
 
 struct PLIC : public Device {
     // Configuration
+    uint64_t base_addr;
+    uint64_t size_bytes;
+    uint64_t num_harts;
+    uint64_t num_contexts;
     uint32_t num_sources; // source IDs: 1..num_sources ; 0 is reserved
 
     // State
@@ -80,4 +84,17 @@ private:
     uint32_t pick_claimable(uint32_t ctx);
     bool is_enabled(uint32_t ctx, uint32_t src);
     inline uint64_t set_bit(uint64_t value, int pos, bool state = true);
+    // read helpers: determine region by offset
+    inline bool plic_is_priority(uint64_t off) const;
+    inline bool plic_is_pending(uint64_t off) const;
+    inline bool plic_is_enable(uint64_t off) const;
+    inline bool plic_is_ctx(uint64_t off) const;
+
+    // index helpers
+    inline uint32_t plic_priority_index(uint64_t off) const;
+    inline uint32_t plic_pending_word_index(uint64_t off) const;
+    inline uint32_t plic_enable_context(uint64_t off) const;
+    inline uint32_t plic_enable_word_index(uint64_t off) const;
+    inline uint32_t plic_ctx_index(uint64_t off) const;
+    inline uint64_t plic_ctx_reg_offset(uint64_t off) const;
 };

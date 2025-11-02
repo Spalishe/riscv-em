@@ -21,6 +21,7 @@ Copyright 2025 Spalishe
 
 #include "../include/devices/mmio.h"
 #include "../include/devices/clint.hpp"
+#include "../include/devices/aclint.hpp"
 #include "../include/devices/rom.hpp"
 #include "../include/devices/plic.hpp"
 #include "../include/devices/uart.hpp"
@@ -137,7 +138,7 @@ fdt_node* fdt;
 
 HART* hart;
 MMIO* mmio;
-CLINT* clint;
+ACLINT* clint;
 FRAMEBUFFER* fb;
 uint16_t fb_width = 640;
 uint16_t fb_height = 480;
@@ -168,7 +169,7 @@ void add_devices_and_map() {
 
 		// FDT /chosen node
 		struct fdt_node* chosen = fdt_node_create("chosen");
-		fdt_node_add_prop_str(chosen, "bootargs", "console=ttyS0,115200 earlycon=sbi");
+		fdt_node_add_prop_str(chosen, "bootargs", "earlycon=uart8250,mmio,0x10000000,1000000 console=ttyS panic=10 loglevel=8");
 		std::vector<uint32_t> rngseed;
 		std::random_device rd;
 		std::mt19937 gen(rd());
@@ -315,8 +316,8 @@ void add_devices_and_map() {
 	}
 
 	memmap.add_region(0x02000000, 0x10000);
-	clint = new CLINT(0x02000000,hart->dram,1,(dtb_has ? NULL : fdt));
-	uint64_t clint_freq = 10'000'0;
+	clint = new ACLINT(0x02000000,hart->dram,1,(dtb_has ? NULL : fdt));
+	uint64_t clint_freq = 100000;
 	if(!dtb_has) fdt_node_add_prop_u32(fdt_node_find(fdt,"cpus"), "timebase-frequency", clint_freq);
 	clint->start_timer(clint_freq);
 	mmio->add(clint);

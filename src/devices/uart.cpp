@@ -22,7 +22,7 @@ Copyright 2025 Spalishe
 UART::UART(uint64_t base, DRAM& ram, PLIC* plic, int irq_num, fdt_node* fdt, uint8_t hartcount)
         : Device(base, 0x100, ram), plic(plic), irq_num(irq_num)
     {
-        struct fdt_node* uart_fdt = fdt_node_create_reg("uart", base);
+        struct fdt_node* uart_fdt = fdt_node_create_reg("serial", base);
         fdt_node_add_prop_reg(uart_fdt, "reg", base, 0x100);
         fdt_node_add_prop_str(uart_fdt, "compatible", "ns16550a");
         fdt_node_add_prop_u32(uart_fdt, "clock-frequency", 20000000);
@@ -33,7 +33,7 @@ UART::UART(uint64_t base, DRAM& ram, PLIC* plic, int irq_num, fdt_node* fdt, uin
         fdt_node_add_child(fdt_node_find(fdt,"soc"), uart_fdt);
 
         struct fdt_node* chosen = fdt_node_find(fdt, "chosen");
-        fdt_node_add_prop_str(chosen, "stdout-path", "/soc/uart@10000000");
+        fdt_node_add_prop_str(chosen, "stdout-path", "/soc/serial@10000000");
     }
 
 void UART::trigger_irq() {
@@ -48,11 +48,9 @@ void UART::clear_irq() {
 
 void UART::update_iir() {
     if ((ier & 0x02) && (lsr & 0x01)) { // RX interrupt enabled and data ready
-        iir = 0x04; // RX data available interrupt
-    } else if ((ier & 0x01) && (lsr & 0x20)) { // TX interrupt enabled and THR empty
-        iir = 0x02; // TX holding register empty interrupt
+        trigger_irq();
     } else {
-        iir = 0x01; // No interrupt pending
+        clear_irq();
     }
 }
 
@@ -144,7 +142,6 @@ void UART::write(HART* hart, uint64_t addr, uint64_t size, uint64_t value) {
                 lsr |= 0x20;
                 
                 update_iir();
-                trigger_irq();
                 
                 lsr |= 0x40; // Transmission complete
             }
@@ -211,7 +208,7 @@ void UART::receive_byte(uint8_t byte) {
     }
     lsr |= 0x01; // Data Ready
     update_iir();
-    if (ier & 0x02) trigger_irq(); // RX interrupt enabled
+    //if (ier & 0x02) trigger_irq(); // RX interrupt enabled
 }
 
 // idk why but why not
