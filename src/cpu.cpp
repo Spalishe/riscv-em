@@ -417,9 +417,11 @@ void HART::cpu_execute() {
 			fn_b(this,inst_b,&oprs);
 			brb = oprs.brb;
 			if(trap_notify) {trap_notify = false; brb = true; break;}
-			if(!isBr || !brb) {pc += ((inst_b & 3) == 3 ? 4 : 2);}
+			if(!isBr && !brb) {pc += ((inst_b & 3) == 3 ? 4 : 2);}
 			csrs[CYCLE] += 1;
+			csrs[MCYCLE] += 1;
 			csrs[INSTRET] += 1;
+			csrs[MINSTRET] += 1;
 			regs[0] = 0;
 			if(isBr && brb) break; 
 		}
@@ -491,9 +493,11 @@ void HART::cpu_execute() {
 							fn_b(this,inst_b,&oprs);
 							brb = oprs.brb;
 							if(trap_notify) {trap_notify = false; brb = true; break;}
-							if(!isBr || !brb) {pc += ((inst_b & 3) == 3 ? 4 : 2);}
+							if(!isBr && !brb) {pc += ((inst_b & 3) == 3 ? 4 : 2);}
 							csrs[CYCLE] += 1;
+							csrs[MCYCLE] += 1;
 							csrs[INSTRET] += 1;
+							csrs[MINSTRET] += 1;
 							regs[0] = 0;
 							if(isBr && brb) break;
 						}
@@ -507,7 +511,9 @@ void HART::cpu_execute() {
 					virt_pc = pc;
 
 					csrs[CYCLE] += 1;
+					csrs[MCYCLE] += 1;
 					csrs[INSTRET] += 1;
+					csrs[MINSTRET] += 1;
 					regs[0] = 0;
 				}
 			}
@@ -518,7 +524,9 @@ void HART::cpu_execute() {
 			if(trap_notify) {trap_notify = false;}
 			virt_pc = pc;
 			csrs[CYCLE] += 1;
+			csrs[MCYCLE] += 1;
 			csrs[INSTRET] += 1;
+			csrs[MINSTRET] += 1;
 			regs[0] = 0;
 		}
 	}
@@ -534,7 +542,9 @@ void HART::cpu_execute_inst(uint32_t ins) {
 	if(incr) {pc += (OP == 3 ? 4 : 2);}
 
 	csrs[CYCLE] += 1;
+	csrs[MCYCLE] += 1;
 	csrs[INSTRET] += 1;
+	csrs[MINSTRET] += 1;
 	regs[0] = 0;
 }
 
@@ -545,11 +555,14 @@ uint64_t HART::cpu_readfile(std::string path, uint64_t addr, bool bigendian) {
         return 0;
     }
 
+    file.seekg(0, std::ios::end);
     std::streamsize size = file.tellg();
     file.seekg(0, std::ios::beg);
+	std::vector<char> buffer(size);
+    file.read(buffer.data(), size);
 
     try {
-        for (std::streamsize i = 0; i < size; ++i) {
+        /*for (std::streamsize i = 0; i < size; ++i) {
             uint8_t byte;
             file.read(reinterpret_cast<char*>(&byte), 1);
             dram.mmap->store(addr + i, 8, byte);
@@ -559,7 +572,11 @@ uint64_t HART::cpu_readfile(std::string path, uint64_t addr, bool bigendian) {
 				uint32_t val = dram.mmap->load(addr+i,32);
 				dram.mmap->store(addr+i,32,switch_endian(val));
 			}	
-		}
+		}*/
+		auto region = memmap.find_region(addr);
+		uint8_t* ptr = region->ptr(addr);
+		memcpy(ptr, buffer.data(), size);
+		
     } catch (const std::out_of_range&) {
         std::cout << "File too big or address out of memory map range" << std::endl;
         std::cout << size << "   " << addr << std::endl;
@@ -591,19 +608,8 @@ void HART::cpu_trap(uint64_t cause, uint64_t tval, bool is_interrupt) {
     // current mode
     uint64_t cur_mode = mode; // 0=U,1=S,2=H,3=M
 
-	if(is_interrupt && stopexec) {
-		uint64_t tw = (csrs[MSTATUS] & (1<<21)) >> 21;
-		if(cur_mode == 0) {
-			stopexec = false;
-			cpu_trap(EXC_ILLEGAL_INSTRUCTION,cur_mode,false);
-		} else {
-			if(tw == 1 && cur_mode == 1) {
-				stopexec = false;
-				cpu_trap(EXC_ILLEGAL_INSTRUCTION,cur_mode,false);
-			}
-		}
-
-		return;
+	if (is_interrupt && stopexec) {
+		stopexec = false;
 	}
 
     // Read delegation registers
@@ -648,13 +654,14 @@ void HART::cpu_trap(uint64_t cause, uint64_t tval, bool is_interrupt) {
 			virt_pc = base;
         } else if (v_mode == 1 && is_interrupt) {
             // vectored only for interrupts
-            uint64_t vector = cause & 0xF;
-			pc = base + 4 * vector;
-			virt_pc = base + 4 * vector;
+			pc = base + 4 * cause;
+			virt_pc = base + 4 * cause;
+			return;
         } else {
             pc = base; // fallback
 			virt_pc = base;
         }
+		if(is_interrupt) {pc-=4;}
 
     } else {
         // Machine trap handling (write mepc/mcause/mtval, update mstatus, jump to mtvec)
@@ -686,13 +693,14 @@ void HART::cpu_trap(uint64_t cause, uint64_t tval, bool is_interrupt) {
             pc = base;
 			virt_pc = base;
         } else if (v_mode == 1 && is_interrupt) {
-            uint64_t vector = cause & 0xF;
-			pc = base + 4 * vector;
-			virt_pc = base + 4 * vector;
+			pc = base + 4 * cause;
+			virt_pc = base + 4 * cause;
+			return;
         } else {
             pc = base;
 			virt_pc = base;
         }
+		if(is_interrupt) {pc-=4;}
     }
 }
 
@@ -707,10 +715,6 @@ void HART::cpu_check_interrupts() {
     bool s_ie_glob = (sstatus >> SSTATUS_SIE_BIT) & 1;
 
     uint64_t m_irq_mask = (1ULL << MIP_MEIP) | (1ULL << MIP_MSIP) | (1ULL << MIP_MTIP);
-	if (mode == 3 && m_ie_glob && (mip & (1ULL << MIP_MTIP))) {
-		cpu_trap(IRQ_MTIMER, 0, true);
-		return;
-	}
     uint64_t m_pending = mip & m_irq_mask;
     uint64_t m_enabled = mie & m_pending;
     if (m_ie_glob && m_enabled) {
@@ -739,12 +743,19 @@ void HART::cpu_check_interrupts() {
         uint64_t s_enabled = mie & s_view_pending;
         if (s_glob_ie && s_enabled) {
             if (s_enabled & (1ULL << MIP_SEIP)) {
+				if(gdbstub)
+					//Heizenbug: if no actions with those are not applied under a gdb stub it fucking explodes
+					std::cout << s_glob_ie << " " << (uint64_t)mode << std::endl;
                 cpu_trap(IRQ_SEXT, 0, true);
                 return;
             } else if (s_enabled & (1ULL << MIP_SSIP)) {
+				if(gdbstub)
+					std::cout << s_glob_ie << " " << (uint64_t)mode << std::endl;
                 cpu_trap(IRQ_SSW, 0, true);
                 return;
             } else if (s_enabled & (1ULL << MIP_STIP)) {
+				if(gdbstub)
+					std::cout << s_glob_ie << " " << (uint64_t)mode << std::endl;
                 cpu_trap(IRQ_STIMER, 0, true);
                 return;
             }
@@ -760,14 +771,20 @@ uint64_t HART::csr_read(uint64_t addr) {
 			return csrs[MIE] & 0x222;
 		case SIP:
 			return csrs[MIP] & 0x222;
-		case SCAUSE:
-			return (csrs[MCAUSE] >> 63) == 1 ? (csrs[MCAUSE] & 0x8000000000000222) : csrs[MCAUSE];
 		default:
 			return csrs[addr];
 	}
 }
 void HART::csr_write(uint64_t addr,uint64_t val) {
 	switch(addr) {
+		case MTVEC:
+			csrs_old_mtvec = csrs[MTVEC];
+			csrs[MTVEC] = val;
+			break;
+		case STVEC:
+			csrs_old_stvec = csrs[STVEC];
+			csrs[STVEC] = val;
+			break;
 		case SSTATUS:
 			csrs[MSTATUS] = (csrs[MSTATUS] & ~0x80000003000DE762) | (val & 0x80000003000DE762); // Bit mask for S-bits
 			break;
@@ -776,13 +793,6 @@ void HART::csr_write(uint64_t addr,uint64_t val) {
 			break;
 		case SIP:
 			csrs[MIP] = (csrs[MIP] & ~0x222) | (val & 0x222);
-			break;
-		case SCAUSE:
-			if(val >> 63 == 1) {
-				csrs[MCAUSE] = (csrs[MCAUSE] & ~0x8000000000000222) | (val & 0x8000000000000222);
-			} else {
-				csrs[MCAUSE] = val;
-			}
 			break;
 		default:
 			csrs[addr] = val;

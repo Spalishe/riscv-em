@@ -169,7 +169,7 @@ void add_devices_and_map() {
 
 		// FDT /chosen node
 		struct fdt_node* chosen = fdt_node_create("chosen");
-		fdt_node_add_prop_str(chosen, "bootargs", "earlycon=uart8250,mmio,0x10000000,1000000 console=ttyS panic=10 loglevel=8");
+		fdt_node_add_prop_str(chosen, "bootargs", "earlycon=uart8250,mmio,0x10000000,1000000 console=ttyS panic=10 loglevel=8 initcall_debug");
 		std::vector<uint32_t> rngseed;
 		std::random_device rd;
 		std::mt19937 gen(rd());

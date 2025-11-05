@@ -70,6 +70,10 @@ Copyright 2025 Spalishe
 #define STVAL       0x143 // SRW Supervisor bad address or instruction.
 #define SIP         0x144 // SRW Supervisor interrupt pending.
 
+//https://lists.riscv.org/g/tech-privileged/topic/fast_track_stimecmp/78649672
+#define STIMECMP    0x14D // SRW Supervisor timer compare
+#define STIMECMPH   0x15D // SRW Supervisor timer compare high
+
 //Supervisor Protection and Translation
 #define SATP        0x180 // SRW Supervisor address translation and protection.
 

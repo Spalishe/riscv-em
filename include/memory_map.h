@@ -122,7 +122,6 @@ struct MemoryMap {
         }
     }
 
-private:
     MemoryRegion* find_region(uint64_t addr) {
         if(cache.find(addr) != cache.end()) {return cache[addr];}
         for(auto* r : regions) {

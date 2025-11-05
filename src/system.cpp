@@ -98,7 +98,11 @@ inline bool bit_check(uint64_t number, uint64_t n) {
 
 void exec_SRET(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     if(hart->mode == 0) {
-        hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,hart->mode,false);
+        hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false);
+        return;
+    }
+    if(hart->mode == 1 && (hart->csrs[MSTATUS] & (1ULL << 22))) {
+        hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false);
         return;
     }
 

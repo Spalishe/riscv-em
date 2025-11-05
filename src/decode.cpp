@@ -288,7 +288,7 @@ CACHE_Instr parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
                             }; break;
                     }; break;
 
-                default: hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false); std::cout << "[WARNING] Unknown instruction: " << inst << std::endl; break;
+                //default: hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false); std::cout << "[WARNING] Unknown instruction: " << inst << std::endl; break;
             }
             //if(increase) pc += 4;
         } else {
@@ -388,7 +388,7 @@ CACHE_Instr parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
                         case 7: fn = exec_C_SDSP; break;
                     }
                 }; break;
-                default: hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false); std::cout << "[WARNING] Unknown instruction: " << inst << std::endl; break;
+                //default: hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false); std::cout << "[WARNING] Unknown instruction: " << inst << std::endl; break;
             }
             //if(increase) pc += 2;
         }

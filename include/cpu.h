@@ -70,6 +70,9 @@ struct HART {
     bool dbg_singlestep;
 	uint64_t breakpoint;
 	uint8_t id;
+
+    uint64_t csrs_old_mtvec;
+    uint64_t csrs_old_stvec;
     
     bool block_enabled = true;
 

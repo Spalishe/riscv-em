@@ -106,6 +106,15 @@ vector<tuple<string,uint32_t,char,optional<vector<tuple<string,uint8_t,uint8_t>>
     {"mepc", MEPC, 'c', nullopt},
     {"mcause", MCAUSE, 'c', nullopt},
     {"mtval", MTVAL, 'c', nullopt},
+    {"sstatus", SSTATUS, 'c', vector<tuple<string,uint8_t,uint8_t>>{
+        {"SIE", 1, 1},
+        {"SPIE", 5, 5},
+        {"UBE", 6, 6},
+        {"SPP", 8, 8},
+        {"VS", 9, 10},
+        {"FS", 13, 14},
+        {"XS", 15, 16},
+    }},
     {"sedeleg", SEDELEG, 'c', nullopt},
     {"sideleg", SIDELEG, 'c', nullopt},
     {"sie", SIE, 'c', nullopt},
@@ -191,6 +200,8 @@ string GDB_CreateXML() {
 
 void GDB_Create(HART* hart) {
     gdb_socket = socket(AF_INET, SOCK_STREAM, 0);
+    int op = 1;
+    setsockopt(gdb_socket,SOL_SOCKET, SO_REUSEADDR, &op, sizeof(op));
     gdb_hart = hart;
 
     sockaddr_in serverAddress;
@@ -286,8 +297,8 @@ void GDB_parsePacket(const char* buffer) {
                         bool prevState = gdb_hart->trap_active;
                         while(true) {
                             if(gdb_hart->god_said_to_destroy_this_thread) break;
-                            if(gdb_hart->stopexec) continue;
                             if(!gdb_exec) break;
+                            if(gdb_hart->stopexec) continue;
 
                             auto it = find(gdb_bp.begin(), gdb_bp.end(), gdb_hart->pc);
                             if(it != gdb_bp.end()) {
@@ -331,14 +342,20 @@ void GDB_parsePacket(const char* buffer) {
             }
             return;
         }
+        if(packet.starts_with("k")) {
+            gdb_isR = false;
+            poweroff(false,true);
+            std::cout << "[GDB] Killed by GDB stub" << std::endl;
+            return;
+        }
         if(packet.starts_with("c")) {
             gdb_exec = true;
             gdb_execth = thread([]() {
                 bool prevState = gdb_hart->trap_active;
                 while(true) {
                     if(gdb_hart->god_said_to_destroy_this_thread) break;
-                    if(gdb_hart->stopexec) continue;
                     if(!gdb_exec) break;
+                    if(gdb_hart->stopexec) continue;
 
                     auto it = find(gdb_bp.begin(), gdb_bp.end(), gdb_hart->pc);
                     if(it != gdb_bp.end()) {
@@ -533,51 +550,53 @@ void GDB_parsePacket(const char* buffer) {
 }
 
 void GDB_Loop() {
-    if(debug) cout << "[GDB] Listening to socket.." << endl;
-    // listening to the assigned socket
-    listen(gdb_socket, 5);
+    if(!remove_california) {
+        if(debug) cout << "[GDB] Listening to socket.." << endl;
+        // listening to the assigned socket
+        listen(gdb_socket, 5);
 
-    if(debug) cout << "[GDB] Awaiting for client.." << endl;
-    // accepting connection request
-    gdb_recv = accept(gdb_socket, nullptr, nullptr);
-    int flag = 1;
-    setsockopt(gdb_recv, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(int));
+        if(debug) cout << "[GDB] Awaiting for client.." << endl;
+        // accepting connection request
+        gdb_recv = accept(gdb_socket, nullptr, nullptr);
+        int flag = 1;
+        setsockopt(gdb_recv, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(int));
 
-    if(debug) cout << "[GDB] Client connected" << endl;
-    char buffer[4096] = { 0 };
-    while(gdb_isR) {
-        if(remove_california) break;
-        memset(&buffer,0,sizeof(buffer));
-        int received = recv(gdb_recv, buffer, sizeof(buffer), 0);
-        if(received == 0) {
-            if(debug) cout << "[GDB] Client disconnected" << endl;
-            break;
-        }
-        if(received < 0) {
-            if(debug) cout << "[GDB] Client error: " << received << endl;
-            break;
-        }
-        if(debug) cout << "[GDB] Recv: " << buffer << " (first byte: " << (uint16_t)buffer[0] << ")" << endl;
-        if(buffer[0] == '$') {
-            GDB_send("+\0",0);
-            GDB_parsePacket(buffer);
-        }
-        if(buffer[0] == 3) {
-            //SIGINT
-            GDB_send("+\0",0);
-            gdb_sigint = true;
-            gdb_exec = false;
-        }
-        if(buffer[0] == '-' || buffer[0] == '+') {
-            if(buffer[1] == '$') {
-                // new packet right after ack
-                string str = string(buffer);
-                str.erase(0, 1);
+        if(debug) cout << "[GDB] Client connected" << endl;
+        char buffer[4096] = { 0 };
+        while(gdb_isR) {
+            if(remove_california) break;
+            memset(&buffer,0,sizeof(buffer));
+            int received = recv(gdb_recv, buffer, sizeof(buffer), 0);
+            if(received == 0) {
+                if(debug) cout << "[GDB] Client disconnected" << endl;
+                break;
+            }
+            if(received < 0) {
+                if(debug) cout << "[GDB] Client error: " << received << endl;
+                break;
+            }
+            if(debug) cout << "[GDB] Recv: " << buffer << " (first byte: " << (uint16_t)buffer[0] << ")" << endl;
+            if(buffer[0] == '$') {
                 GDB_send("+\0",0);
-                GDB_parsePacket(str.c_str());
+                GDB_parsePacket(buffer);
+            }
+            if(buffer[0] == 3) {
+                //SIGINT
+                GDB_send("+\0",0);
+                gdb_sigint = true;
+                gdb_exec = false;
+            }
+            if(buffer[0] == '-' || buffer[0] == '+') {
+                if(buffer[1] == '$') {
+                    // new packet right after ack
+                    string str = string(buffer);
+                    str.erase(0, 1);
+                    GDB_send("+\0",0);
+                    GDB_parsePacket(str.c_str());
+                }
             }
         }
+        close(gdb_recv);
+        GDB_Loop();
     }
-    close(gdb_recv);
-    GDB_Loop();
 }

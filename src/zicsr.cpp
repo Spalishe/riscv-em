@@ -73,23 +73,28 @@ void exec_CSRRW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) 
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t imm = opers->s ? opers->imm : imm_Zicsr(inst);
 
+    bool canCon = true;
     uint64_t mstatus = hart->csrs[MSTATUS];
     bool tvm = (mstatus >> 20) & 1; // TVM bit
     if(hart->mode == 1 && tvm && imm == SATP) {
         if(hart->dbg) std::cout << "TVM ENABLED" << std::endl;
         hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false);
+        canCon = false;
     }
     if(!csr_accessible(imm,hart->mode,true)) {
         if(hart->dbg) std::cout << "MODE: " << (uint32_t)hart->mode << std::endl;
         hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false);
+        canCon = false;
     }
 
-    uint64_t init_val = hart->csr_read(imm);
-    if (rs1_l != 0)
-        hart->csr_write(imm,hart->regs[rs1_l]);
-        
-    if (rd_l != 0) {
-        hart->regs[rd_l] = init_val;
+    if(canCon) {
+        uint64_t init_val = hart->csr_read(imm);
+        if(rs1_l != 0) {
+            hart->csr_write(imm,hart->regs[rs1_l]);
+        }
+        if (rd_l != 0) {
+            hart->regs[rd_l] = init_val;
+        }
     }
 
     if(!opers->s){
@@ -105,23 +110,28 @@ void exec_CSRRS(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) 
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t imm = opers->s ? opers->imm : imm_Zicsr(inst);
 
+    bool canCon = true;
     uint64_t mstatus = hart->csrs[MSTATUS];
     bool tvm = (mstatus >> 20) & 1; // TVM bit
     if(hart->mode == 1 && tvm && imm == SATP) {
         if(hart->dbg) std::cout << "TVM ENABLED" << std::endl;
         hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false);
+        canCon = false;
     }
     if(!csr_accessible(imm,hart->mode,(rs1_l != 0))) {
         if(hart->dbg) std::cout << "MODE: " << (uint32_t)hart->mode << std::endl;
         hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false);
+        canCon = false;
     }
 
-    uint64_t init_val = hart->csr_read(imm);
-    if (rs1_l != 0) {
-        uint64_t mask = hart->regs[rs1_l];
-        hart->csr_write(imm,init_val | mask);
+    if(canCon) {
+        uint64_t init_val = hart->csr_read(imm);
+        if (rs1_l != 0) {
+            uint64_t mask = hart->regs[rs1_l];
+            hart->csr_write(imm,init_val | mask);
+        }
+        hart->regs[rd_l] = init_val;
     }
-    hart->regs[rd_l] = init_val;
 
     if(!opers->s){
         opers->rd = rd_l;
@@ -136,23 +146,28 @@ void exec_CSRRC(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) 
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t imm = opers->s ? opers->imm : imm_Zicsr(inst);
 
+    bool canCon = true;
     uint64_t mstatus = hart->csrs[MSTATUS];
     bool tvm = (mstatus >> 20) & 1; // TVM bit
     if(hart->mode == 1 && tvm && imm == SATP) {
         if(hart->dbg) std::cout << "TVM ENABLED" << std::endl;
         hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false);
+        canCon = false;
     }
     if(!csr_accessible(imm,hart->mode,(rs1_l != 0))) {
         if(hart->dbg) std::cout << "MODE: " << (uint32_t)hart->mode << std::endl;
         hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false);
+        canCon = false;
     }
 
-    uint64_t init_val = hart->csrs[imm];
-    if (rs1_l != 0) {
-        uint64_t mask = hart->regs[rs1_l];
-        hart->csr_write(imm,init_val & ~mask);
+    if(canCon) {
+        uint64_t init_val = hart->csr_read(imm);
+        if (rs1_l != 0) {
+            uint64_t mask = hart->regs[rs1_l];
+            hart->csr_write(imm,(init_val & ~mask));
+        }
+        hart->regs[rd_l] = init_val;
     }
-    hart->regs[rd_l] = init_val;
 
     if(!opers->s){
         opers->rd = rd_l;
@@ -168,22 +183,27 @@ void exec_CSRRWI(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers)
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t imm = opers->s ? opers->imm : imm_Zicsr(inst);
 
+    bool canCon = true;
     uint64_t mstatus = hart->csrs[MSTATUS];
     bool tvm = (mstatus >> 20) & 1; // TVM bit
     if(hart->mode == 1 && tvm && imm == SATP) {
         if(hart->dbg) std::cout << "TVM ENABLED" << std::endl;
         hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false);
+        canCon = false;
     }
-    if(!csr_accessible(imm,hart->mode,true)) {
+    if(!csr_accessible(imm,hart->mode,rs1_l != 0)) {
         if(hart->dbg) std::cout << "MODE: " << (uint32_t)hart->mode << std::endl;
         hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false);
+        canCon = false;
     }
 
-    if (rd_l != 0) {
-        hart->regs[rd_l] = hart->csr_read(imm);
+    if(canCon) {
+        if (rd_l != 0) {
+            hart->regs[rd_l] = hart->csr_read(imm);
+        }
+        if (rs1_l != 0)
+            hart->csr_write(imm,rs1_l);
     }
-    if (rs1_l != 0)
-        hart->csr_write(imm,rs1_l);
 
     if(!opers->s){
         opers->rd = rd_l;
@@ -198,23 +218,28 @@ void exec_CSRRSI(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers)
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t imm = opers->s ? opers->imm : imm_Zicsr(inst);
 
+    bool canCon = true;
     uint64_t mstatus = hart->csrs[MSTATUS];
     bool tvm = (mstatus >> 20) & 1; // TVM bit
     if(hart->mode == 1 && tvm && imm == SATP) {
         if(hart->dbg) std::cout << "TVM ENABLED" << std::endl;
         hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false);
+        canCon = false;
     }
     if(!csr_accessible(imm,hart->mode,(rs1_l != 0))) {
         if(hart->dbg) std::cout << "MODE: " << (uint32_t)hart->mode << std::endl;
         hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false);
+        canCon = false;
     }
 
-    uint64_t init_val = hart->csr_read(imm);
-    if (rs1_l != 0) {
-        uint64_t mask = rs1_l;
-        hart->csr_write(imm,init_val | mask);
+    if(canCon) {
+        uint64_t init_val = hart->csr_read(imm);
+        if (rs1_l != 0) {
+            uint64_t mask = rs1_l;
+            hart->csr_write(imm,init_val | mask);
+        }
+        hart->regs[rd_l] = init_val;
     }
-    hart->regs[rd_l] = init_val;
 
     if(!opers->s){
         opers->rd = rd_l;
@@ -229,23 +254,28 @@ void exec_CSRRCI(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers)
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t imm = opers->s ? opers->imm : imm_Zicsr(inst);
 
+    bool canCon = true;
     uint64_t mstatus = hart->csrs[MSTATUS];
     bool tvm = (mstatus >> 20) & 1; // TVM bit
     if(hart->mode == 1 && tvm && imm == SATP) {
         if(hart->dbg) std::cout << "TVM ENABLED" << std::endl;
         hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false);
+        canCon = false;
     }
     if(!csr_accessible(imm,hart->mode,(rs1_l != 0))) {
         if(hart->dbg) std::cout << "MODE: " << (uint32_t)hart->mode << std::endl;
         hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false);
+        canCon = false;
     }
 
-    uint64_t init_val = hart->csr_read(imm);
-    if (rs1_l != 0) {
-        uint64_t mask = rs1_l;
-        hart->csr_write(imm,init_val & ~mask);
+    if(canCon) {
+        uint64_t init_val = hart->csr_read(imm);
+        if (rs1_l != 0) {
+            uint64_t mask = rs1_l;
+            hart->csr_write(imm,init_val & ~mask);
+        }
+        hart->regs[rd_l] = init_val;
     }
-    hart->regs[rd_l] = init_val;
 
     if(!opers->s){
         opers->rd = rd_l;
