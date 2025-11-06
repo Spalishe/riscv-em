@@ -27,6 +27,7 @@ Copyright 2025 Spalishe
 #include "../include/devices/plic.hpp"
 #include <cstdio>
 #include <cstdarg>
+#include <format>
 #include <sstream>
 #include <iomanip>
 #include <functional>
@@ -401,6 +402,8 @@ void HART::cpu_loop() {
 }
 
 void HART::cpu_execute() {
+	cpu_check_interrupts();
+	if(trap_notify) {trap_notify = false; return;}
 	bool increase = true;
 	bool junction = false;
 	void (*fn)(HART*, uint32_t);
@@ -408,23 +411,22 @@ void HART::cpu_execute() {
 	auto it1 = instr_block_cache.find(pc);
 	if(it1 != instr_block_cache.end()) {
 		uint64_t pc_v = pc;
+		bool brb = false;
 		for(auto &in : instr_block_cache[pc]) {
-			cpu_check_interrupts();
 			auto [fn_b, incr_b,__2,inst_b,isBr,immopt,oprs,__3,__4] = in;
 			(void)__2; (void)__3; (void)__2;  // unused
-			if(trap_notify) {trap_notify = false;}
-			bool brb = false;
+			if(trap_notify) {trap_notify = false; brb = true; break;}
 			fn_b(this,inst_b,&oprs);
 			brb = oprs.brb;
 			if(trap_notify) {trap_notify = false; brb = true; break;}
 			if(!isBr && !brb) {pc += ((inst_b & 3) == 3 ? 4 : 2);}
-			csrs[CYCLE] += 1;
-			csrs[MCYCLE] += 1;
 			csrs[INSTRET] += 1;
 			csrs[MINSTRET] += 1;
 			regs[0] = 0;
 			if(isBr && brb) break; 
 		}
+		csrs[CYCLE] += 1;
+		csrs[MCYCLE] += 1;
 		instr_block_cache_count_executed[pc_v] += 1;
 		virt_pc = pc;
 	} else {
@@ -486,16 +488,13 @@ void HART::cpu_execute() {
 						instr_block_cache[pc] = cp;
 						instr_block_cache_count_executed[pc] = 1;
 						for(auto &in : instr_block) {
-							cpu_check_interrupts();
 							auto [fn_b, incr_b,__2,inst_b,isBr,immopt,oprs,__3,__4] = in;
 							(void)__2; (void)__3; (void)__2;  // unused
-							if(trap_notify) {trap_notify = false;}
+							if(trap_notify) {trap_notify = false; brb = true; break;}
 							fn_b(this,inst_b,&oprs);
 							brb = oprs.brb;
 							if(trap_notify) {trap_notify = false; brb = true; break;}
 							if(!isBr && !brb) {pc += ((inst_b & 3) == 3 ? 4 : 2);}
-							csrs[CYCLE] += 1;
-							csrs[MCYCLE] += 1;
 							csrs[INSTRET] += 1;
 							csrs[MINSTRET] += 1;
 							regs[0] = 0;
@@ -518,15 +517,17 @@ void HART::cpu_execute() {
 				}
 			}
 		} else {
-			cpu_check_interrupts();
-			fn(this,inst,&oprs);
-			if(incr && !trap_notify) {pc += (OP == 3 ? 4 : 2);}
+			regs[0] = 0;
+			if(!trap_notify) {
+				fn(this,inst,&oprs);
+				if(incr && !trap_notify) {pc += (OP == 3 ? 4 : 2);}
+				virt_pc = pc;
+				csrs[CYCLE] += 1;
+				csrs[MCYCLE] += 1;
+				csrs[INSTRET] += 1;
+				csrs[MINSTRET] += 1;
+			}
 			if(trap_notify) {trap_notify = false;}
-			virt_pc = pc;
-			csrs[CYCLE] += 1;
-			csrs[MCYCLE] += 1;
-			csrs[INSTRET] += 1;
-			csrs[MINSTRET] += 1;
 			regs[0] = 0;
 		}
 	}
@@ -661,7 +662,6 @@ void HART::cpu_trap(uint64_t cause, uint64_t tval, bool is_interrupt) {
             pc = base; // fallback
 			virt_pc = base;
         }
-		if(is_interrupt) {pc-=4;}
 
     } else {
         // Machine trap handling (write mepc/mcause/mtval, update mstatus, jump to mtvec)
@@ -700,7 +700,6 @@ void HART::cpu_trap(uint64_t cause, uint64_t tval, bool is_interrupt) {
             pc = base;
 			virt_pc = base;
         }
-		if(is_interrupt) {pc-=4;}
     }
 }
 

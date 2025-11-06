@@ -134,6 +134,8 @@ std::vector<std::string> testing_files;
 
 bool nojit = false;
 
+std::string cmdline_append;
+
 fdt_node* fdt; 
 
 HART* hart;
@@ -169,7 +171,7 @@ void add_devices_and_map() {
 
 		// FDT /chosen node
 		struct fdt_node* chosen = fdt_node_create("chosen");
-		fdt_node_add_prop_str(chosen, "bootargs", "earlycon=uart8250,mmio,0x10000000,1000000 console=ttyS panic=10 loglevel=8 initcall_debug");
+		fdt_node_add_prop_str(chosen, "bootargs", cmdline_append.c_str());
 		std::vector<uint32_t> rngseed;
 		std::random_device rd;
 		std::mt19937 gen(rd());
@@ -475,8 +477,14 @@ int main(int argc, char* argv[]) {
 	parser.addArgument("--gdb", "Starts GDB Stub on port 1234", false, false, Argparser::ArgumentType::def);
 	parser.addArgument("--tests", "Enables TESTING mode(dev only)", false, false, Argparser::ArgumentType::def);
 	parser.addArgument("--nographic", "Disables Framebuffer", false, false, Argparser::ArgumentType::def);
+	parser.addArgument("--append", "Append command line arguments", false, false, Argparser::ArgumentType::str);
 
 	parser.parse();
+
+	if(parser.getDefined(9)) {
+		cmdline_append = parser.getString(9);
+		std::cout << "Custom cmdargs defined: " << cmdline_append << std::endl;
+	}
 
 	using_SDL = !parser.getDefined(8);
 	if(using_SDL)

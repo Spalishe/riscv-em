@@ -125,6 +125,7 @@ vector<tuple<string,uint32_t,char,optional<vector<tuple<string,uint8_t,uint8_t>>
     {"sepc", SEPC, 'c', nullopt},
     {"scause", SCAUSE, 'c', nullopt},
     {"stval", STVAL, 'c', nullopt},
+    {"stimecmp", STIMECMP, 'c', nullopt},
     {"priv", 0, 'v', nullopt},
 };
 

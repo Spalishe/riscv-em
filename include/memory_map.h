@@ -21,7 +21,9 @@ Copyright 2025 Spalishe
 #include <stdexcept>
 #include <cstring>
 #include <unordered_map>
+#include <format>
 #include <optional>
+#include <iostream>
 
 struct MemoryRegion {
     uint64_t base_addr;
@@ -130,7 +132,8 @@ struct MemoryMap {
                 return r;
             }
         }
-        throw std::out_of_range("Address not mapped in MemoryMap");
+        std::cout << std::format("Address not mapped in MemoryMap: 0x{:08x}",addr) << std::endl;
+        throw std::out_of_range(".");
     }
     std::optional<MemoryRegion*> find_region_safe(uint64_t addr) {
         if(cache.find(addr) != cache.end()) {return cache[addr];}

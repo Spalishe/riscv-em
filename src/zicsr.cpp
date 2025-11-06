@@ -77,12 +77,12 @@ void exec_CSRRW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) 
     uint64_t mstatus = hart->csrs[MSTATUS];
     bool tvm = (mstatus >> 20) & 1; // TVM bit
     if(hart->mode == 1 && tvm && imm == SATP) {
-        if(hart->dbg) std::cout << "TVM ENABLED" << std::endl;
+        if(hart->dbg || hart->gdbstub) std::cout << "TVM ENABLED" << std::endl;
         hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false);
         canCon = false;
     }
     if(!csr_accessible(imm,hart->mode,true)) {
-        if(hart->dbg) std::cout << "MODE: " << (uint32_t)hart->mode << std::endl;
+        if(hart->dbg || hart->gdbstub) std::cout << "MODE: " << (uint32_t)hart->mode << std::endl;
         hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false);
         canCon = false;
     }
