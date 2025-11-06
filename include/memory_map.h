@@ -132,8 +132,7 @@ struct MemoryMap {
                 return r;
             }
         }
-        std::cout << std::format("Address not mapped in MemoryMap: 0x{:08x}",addr) << std::endl;
-        throw std::out_of_range(".");
+        throw std::out_of_range(std::format("Address not mapped in MemoryMap: 0x{:08x}",addr));
     }
     std::optional<MemoryRegion*> find_region_safe(uint64_t addr) {
         if(cache.find(addr) != cache.end()) {return cache[addr];}
