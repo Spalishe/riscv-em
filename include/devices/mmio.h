@@ -56,5 +56,8 @@ struct MMIO {
 
     std::optional<uint64_t> load(HART* hart, uint64_t addr, uint64_t size);
     bool store(HART* hart, uint64_t addr, uint64_t size, uint64_t value);
+    
+    std::optional<uint64_t> load_GDB(HART* hart, uint64_t addr, uint64_t size);
+    void store_GDB(HART* hart, uint64_t addr, uint64_t size, uint64_t value);
 };
 

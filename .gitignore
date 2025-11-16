@@ -20,5 +20,6 @@ fakekernel.bin
 fakekernel.S
 memory_map.h.gcov
 cpu.cpp.gcov
+cpu.h.gcov
 .gitignore
 disk.img

@@ -57,10 +57,12 @@ void SYSCON::write(HART* hart, uint64_t addr, uint64_t size, uint64_t val) {
             switch(val) {
                 case 0x5555: {
                     //Power off
+                    std::cout << "[SYSCON] Poweroff.." << std::endl;
                     poweroff(false,true);
                 }; break;
                 case 0x7777: {
                     //Reboot
+                    std::cout << "[SYSCON] Reset.." << std::endl;
                     reset(true);
                 }; break;
             }; break;

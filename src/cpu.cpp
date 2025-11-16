@@ -157,7 +157,6 @@ void HART::cpu_loop() {
 	while(true) {
 		if(god_said_to_destroy_this_thread) break;
 		if(trap_active && testing) break;
-		cpu_check_interrupts();
 		if(stopexec) {continue;}
 		if(gdbstub) continue;
 
@@ -431,7 +430,7 @@ void HART::cpu_execute() {
 		virt_pc = pc;
 	} else {
 		instr_block_cache_count_executed[pc] += 1;
-		uint64_t upc = ((block_enabled && instr_block_cache_count_executed[pc] >= PC_EXECUTE_COUNT_TO_BLOCK) ? virt_pc : pc);
+		uint64_t upc = ((block_enabled && instr_block_cache_count_executed[pc] >= (gdbstub ? UINT64_MAX : PC_EXECUTE_COUNT_TO_BLOCK)) ? virt_pc : pc);
 		if (upc % 2 != 0) {
 			cpu_trap(EXC_INST_ADDR_MISALIGNED,upc,false);
 		}
@@ -457,7 +456,7 @@ void HART::cpu_execute() {
 		(void)__2;
 		int32_t immo = (int32_t)immopt;
 		int OP = inst & 3;
-		if(block_enabled && instr_block_cache_count_executed[pc] >= PC_EXECUTE_COUNT_TO_BLOCK) {
+		if(block_enabled && instr_block_cache_count_executed[pc] >= (gdbstub ? UINT64_MAX : PC_EXECUTE_COUNT_TO_BLOCK)) {
 			if(!j) {
 				instr_block.push_back(instr);
 				virt_pc += (OP == 3 ? 4 : 2);

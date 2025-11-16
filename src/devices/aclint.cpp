@@ -83,7 +83,7 @@ uint64_t ACLINT::read(HART* hart, uint64_t addr, uint64_t size) {
 
     if(off < ACLINT_MSWI_SIZE) {
         return read_mswi(hart,off);
-    } else if(off >= ACLINT_MSWI_SIZE && off < ACLINT_MTIMER_SIZE) {
+    } else if(off >= ACLINT_MSWI_SIZE && off < ACLINT_MSWI_SIZE+ACLINT_MTIMER_SIZE) {
         return read_mtimer(hart,off-ACLINT_MSWI_SIZE);
     }
 
@@ -95,7 +95,7 @@ void ACLINT::write(HART* hart, uint64_t addr, uint64_t size, uint64_t value) {
     
     if(off < ACLINT_MSWI_SIZE) {
         write_mswi(hart,off,value);
-    } else if(off >= ACLINT_MSWI_SIZE && off < ACLINT_MTIMER_SIZE) {
+    } else if(off >= ACLINT_MSWI_SIZE && off < ACLINT_MSWI_SIZE+ACLINT_MTIMER_SIZE) {
         write_mtimer(hart,off-ACLINT_MSWI_SIZE,value);
     }
 }
@@ -107,11 +107,8 @@ uint64_t ACLINT::read_mswi(HART* hart, uint64_t offset) {
 }
 uint64_t ACLINT::read_mtimer(HART* hart, uint64_t offset) {
     uint64_t hart_id = offset >> 3;
-    if (offset == 0xBFF8) {
-        return mtime.load() & 0xFFFFFFFF;
-    }
-    if (offset == 0xBFFC) {
-        return mtime.load() >> 32;
+    if(offset == 0x7FF8) {
+        return (uint64_t)mtime.load();
     }
     return mtimecmp[hart_id];
 }
@@ -122,14 +119,8 @@ void ACLINT::write_mswi(HART* hart, uint64_t offset, uint64_t value) {
 }
 void ACLINT::write_mtimer(HART* hart, uint64_t offset, uint64_t value) {
     uint64_t hart_id = offset >> 3;
-    if (offset == 0xBFF8) {
-        uint64_t old = mtime.load();
-        mtime.store((old & 0xFFFFFFFF00000000ULL) | (value & 0xFFFFFFFF));
-        return;
-    }
-    if (offset == 0xBFFC) {
-        uint64_t old = mtime.load();
-        mtime.store((old & 0xFFFFFFFF) | (value << 32));
+    if (offset == 0x7FF8) {
+        mtime.store(value);
         return;
     }
 

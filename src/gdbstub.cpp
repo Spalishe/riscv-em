@@ -266,7 +266,7 @@ void GDB_parsePacket(const char* buffer) {
     if(buffer[0] == '$') {
         string packet = GDB_unformatPacket(string(buffer));
         if(packet.starts_with("qSupported:")) {
-            GDB_sendPacket("PacketSize=4096;qXfer:features:read+;vContSupported+;swbreak+;hwbreak+");
+            GDB_sendPacket("PacketSize=4096;qXfer:features:read+;vContSupported+;swbreak+;hwbreak+;");
             return;
         }
         if(packet.starts_with("qXfer:features:read:target.xml:")) {
@@ -481,7 +481,7 @@ void GDB_parsePacket(const char* buffer) {
             string data = packet.substr(packet.find(':') + 1);
             
             for(uint64_t i = 0; i < size; i++) {
-                memmap.store(address+i,8,stoul(data.substr(i*2,2),nullptr,16));
+                gdb_hart->mmio->store_GDB(gdb_hart,address+i,8,stoul(data.substr(i*2,2),nullptr,16));
             }
 
             GDB_sendPacket(format("{:x}",size));
@@ -495,7 +495,7 @@ void GDB_parsePacket(const char* buffer) {
             string resp;
 
             for(uint64_t i = 0; i < size; i++) {
-                optional<uint64_t> val = memmap.load_safe(address+i,8);
+                optional<uint64_t> val = gdb_hart->mmio->load_GDB(gdb_hart,address+i,8);
                 if(!val.has_value()) {
                     GDB_sendPacket("E01");
                     return;
