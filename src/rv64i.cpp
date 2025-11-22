@@ -176,7 +176,7 @@ void exec_LD(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
         uint64_t addr = hart->regs[rs1_l] + (int64_t) imm;
         std::optional<uint64_t> val = hart->mmio->load(hart,addr,64);
         if(val.has_value()) {
-            hart->regs[rd_l] = (int64_t) *val;
+            hart->regs[rd_l] = *val;
         }
     }
 
@@ -552,7 +552,7 @@ void exec_LB(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
         uint64_t addr = hart->regs[rs1_l] + (int64_t) imm;
         std::optional<uint64_t> val = hart->mmio->load(hart,addr,8);
         if(val.has_value()) {
-            hart->regs[rd_l] = (int64_t)(int8_t) *val;
+            hart->regs[rd_l] = (uint64_t)(int8_t) *val;
         }
     }
 	
@@ -574,7 +574,7 @@ void exec_LH(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
         uint64_t addr = hart->regs[rs1_l] + (int64_t) imm;
         std::optional<uint64_t> val = hart->mmio->load(hart,addr,16);
         if(val.has_value()) {
-            hart->regs[rd_l] = (int64_t)(int16_t) *val;
+            hart->regs[rd_l] = (uint64_t)(int16_t) *val;
         }
     }
 	
@@ -596,7 +596,7 @@ void exec_LW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
         uint64_t addr = hart->regs[rs1_l] + (int64_t) imm;
         std::optional<uint64_t> val = hart->mmio->load(hart,addr,32);
         if(val.has_value()) {
-            hart->regs[rd_l] = (int64_t)(int32_t) *val;
+            hart->regs[rd_l] = (uint64_t)(int32_t) *val;
         }
     }
 	
@@ -618,7 +618,7 @@ void exec_LBU(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
         uint64_t addr = hart->regs[rs1_l] + (int64_t) imm;
         std::optional<uint64_t> val = hart->mmio->load(hart,addr,8);
         if(val.has_value()) {
-            hart->regs[rd_l] = (uint8_t) *val;
+            hart->regs[rd_l] = (uint64_t)(uint8_t) *val;
         }
     }
 	
@@ -640,7 +640,7 @@ void exec_LHU(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
         uint64_t addr = hart->regs[rs1_l] + (int64_t) imm;
         std::optional<uint64_t> val = hart->mmio->load(hart,addr,16);
         if(val.has_value()) {
-            hart->regs[rd_l] = (uint16_t) *val;
+            hart->regs[rd_l] = (uint64_t)(uint16_t) *val;
         }
     }
 	
@@ -866,7 +866,7 @@ void exec_JAL(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
 
     {
         hart->regs[rd_l] = hart->pc+4;
-        if((hart->pc + (int64_t) imm) % 2 != 0)
+        if((hart->pc + (int64_t) imm) % 4 != 0)
             hart->cpu_trap(EXC_INST_ADDR_MISALIGNED,hart->pc + (int64_t) imm,false);
         else
             hart->pc = hart->pc + (int64_t) imm;
@@ -891,7 +891,7 @@ void exec_JALR(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t imm = opers->s ? opers->imm : imm_I(inst);
 
 	uint64_t tmp = hart->pc;
-    if((hart->regs[rs1_l] + (int64_t) imm) % 2 != 0)
+    if((hart->regs[rs1_l] + (int64_t) imm) % 4 != 0)
         hart->cpu_trap(EXC_INST_ADDR_MISALIGNED,hart->regs[rs1_l] + (int64_t) imm,false);
     else
         hart->pc = hart->regs[rs1_l] + (int64_t) imm;

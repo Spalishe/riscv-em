@@ -122,19 +122,13 @@ void exec_SRET(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
 }
 void exec_MRET(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     if(get_bits(hart->csrs[MSTATUS],12,11) != 3) {
-        hart->csrs[MSTATUS] = bit_set_to(hart->csrs[MSTATUS],17,false);
+        //hart->csrs[MSTATUS] = bit_set_to(hart->csrs[MSTATUS],17,false);
     }
 
+    hart->mode = get_bits(hart->csrs[MSTATUS],12,11);
+    
     hart->csrs[MSTATUS] = bit_set_to(hart->csrs[MSTATUS],3,bit_check(hart->csrs[MSTATUS],7));
     hart->csrs[MSTATUS] = bit_set_to(hart->csrs[MSTATUS],7,true);
-
-    if(get_bits(hart->csrs[MSTATUS],12,11) == 0) {
-        hart->mode = 0;
-    } else if(get_bits(hart->csrs[MSTATUS],12,11) == 1) {
-        hart->mode = 1;
-    } else if(get_bits(hart->csrs[MSTATUS],12,11) == 3) {
-        hart->mode = 3;
-    }
 
     hart->csrs[MSTATUS] = bit_set_to(hart->csrs[MSTATUS],11,false);
     hart->csrs[MSTATUS] = bit_set_to(hart->csrs[MSTATUS],12,false);

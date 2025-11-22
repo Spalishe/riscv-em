@@ -55,6 +55,7 @@ struct HART {
     uint64_t regs[32];
     uint64_t pc;
     uint64_t virt_pc;
+    uint64_t debug_last_pc;
     uint64_t csrs[4069];
     uint8_t mode;
     
@@ -69,6 +70,9 @@ struct HART {
     bool dbg_showinst = true;
     bool dbg_singlestep;
 	uint64_t breakpoint;
+
+    std::vector<uint64_t> pc_trace_full;
+
 	uint8_t id;
 
     uint64_t csrs_old_mtvec;

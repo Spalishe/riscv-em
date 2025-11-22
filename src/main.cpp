@@ -623,7 +623,7 @@ int main(int argc, char* argv[]) {
 		int succeded = 0;
 		
 		for(std::string &val : testing_files) {
-			for(int i=0; i < 0x800; i++) {
+			for(int i=0; i < 0x8000; i++) {
 				dram_store(&hart->dram,DRAM_BASE + i, 8, 0);
 			}
 			std::cout << "[TESTING] Executing file " << val << "... ";

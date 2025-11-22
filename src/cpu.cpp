@@ -142,12 +142,19 @@ int HART::cpu_start_testing() {
 	reservation_addr = 0;
 	reservation_size = 32;
 
-	csrs[MISA] = riscv_mkmisa("ima");
+	csrs[MISA] = riscv_mkmisa("imasu");
 	csrs[MVENDORID] = 0; 
 	csrs[MARCHID] = 0; 
 	csrs[MIMPID] = 0;
 	csrs[MHARTID] = 0;
-	csrs[MSTATUS] = 0xA00000000;
+	csrs[MIDELEG] = 5188;
+	csrs[MIP] = 0x80;
+	csrs[MSTATUS] = (0xA00000000);
+	csrs[SSTATUS] = (0x200000000);
+
+    uint32_t fetch_buffer[8];
+    uint64_t fetch_pc; 
+    uint8_t fetch_buffer_i; 
 
 	mode = 3;
 	cpu_loop();
@@ -156,7 +163,7 @@ int HART::cpu_start_testing() {
 void HART::cpu_loop() {
 	while(true) {
 		if(god_said_to_destroy_this_thread) break;
-		if(trap_active && testing) break;
+		if(trap_active && testing && regs[17] == 93) break;
 		if(stopexec) {continue;}
 		if(gdbstub) continue;
 
@@ -431,7 +438,8 @@ void HART::cpu_execute() {
 	} else {
 		instr_block_cache_count_executed[pc] += 1;
 		uint64_t upc = ((block_enabled && instr_block_cache_count_executed[pc] >= (gdbstub ? UINT64_MAX : PC_EXECUTE_COUNT_TO_BLOCK)) ? virt_pc : pc);
-		if (upc % 2 != 0) {
+		pc_trace_full.push_back(upc);
+		if (upc % 4 != 0) {
 			cpu_trap(EXC_INST_ADDR_MISALIGNED,upc,false);
 		}
 		uint32_t inst = 0;
@@ -441,10 +449,16 @@ void HART::cpu_execute() {
 		} else {
 			inst = cpu_fetch(upc);
 			if(inst == 0) {
+				std::cout << "[RISCVEM] ILLEGAL INSTR at PC 0x" << std::hex << upc << " from PC 0x" << debug_last_pc << std::dec << std::endl;
+				std::cout << "[RISCVEM] PC Trace:" << std::endl;
+				for(uint64_t i = pc_trace_full.size()-1; i > pc_trace_full.size()-9; i--) {
+					std::cout << std::format("    [{:}] 0x{:08x}",i,pc_trace_full[i]) << std::endl;
+				}
 				cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false);
 			}
 			instr = parse_instruction(this,inst,upc);
 		}
+		debug_last_pc = upc;
 		if(dbg && dbg_showinst) {
 			std::cout << "New instruction: 0x";
 			printf("%.8X",inst);
@@ -674,10 +688,7 @@ void HART::cpu_trap(uint64_t cause, uint64_t tval, bool is_interrupt) {
         // clear MPIE, MPP, MIE
         mstatus &= ~((1ULL<<MSTATUS_MPIE_BIT) | MSTATUS_MPP_MASK | (1ULL<<MSTATUS_MIE_BIT));
         if (old_mie) mstatus |= (1ULL<<MSTATUS_MPIE_BIT);
-        uint64_t mpp = 0ULL;
-        if (cur_mode == 0) mpp = 0ULL;
-        else if (cur_mode == 1) mpp = 1ULL;
-        else if (cur_mode == 3) mpp = 3ULL;
+        uint64_t mpp = cur_mode;
         mstatus |= ((mpp << MSTATUS_MPP_SHIFT) & MSTATUS_MPP_MASK);
         csrs[MSTATUS] = mstatus;
 
@@ -741,8 +752,8 @@ void HART::cpu_check_interrupts() {
         uint64_t s_enabled = mie & s_view_pending;
         if (s_glob_ie && s_enabled) {
             if (s_enabled & (1ULL << MIP_SEIP)) {
+				//Heizenbug: if no actions with those are not applied under a gdb stub it fucking explodes
 				if(gdbstub)
-					//Heizenbug: if no actions with those are not applied under a gdb stub it fucking explodes
 					std::cout << s_glob_ie << " " << (uint64_t)mode << std::endl;
                 cpu_trap(IRQ_SEXT, 0, true);
                 return;
