@@ -107,6 +107,18 @@ struct MemoryMap {
         memcpy(buffer, p, size);
     }
 
+    bool copy_mem_safe(uint64_t addr, uint64_t size, void* buffer) {
+        std::optional<MemoryRegion*> rs = find_region_safe(addr);
+        if(rs == std::nullopt) return false;
+        MemoryRegion* r = *rs;
+        uint8_t* p = r->ptr(addr);
+        if ((addr + size) > (r->base_addr + r->size))
+            size = (r->base_addr + r->size) - addr;
+        memcpy(buffer, p, size);
+        return true;
+    }
+
+
     void store(uint64_t addr, uint64_t size, uint64_t value) {
         MemoryRegion* r = find_region(addr);
         uint8_t* p = r->ptr(addr);

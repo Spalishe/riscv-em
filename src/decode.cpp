@@ -95,6 +95,7 @@ CACHE_Instr parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
 	bool increase = true;
 	bool junction = false;
     bool isBranch = false;
+    bool valid = false;
     uint32_t imm_opt = 0;
 	void (*fn)(HART*, uint32_t, CACHE_DecodedOperands* opers);
 
@@ -112,183 +113,183 @@ CACHE_Instr parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
             switch(opcode) {
                 case FENCE:
                     switch(funct3) {
-                        case 1: fn = exec_FENCE_I; junction = true; break;
-                        case 0: fn = exec_FENCE; junction = true; break;
+                        case 1: fn = exec_FENCE_I; junction = true; valid = true; break;
+                        case 0: fn = exec_FENCE; junction = true; valid = true; break;
                     }
                 case R_TYPE:
                     switch(funct3) {
                         case ADDSUB:
                             switch(funct7) {
-                                case ADD: fn = exec_ADD; break;
-                                case 1: fn = exec_MUL; break;
-                                case SUB: fn = exec_SUB; break;
-                            }; break;
+                                case ADD: fn = exec_ADD; valid = true; break;
+                                case 1: fn = exec_MUL; valid = true; break;
+                                case SUB: fn = exec_SUB; valid = true; break;
+                            }; valid = true; break;
                         case XOR: 
                             switch(funct7) {
-                                case 0: fn = exec_XOR; break;
-                                case 1: fn = exec_DIV; break;
-                            };  break;
+                                case 0: fn = exec_XOR; valid = true; break;
+                                case 1: fn = exec_DIV; valid = true; break;
+                            };  valid = true; break;
                         case OR: 
                             switch(funct7) {
-                                case 0: fn = exec_OR; break;
-                                case 1: fn = exec_REM; break;
-                            };  break;
+                                case 0: fn = exec_OR; valid = true; break;
+                                case 1: fn = exec_REM; valid = true; break;
+                            };  valid = true; break;
                         case AND: 
                             switch(funct7) {
-                                case 0: fn = exec_AND; break;
-                                case 1: fn = exec_REMU; break;
-                            };  break;
+                                case 0: fn = exec_AND; valid = true; break;
+                                case 1: fn = exec_REMU; valid = true; break;
+                            };  valid = true; break;
                         case SLL: 
                             switch(funct7) {
-                                case 0: fn = exec_SLL; break;
-                                case 1: fn = exec_MULH; break;
-                            }; break;
+                                case 0: fn = exec_SLL; valid = true; break;
+                                case 1: fn = exec_MULH; valid = true; break;
+                            }; valid = true; break;
                         case SR:
                             switch(funct7) {
-                                case SRL: fn = exec_SRL; break;
-                                case SRA: fn = exec_SRA; break;
-                                case 1: fn = exec_DIVU; break;
-                            }; break;
+                                case SRL: fn = exec_SRL; valid = true; break;
+                                case SRA: fn = exec_SRA; valid = true; break;
+                                case 1: fn = exec_DIVU; valid = true; break;
+                            }; valid = true; break;
                         case SLT: 
                             switch(funct7) {
-                                case 0: fn = exec_SLT; break;
-                                case 1: fn = exec_MULHSU; break;
-                            };  break;
+                                case 0: fn = exec_SLT; valid = true; break;
+                                case 1: fn = exec_MULHSU; valid = true; break;
+                            };  valid = true; break;
                         case SLTU: 
                             switch(funct7) {
-                                case 0: fn = exec_SLTU; break;
-                                case 1: fn = exec_MULHU; break;
-                            };  break;
-                    }; break;
+                                case 0: fn = exec_SLTU; valid = true; break;
+                                case 1: fn = exec_MULHU; valid = true; break;
+                            };  valid = true; break;
+                    }; valid = true; break;
                 case R_TYPE64:
                     switch(funct3) {
                         case ADDSUB:
                             switch(funct7) {
-                                case ADD: fn = exec_ADDW; break;
-                                case SUB: fn = exec_SUBW; break;
-                                case 1: fn = exec_MULW; break;
-                            }; break;
-                        case SLL: fn = exec_SLLW; break;
+                                case ADD: fn = exec_ADDW; valid = true; break;
+                                case SUB: fn = exec_SUBW; valid = true; break;
+                                case 1: fn = exec_MULW; valid = true; break;
+                            }; valid = true; break;
+                        case SLL: fn = exec_SLLW; valid = true; break;
                         case SR:
                             switch(funct7) {
-                                case SRL: fn = exec_SRLW; break;
-                                case SRA: fn = exec_SRAW; break;
-                                case 1: fn = exec_DIVUW; break;
-                            }; break;
-                        case XOR: fn = exec_DIVW; break;
-                        case OR: fn = exec_REMW; break;
-                        case AND: fn = exec_REMUW; break;
-                    }; break;
+                                case SRL: fn = exec_SRLW; valid = true; break;
+                                case SRA: fn = exec_SRAW; valid = true; break;
+                                case 1: fn = exec_DIVUW; valid = true; break;
+                            }; valid = true; break;
+                        case XOR: fn = exec_DIVW; valid = true; break;
+                        case OR: fn = exec_REMW; valid = true; break;
+                        case AND: fn = exec_REMUW; valid = true; break;
+                    }; valid = true; break;
                 case AMO:
                     switch(funct3) {
                         case AMO_W: 
                             switch(amo_funct5) {
-                                case AMOADD: fn = exec_AMOADD_W; break;
-                                case AMOSWAP: fn = exec_AMOSWAP_W; break;
-                                case LR: fn = exec_LR_W; break;
-                                case SC: fn = exec_SC_W; break;
-                                case AMOXOR: fn = exec_AMOXOR_W; break;
-                                case AMOOR: fn = exec_AMOOR_W; break;
-                                case AMOAND: fn = exec_AMOAND_W; break;
-                                case AMOMIN: fn = exec_AMOMIN_W; break;
-                                case AMOMAX: fn = exec_AMOMAX_W; break;
-                                case AMOMINU: fn = exec_AMOMINU_W; break;
-                                case AMOMAXU: fn = exec_AMOMAXU_W; break;
-                            }; break;
+                                case AMOADD: fn = exec_AMOADD_W; valid = true; break;
+                                case AMOSWAP: fn = exec_AMOSWAP_W; valid = true; break;
+                                case LR: fn = exec_LR_W; valid = true; break;
+                                case SC: fn = exec_SC_W; valid = true; break;
+                                case AMOXOR: fn = exec_AMOXOR_W; valid = true; break;
+                                case AMOOR: fn = exec_AMOOR_W; valid = true; break;
+                                case AMOAND: fn = exec_AMOAND_W; valid = true; break;
+                                case AMOMIN: fn = exec_AMOMIN_W; valid = true; break;
+                                case AMOMAX: fn = exec_AMOMAX_W; valid = true; break;
+                                case AMOMINU: fn = exec_AMOMINU_W; valid = true; break;
+                                case AMOMAXU: fn = exec_AMOMAXU_W; valid = true; break;
+                            }; valid = true; break;
                         case AMO_D: 
                             switch(amo_funct5) {
-                                case AMOADD: fn = exec_AMOADD_D; break;
-                                case AMOSWAP: fn = exec_AMOSWAP_D; break;
-                                case LR: fn = exec_LR_D; break;
-                                case SC: fn = exec_SC_D; break;
-                                case AMOXOR: fn = exec_AMOXOR_D; break;
-                                case AMOOR: fn = exec_AMOOR_D; break;
-                                case AMOAND: fn = exec_AMOAND_D; break;
-                                case AMOMIN: fn = exec_AMOMIN_D; break;
-                                case AMOMAX: fn = exec_AMOMAX_D; break;
-                                case AMOMINU: fn = exec_AMOMINU_D; break;
-                                case AMOMAXU: fn = exec_AMOMAXU_D; break;
-                            }; break;
-                    }; break;
+                                case AMOADD: fn = exec_AMOADD_D; valid = true; break;
+                                case AMOSWAP: fn = exec_AMOSWAP_D; valid = true; break;
+                                case LR: fn = exec_LR_D; valid = true; break;
+                                case SC: fn = exec_SC_D; valid = true; break;
+                                case AMOXOR: fn = exec_AMOXOR_D; valid = true; break;
+                                case AMOOR: fn = exec_AMOOR_D; valid = true; break;
+                                case AMOAND: fn = exec_AMOAND_D; valid = true; break;
+                                case AMOMIN: fn = exec_AMOMIN_D; valid = true; break;
+                                case AMOMAX: fn = exec_AMOMAX_D; valid = true; break;
+                                case AMOMINU: fn = exec_AMOMINU_D; valid = true; break;
+                                case AMOMAXU: fn = exec_AMOMAXU_D; valid = true; break;
+                            }; valid = true; break;
+                    }; valid = true; break;
                 case I_TYPE:
                     switch(funct3) {
-                        case ADDI: fn = exec_ADDI; break;
-                        case XORI: fn = exec_XORI; break;
-                        case ORI: fn = exec_ORI; break;
-                        case ANDI: fn = exec_ANDI; break;
-                        case SLLI: fn = exec_SLLI; break;
+                        case ADDI: fn = exec_ADDI; valid = true; break;
+                        case XORI: fn = exec_XORI; valid = true; break;
+                        case ORI: fn = exec_ORI; valid = true; break;
+                        case ANDI: fn = exec_ANDI; valid = true; break;
+                        case SLLI: fn = exec_SLLI; valid = true; break;
                         case SRI:
                             /*switch(funct7) {
-                                case SRLI: fn = exec_SRLI; break;
-                                case SRAI: fn = exec_SRAI; break;
-                            }; break;*/
+                                case SRLI: fn = exec_SRLI; valid = true; break;
+                                case SRAI: fn = exec_SRAI; valid = true; break;
+                            }; valid = true; break;*/
                             switch(funct6) {
-                                case SRLI: fn = exec_SRLI; break;
-                                case SRAI: fn = exec_SRAI; break;
-                            }; break;
-                        case SLTI: fn = exec_SLTI; break;
-                        case SLTIU: fn = exec_SLTIU; break;
-                    }; break;
+                                case SRLI: fn = exec_SRLI; valid = true; break;
+                                case SRAI: fn = exec_SRAI; valid = true; break;
+                            }; valid = true; break;
+                        case SLTI: fn = exec_SLTI; valid = true; break;
+                        case SLTIU: fn = exec_SLTIU; valid = true; break;
+                    }; valid = true; break;
                 case I_TYPE64:
                     switch(funct3) {
-                        case ADDI: fn = exec_ADDIW; break;
-                        case SLLI: fn = exec_SLLIW; break;
+                        case ADDI: fn = exec_ADDIW; valid = true; break;
+                        case SLLI: fn = exec_SLLIW; valid = true; break;
                         case SRI:
                             switch(funct7) {
-                                case SRLI: fn = exec_SRLIW; break;
-                                case SRAIW: fn = exec_SRAIW; break;
-                            }; break;
-                    }; break;
+                                case SRLI: fn = exec_SRLIW; valid = true; break;
+                                case SRAIW: fn = exec_SRAIW; valid = true; break;
+                            }; valid = true; break;
+                    }; valid = true; break;
                 case LOAD_TYPE:
                     switch(funct3) {
-                        case LB: fn = exec_LB; break;
-                        case LH: fn = exec_LH; break;
-                        case LW: fn = exec_LW; break;
-                        case LD: fn = exec_LD; break;
-                        case LBU: fn = exec_LBU; break;
-                        case LHU: fn = exec_LHU; break;
-                        case LWU: fn = exec_LWU; break;
-                    }; break;
+                        case LB: fn = exec_LB; valid = true; break;
+                        case LH: fn = exec_LH; valid = true; break;
+                        case LW: fn = exec_LW; valid = true; break;
+                        case LD: fn = exec_LD; valid = true; break;
+                        case LBU: fn = exec_LBU; valid = true; break;
+                        case LHU: fn = exec_LHU; valid = true; break;
+                        case LWU: fn = exec_LWU; valid = true; break;
+                    }; valid = true; break;
                 case S_TYPE:
                     switch(funct3) {
-                        case SB: fn = exec_SB; break;
-                        case SH: fn = exec_SH; break;
-                        case SW: fn = exec_SW; break;
-                        case SD: fn = exec_SD; break;
-                    }; break;
+                        case SB: fn = exec_SB; valid = true; break;
+                        case SH: fn = exec_SH; valid = true; break;
+                        case SW: fn = exec_SW; valid = true; break;
+                        case SD: fn = exec_SD; valid = true; break;
+                    }; valid = true; break;
                 case B_TYPE:
                     switch(funct3) {
-                        case BEQ: fn = exec_BEQ; increase = false; junction = true; isBranch = true; imm_opt = imm_B(inst); break;
-                        case BNE: fn = exec_BNE; increase = false; junction = true; isBranch = true; imm_opt = imm_B(inst); break;
-                        case BLT: fn = exec_BLT; increase = false; junction = true; isBranch = true; imm_opt = imm_B(inst); break;
-                        case BGE: fn = exec_BGE; increase = false; junction = true; isBranch = true; imm_opt = imm_B(inst); break;
-                        case BLTU: fn = exec_BLTU; increase = false; junction = true; isBranch = true; imm_opt = imm_B(inst); break;
-                        case BGEU: fn = exec_BGEU; increase = false; junction = true; isBranch = true; imm_opt = imm_B(inst); break;
-                    }; break;
-                case JAL: fn = exec_JAL; increase = false; junction = true; isBranch = true; imm_opt = imm_J(inst); break;
-                case JALR: fn = exec_JALR; increase = false; junction = true; break; // Not making it branch for JIT cuz we cant predict if it will jmp inside local block or not
-                case LUI: fn = exec_LUI; break;
-                case AUIPC: fn = exec_AUIPC; break;
+                        case BEQ: fn = exec_BEQ; increase = false; junction = true; isBranch = true; imm_opt = imm_B(inst); valid = true; break;
+                        case BNE: fn = exec_BNE; increase = false; junction = true; isBranch = true; imm_opt = imm_B(inst); valid = true; break;
+                        case BLT: fn = exec_BLT; increase = false; junction = true; isBranch = true; imm_opt = imm_B(inst); valid = true; break;
+                        case BGE: fn = exec_BGE; increase = false; junction = true; isBranch = true; imm_opt = imm_B(inst); valid = true; break;
+                        case BLTU: fn = exec_BLTU; increase = false; junction = true; isBranch = true; imm_opt = imm_B(inst); valid = true; break;
+                        case BGEU: fn = exec_BGEU; increase = false; junction = true; isBranch = true; imm_opt = imm_B(inst); valid = true; break;
+                    }; valid = true; break;
+                case JAL: fn = exec_JAL; increase = false; junction = true; isBranch = true; imm_opt = imm_J(inst); valid = true; break;
+                case JALR: fn = exec_JALR; increase = false; junction = true; isBranch = true; imm_opt = imm_J(inst); valid = true; break; // Not making it branch for JIT cuz we cant predict if it will jmp inside local block or not
+                case LUI: fn = exec_LUI; valid = true; break;
+                case AUIPC: fn = exec_AUIPC; valid = true; break;
                 case ECALL: 
                     switch(funct3) {
-                        case CSRRW: fn = exec_CSRRW; break;
-                        case CSRRS: fn = exec_CSRRS; break;
-                        case CSRRC: fn = exec_CSRRC; break;
-                        case CSRRWI: fn = exec_CSRRWI; break;
-                        case CSRRSI: fn = exec_CSRRSI; break;
-                        case CSRRCI: fn = exec_CSRRCI; break;
+                        case CSRRW: fn = exec_CSRRW; valid = true; break;
+                        case CSRRS: fn = exec_CSRRS; valid = true; break;
+                        case CSRRC: fn = exec_CSRRC; valid = true; break;
+                        case CSRRWI: fn = exec_CSRRWI; valid = true; break;
+                        case CSRRSI: fn = exec_CSRRSI; valid = true; break;
+                        case CSRRCI: fn = exec_CSRRCI; valid = true; break;
                         case 0:
                             switch(imm) {
-                                case 0: fn = exec_ECALL; increase = false; junction = true; break;
-                                case 1: fn = exec_EBREAK; increase = false; junction = true; break;
-                                case 261: fn = exec_WFI; junction = true; break;
-                                case 258: fn = exec_SRET; increase = false; junction = true; break;
-                                case 288: fn = exec_SFENCE_VMA; junction = true; break;
-                                case 770: fn = exec_MRET; increase = false; junction = true; break;
-                            }; break;
-                    }; break;
+                                case 0: fn = exec_ECALL; increase = false; junction = true; isBranch = true; valid = true; break;
+                                case 1: fn = exec_EBREAK; increase = false; junction = true; isBranch = true; valid = true; break;
+                                case 261: fn = exec_WFI; junction = true; isBranch = true; valid = true; break;
+                                case 258: fn = exec_SRET; increase = false; junction = true; isBranch = true; valid = true; break;
+                                case 288: fn = exec_SFENCE_VMA; junction = true; valid = true; break;
+                                case 770: fn = exec_MRET; increase = false; junction = true; isBranch = true; valid = true; break;
+                            }; valid = true; break;
+                    }; valid = true; break;
 
-                //default: hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false); std::cout << "[WARNING] Unknown instruction: " << inst << std::endl; break;
+                //default: hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false); std::cout << "[WARNING] Unknown instruction: " << inst << std::endl; valid = true; break;
             }
             //if(increase) pc += 4;
         } else {
@@ -300,13 +301,13 @@ CACHE_Instr parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
             switch(OP) {
                 case 0: {
                     switch(funct3) {
-                        case 0: fn = exec_C_ADDI4SPN; break;
-                        case 2: fn = exec_C_LW; break;
-                        case 3: fn = exec_C_LD; break;
-                        case 6: fn = exec_C_SW; break;
-                        case 7: fn = exec_C_SD; break;
+                        case 0: fn = exec_C_ADDI4SPN; valid = true; break;
+                        case 2: fn = exec_C_LW; valid = true; break;
+                        case 3: fn = exec_C_LD; valid = true; break;
+                        case 6: fn = exec_C_SW; valid = true; break;
+                        case 7: fn = exec_C_SD; valid = true; break;
                     }
-                }; break;
+                }; valid = true; break;
                 case 1: {
                     switch(funct3) {
                         case 0: {
@@ -315,14 +316,14 @@ CACHE_Instr parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
                             } else {
                                 fn = exec_C_ADDI;
                             }
-                        }; break;
+                        }; valid = true; break;
                         case 1: 
                             {
                                 // fn = exec_C_JAL; junction = true; isBranch = true; imm_opt = C_imm_J(inst);
                                 // Uncomment this if u planning making a fully working 32-bit arch
                                 fn = exec_C_ADDIW;
-                            } break;
-                        case 2: fn = exec_C_LI; break;
+                            } valid = true; break;
+                        case 2: fn = exec_C_LI; valid = true; break;
                         case 3: {
                             uint64_t rd = get_bits(inst,11,7);
                             if(rd == 2) {
@@ -330,47 +331,47 @@ CACHE_Instr parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
                             } else {
                                 fn = exec_C_LUI;
                             }
-                        }; break;
+                        }; valid = true; break;
                         case 4: {
                             if(funct6 == 35) {
                                 switch(funct2) {
-                                    case 0: fn = exec_C_SUB; break;
-                                    case 1: fn = exec_C_XOR; break;
-                                    case 2: fn = exec_C_OR; break;
-                                    case 3: fn = exec_C_AND; break;
+                                    case 0: fn = exec_C_SUB; valid = true; break;
+                                    case 1: fn = exec_C_XOR; valid = true; break;
+                                    case 2: fn = exec_C_OR; valid = true; break;
+                                    case 3: fn = exec_C_AND; valid = true; break;
                                 }
                             } else if(funct6 == 39) {
                                 switch(funct2) {
-                                    case 0: fn = exec_C_SUBW; break;
-                                    case 1: fn = exec_C_ADDW; break;
+                                    case 0: fn = exec_C_SUBW; valid = true; break;
+                                    case 1: fn = exec_C_ADDW; valid = true; break;
                                 }
                             } else {
                                 switch(funct5) {
-                                    case 0: fn = exec_C_SRLI; break;
-                                    case 1: fn = exec_C_SRAI; break;
-                                    case 2: fn = exec_C_ANDI; break;
+                                    case 0: fn = exec_C_SRLI; valid = true; break;
+                                    case 1: fn = exec_C_SRAI; valid = true; break;
+                                    case 2: fn = exec_C_ANDI; valid = true; break;
                                 }
                             }
-                        }; break;
-                        case 5: fn = exec_C_J; increase = false; junction = true; isBranch = true; imm_opt = C_imm_J(inst); break;
-                        case 6: fn = exec_C_BEQZ; increase = false; isBranch = true; imm_opt = imm_B(inst); break;
-                        case 7: fn = exec_C_BNEZ; increase = false; isBranch = true; imm_opt = imm_B(inst); break;
+                        }; valid = true; break;
+                        case 5: fn = exec_C_J; increase = false; junction = true; isBranch = true; imm_opt = C_imm_J(inst); valid = true; break;
+                        case 6: fn = exec_C_BEQZ; increase = false; isBranch = true; imm_opt = imm_B(inst); valid = true; break;
+                        case 7: fn = exec_C_BNEZ; increase = false; isBranch = true; imm_opt = imm_B(inst); valid = true; break;
                     }
-                }; break;
+                }; valid = true; break;
                 case 2: {
                     switch(funct3) {
-                        case 0: fn = exec_C_SLLI; break;
-                        case 2: fn = exec_C_LWSP; break;
-                        case 3: fn = exec_C_LDSP; break;
+                        case 0: fn = exec_C_SLLI; valid = true; break;
+                        case 2: fn = exec_C_LWSP; valid = true; break;
+                        case 3: fn = exec_C_LDSP; valid = true; break;
                         case 4: {
                             switch(funct4) {
                                 case 8: {
                                     uint64_t i = get_bits(inst,6,2);
                                     switch(i) {
-                                        case 0: fn = exec_C_JR; increase = false; junction = true; isBranch = true; imm_opt = C_imm_J(inst); break;
-                                        default: fn = exec_C_MV; break;
+                                        case 0: fn = exec_C_JR; increase = false; junction = true; isBranch = true; imm_opt = C_imm_J(inst); valid = true; break;
+                                        default: fn = exec_C_MV; valid = true; break;
                                     }
-                                }; break;
+                                }; valid = true; break;
                                 case 9: {
                                     uint64_t i = get_bits(inst,6,2);
                                     uint64_t i1 = get_bits(inst,11,7);
@@ -381,19 +382,19 @@ CACHE_Instr parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
                                     } else if(i != 0 && i1 != 0) {
                                         fn = exec_C_ADD;
                                     }
-                                }; break;
+                                }; valid = true; break;
                             }
-                        }; break;
-                        case 6: fn = exec_C_SWSP; break;
-                        case 7: fn = exec_C_SDSP; break;
+                        }; valid = true; break;
+                        case 6: fn = exec_C_SWSP; valid = true; break;
+                        case 7: fn = exec_C_SDSP; valid = true; break;
                     }
-                }; break;
-                //default: hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false); std::cout << "[WARNING] Unknown instruction: " << inst << std::endl; break;
+                }; valid = true; break;
+                //default: hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false); std::cout << "[WARNING] Unknown instruction: " << inst << std::endl; valid = true; break;
             }
             //if(increase) pc += 2;
         }
         
-        CACHE_Instr dec = CACHE_Instr{fn, increase,junction,inst,isBranch,imm_opt,CACHE_DecodedOperands(),true,pc};
+        CACHE_Instr dec = CACHE_Instr{fn, increase,junction,inst,isBranch,imm_opt,CACHE_DecodedOperands(),valid,pc};
         hart->instr_cache[(pc >> 2) & 0x1FFF] = dec;
         return dec;
     }

@@ -47,10 +47,12 @@ void exec_DIVW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
     
     {
-        if(hart->regs[rs2_l] == 0) {
+        if((int32_t)hart->regs[rs1_l] == 0) {
+            hart->regs[rd_l] = (uint64_t)0;
+        } else if((int32_t)hart->regs[rs2_l] == 0) {
             hart->regs[rd_l] = (uint64_t)-1;
-        } else if(hart->regs[rs1_l] == std::numeric_limits<int32_t>::min() && hart->regs[rs2_l] == -1) {
-            hart->regs[rd_l] = hart->regs[rs1_l];
+        } else if((int32_t)hart->regs[rs1_l] == std::numeric_limits<int32_t>::min() && (int32_t)hart->regs[rs2_l] == -1) {
+            hart->regs[rd_l] = (int32_t)hart->regs[rs1_l];
         } else {
             hart->regs[rd_l] = (uint64_t)((int32_t)hart->regs[rs1_l] / (int32_t)hart->regs[rs2_l]);
         }
@@ -71,10 +73,12 @@ void exec_DIVUW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) 
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
     {
-        if(hart->regs[rs2_l] == 0) {
+        if((uint32_t)hart->regs[rs1_l] == 0) {
+            hart->regs[rd_l] = (uint64_t)0;
+        } else if((uint32_t)hart->regs[rs2_l] == 0) {
             hart->regs[rd_l] = (uint64_t)-1;
         } else {
-            hart->regs[rd_l] = (uint64_t)(int64_t)(int32_t)(hart->regs[rs1_l] / hart->regs[rs2_l]);
+            hart->regs[rd_l] = (uint64_t)((uint32_t)hart->regs[rs1_l] / (uint32_t)hart->regs[rs2_l]);
         }
     }
     
@@ -93,9 +97,9 @@ void exec_REMW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
     {
-        if(hart->regs[rs2_l] == 0) {
-            hart->regs[rd_l] = hart->regs[rs1_l];
-        } else if(hart->regs[rs1_l] == std::numeric_limits<int32_t>::min() && hart->regs[rs2_l] == -1) {
+        if((int32_t)hart->regs[rs2_l] == 0) {
+            hart->regs[rd_l] = (uint64_t)(int32_t)hart->regs[rs1_l];
+        } else if((int32_t)hart->regs[rs1_l] == std::numeric_limits<int32_t>::min() && (int32_t)hart->regs[rs2_l] == -1) {
             hart->regs[rd_l] = 0;
         } else {
             hart->regs[rd_l] = (uint64_t)(int64_t)((int32_t)hart->regs[rs1_l] % (int32_t)hart->regs[rs2_l]);
@@ -117,8 +121,8 @@ void exec_REMUW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) 
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
     {
-        if(hart->regs[rs2_l] == 0) {
-            hart->regs[rd_l] = hart->regs[rs1_l];
+        if((uint32_t)hart->regs[rs2_l] == 0) {
+            hart->regs[rd_l] = (uint64_t)(uint32_t)hart->regs[rs1_l];
         } else {
             hart->regs[rd_l] = (uint64_t)(int64_t)(int32_t)((uint32_t)hart->regs[rs1_l] % (uint32_t)hart->regs[rs2_l]);
         }
@@ -211,7 +215,9 @@ void exec_DIV(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
-    if(hart->regs[rs2_l] == 0) {
+    if(hart->regs[rs1_l] == 0) {
+        hart->regs[rd_l] = (uint64_t)0;
+    } else if(hart->regs[rs2_l] == 0) {
         hart->regs[rd_l] = (uint64_t)-1;
     } else if(hart->regs[rs1_l] == std::numeric_limits<int64_t>::min() && hart->regs[rs2_l] == -1) {
         hart->regs[rd_l] = hart->regs[rs1_l];
@@ -233,7 +239,9 @@ void exec_DIVU(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
-    if(hart->regs[rs2_l] == 0) {
+    if(hart->regs[rs1_l] == 0) {
+        hart->regs[rd_l] = (uint64_t)0;
+    } else if(hart->regs[rs2_l] == 0) {
         hart->regs[rd_l] = (uint64_t)-1;
     } else {
         hart->regs[rd_l] = hart->regs[rs1_l] / hart->regs[rs2_l];

@@ -26,7 +26,7 @@ void exec_ADDW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
-	hart->regs[rd_l] = (int32_t) ((int32_t) hart->regs[rs1_l] + (int32_t) hart->regs[rs2_l]);
+	hart->regs[rd_l] = (int32_t) ((uint32_t)hart->regs[rs1_l] + (uint32_t)hart->regs[rs2_l]);
 	
     if(!opers->s){
         opers->rd = rd_l;
@@ -41,7 +41,7 @@ void exec_SUBW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
-	hart->regs[rd_l] = (int32_t) ((int32_t) hart->regs[rs1_l] - (int32_t) hart->regs[rs2_l]);
+	hart->regs[rd_l] = (int32_t) ((uint32_t)hart->regs[rs1_l] - (uint32_t)hart->regs[rs2_l]);
 	
     if(!opers->s){
         opers->rd = rd_l;
@@ -57,7 +57,7 @@ void exec_SLLW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
-	hart->regs[rd_l] = (int32_t) ((int32_t)hart->regs[rs1_l] << (int32_t)(hart->regs[rs2_l] & 0x1F));
+	hart->regs[rd_l] = (int32_t) ((uint32_t)hart->regs[rs1_l] << ((uint32_t)hart->regs[rs2_l] & 0x1F));
 	
     if(!opers->s){
         opers->rd = rd_l;
@@ -73,7 +73,7 @@ void exec_SRLW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
-	hart->regs[rd_l] = (int32_t) ((uint32_t)hart->regs[rs1_l] >> (int32_t)(hart->regs[rs2_l] & 0x1F));
+	hart->regs[rd_l] = (int32_t) ((uint32_t)hart->regs[rs1_l] >> ((uint32_t)hart->regs[rs2_l] & 0x1F));
 	
     if(!opers->s){
         opers->rd = rd_l;
@@ -89,7 +89,7 @@ void exec_SRAW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
-	hart->regs[rd_l] = (int64_t) ((int32_t) hart->regs[rs1_l] >> (int64_t) hart->regs[rs2_l]);
+	hart->regs[rd_l] = (int32_t) (((int32_t) hart->regs[rs1_l]) >> ((uint32_t)hart->regs[rs2_l] & 0x1F));
 	
     if(!opers->s){
         opers->rd = rd_l;
@@ -107,7 +107,7 @@ void exec_ADDIW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) 
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t imm = opers->s ? opers->imm : imm_I(inst);
 
-    hart->regs[rd_l] = (int32_t) ((int32_t)hart->regs[rs1_l] + (int32_t) imm);
+    hart->regs[rd_l] = (int32_t) ((uint32_t)hart->regs[rs1_l] + imm);
 	
     if(!opers->s){
         opers->rd = rd_l;
@@ -123,7 +123,7 @@ void exec_SLLIW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) 
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t imm = opers->s ? opers->imm : shamt(inst);
 
-    hart->regs[rd_l] = (int32_t) ((int32_t)hart->regs[rs1_l] << (uint32_t)imm);
+    hart->regs[rd_l] = (int32_t) ((uint32_t)hart->regs[rs1_l] << imm);
 	
     if(!opers->s){
         opers->rd = rd_l;
@@ -139,7 +139,7 @@ void exec_SRLIW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) 
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t imm = opers->s ? opers->imm : shamt(inst);
 
-    hart->regs[rd_l] = (int32_t) ((uint32_t)hart->regs[rs1_l] >> (uint32_t)shamt(inst));
+    hart->regs[rd_l] = (int32_t) ((uint32_t)hart->regs[rs1_l] >> imm);
 	
     if(!opers->s){
         opers->rd = rd_l;
@@ -155,7 +155,7 @@ void exec_SRAIW(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) 
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t imm = opers->s ? opers->imm : shamt(inst);
 
-    hart->regs[rd_l] = (int64_t) ((int32_t)hart->regs[rs1_l] >> (uint32_t)shamt(inst));
+    hart->regs[rd_l] = ((int32_t)hart->regs[rs1_l]) >> imm;
 	
     if(!opers->s){
         opers->rd = rd_l;
@@ -322,7 +322,7 @@ void exec_SLL(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
-	hart->regs[rd_l] = hart->regs[rs1_l] << (int64_t) hart->regs[rs2_l];
+	hart->regs[rd_l] = hart->regs[rs1_l] << (hart->regs[rs2_l] & 0x3f);
 	
     if(!opers->s){
         opers->rd = rd_l;
@@ -338,7 +338,7 @@ void exec_SRL(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
-	hart->regs[rd_l] = hart->regs[rs1_l] >> hart->regs[rs2_l];
+	hart->regs[rd_l] = hart->regs[rs1_l] >> (hart->regs[rs2_l] & 0x3f);
 	
     if(!opers->s){
         opers->rd = rd_l;
@@ -354,7 +354,7 @@ void exec_SRA(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t rs2_l = opers->s ? opers->rs2 : rs2(inst);
 
-	hart->regs[rd_l] = (int32_t) hart->regs[rs1_l] >> (int64_t) hart->regs[rs2_l];
+	hart->regs[rd_l] = ((int64_t) hart->regs[rs1_l]) >> (hart->regs[rs2_l] & 0x3f);
 	
     if(!opers->s){
         opers->rd = rd_l;
@@ -500,7 +500,7 @@ void exec_SRAI(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     uint64_t rs1_l = opers->s ? opers->rs1 : rs1(inst);
     uint64_t imm = opers->s ? opers->imm : shamt64(inst);
 
-    hart->regs[rd_l] = (int64_t)hart->regs[rs1_l] >> imm;
+    hart->regs[rd_l] = ((int64_t)hart->regs[rs1_l]) >> imm;
 	
     if(!opers->s){
         opers->rd = rd_l;
@@ -721,7 +721,7 @@ void exec_BEQ(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
 
     {
         if ((int64_t) hart->regs[rs1_l] == (int64_t) hart->regs[rs2_l]) {
-            if((hart->pc + (int64_t) imm) % 2 != 0)
+            if((hart->pc + (int64_t) imm) % 4 != 0)
                 hart->cpu_trap(EXC_INST_ADDR_MISALIGNED,hart->pc + (int64_t) imm,false);
             else
                 hart->pc = hart->pc + (int64_t) imm;
@@ -745,7 +745,7 @@ void exec_BNE(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
 
     {
 	    if ((int64_t) hart->regs[rs1_l] != (int64_t) hart->regs[rs2_l]) {
-            if((hart->pc + (int64_t) imm) % 2 != 0)
+            if((hart->pc + (int64_t) imm) % 4 != 0)
                 hart->cpu_trap(EXC_INST_ADDR_MISALIGNED,hart->pc + (int64_t) imm,false);
             else
                 hart->pc = hart->pc + (int64_t) imm;
@@ -769,7 +769,7 @@ void exec_BLT(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
 
     {
         if ((int64_t) hart->regs[rs1_l] < (int64_t) hart->regs[rs2_l]) {
-            if((hart->pc + (int64_t) imm) % 2 != 0)
+            if((hart->pc + (int64_t) imm) % 4 != 0)
                 hart->cpu_trap(EXC_INST_ADDR_MISALIGNED,hart->pc + (int64_t) imm,false);
             else
                 hart->pc = hart->pc + (int64_t) imm;
@@ -793,7 +793,7 @@ void exec_BGE(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
 
     {
         if ((int64_t) hart->regs[rs1_l] >= (int64_t) hart->regs[rs2_l]) {
-            if((hart->pc + (int64_t) imm) % 2 != 0)
+            if((hart->pc + (int64_t) imm) % 4 != 0)
                 hart->cpu_trap(EXC_INST_ADDR_MISALIGNED,hart->pc + (int64_t) imm,false);
             else
                 hart->pc = hart->pc + (int64_t) imm;
@@ -817,7 +817,7 @@ void exec_BLTU(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
 
     {
         if (hart->regs[rs1_l] < hart->regs[rs2_l]) {
-            if((hart->pc + (int64_t) imm) % 2 != 0)
+            if((hart->pc + (int64_t) imm) % 4 != 0)
                 hart->cpu_trap(EXC_INST_ADDR_MISALIGNED,hart->pc + (int64_t) imm,false);
             else
                 hart->pc = hart->pc + (int64_t) imm;
@@ -841,7 +841,7 @@ void exec_BGEU(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
 
     {
         if (hart->regs[rs1_l] >= hart->regs[rs2_l]) {
-            if((hart->pc + (int64_t) imm) % 2 != 0)
+            if((hart->pc + (int64_t) imm) % 4 != 0)
                 hart->cpu_trap(EXC_INST_ADDR_MISALIGNED,hart->pc + (int64_t) imm,false);
             else
                 hart->pc = hart->pc + (int64_t) imm;
@@ -896,6 +896,7 @@ void exec_JALR(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     else
         hart->pc = hart->regs[rs1_l] + (int64_t) imm;
 	hart->regs[rd_l] = tmp+4;
+    opers->brb = true;
 	
     if(!opers->s){
         opers->rd = rd_l;

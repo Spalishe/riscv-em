@@ -65,7 +65,7 @@ void exec_WFI(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     if (hart->mode == 0) { // U
         goto trapcpu;
     }
-    if (tw) {
+    if (hart->mode == 1 && tw) {
         if(hart->mode != 3) {
             goto trapcpu;
         }
@@ -80,13 +80,8 @@ void exec_WFI(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
     return;
 
     trapcpu:
-        if(hart->trap_active) {
-            if(hart->dbg) hart->print_d("{0x%.8X} [WFI] nop",hart->pc);
-            return;
-        } else {
-            hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,0,false);
-            return;
-        }
+        hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,0,false);
+        return;
 }
 
 inline uint64_t bit_set_to(uint64_t number, uint64_t n, bool x) {
@@ -97,44 +92,64 @@ inline bool bit_check(uint64_t number, uint64_t n) {
 }
 
 void exec_SRET(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
-    if(hart->mode == 0) {
-        hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false);
-        return;
-    }
-    if(hart->mode == 1 && (hart->csrs[MSTATUS] & (1ULL << 22))) {
-        hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false);
+    // privilege checks
+    if (hart->mode == 0 ||
+        (hart->mode == 1 && (hart->csrs[MSTATUS] & (1ULL << 22)))) {
+        hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION, inst, false);
         return;
     }
 
-    if(get_bits(hart->csr_read(SSTATUS),8,8) == 1) {
-        hart->mode = 1;
-    } else {
-        hart->mode = 0;
-    }
+    uint64_t sstatus = hart->csr_read(SSTATUS);
 
-    hart->csr_write(SSTATUS, bit_set_to(hart->csr_read(SSTATUS),1,bit_check(hart->csr_read(SSTATUS),5)));
-    hart->csr_write(SSTATUS, bit_set_to(hart->csr_read(SSTATUS),5,true));
-    hart->csr_write(SSTATUS, bit_set_to(hart->csr_read(SSTATUS),8,false));
+    std::cout << "[DBG] sstatus: " << sstatus << std::endl;
+    std::cout << "[DBG] mstatus: " << hart->csr_read(MSTATUS) << std::endl;
+
+    // SIE ← SPIE
+    sstatus = bit_set_to(sstatus, 1, bit_check(sstatus, 5));
+    // SPIE ← 1
+    //sstatus = bit_set_to(sstatus, 5, true);
+    // SPP ← 0
+    sstatus = bit_set_to(sstatus, 8, false);
+
+    hart->csr_write(SSTATUS, sstatus);
+
+    // target mode from SPP
+    hart->mode = ((sstatus >> 8) & 1);
+
+    // jump
     hart->pc = hart->csr_read(SEPC);
 
     hart->trap_active = false;
     if(hart->dbg) hart->print_d("{0x%.8X} [SRET] ahh returned from exc",hart->pc);
 }
 void exec_MRET(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers) {
-    if(get_bits(hart->csrs[MSTATUS],12,11) != 3) {
-        //hart->csrs[MSTATUS] = bit_set_to(hart->csrs[MSTATUS],17,false);
+    if (hart->mode != 3) {
+        hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION, inst, false);
+        return;
+    }
+    uint64_t mstatus = hart->csrs[MSTATUS];
+
+    // target mode
+    uint8_t next_mode = (mstatus >> 11) & 3;
+    if (next_mode < 3) {
+        mstatus &= ~(1ULL << 17); // clear MPRV
     }
 
-    hart->mode = get_bits(hart->csrs[MSTATUS],12,11);
+    // MPP ← U (0)
+    mstatus &= ~((1ULL << 11) | (1ULL << 12));
     
-    hart->csrs[MSTATUS] = bit_set_to(hart->csrs[MSTATUS],3,bit_check(hart->csrs[MSTATUS],7));
-    hart->csrs[MSTATUS] = bit_set_to(hart->csrs[MSTATUS],7,true);
+    // MIE ← MPIE
+    bool mpie = (mstatus >> 7) & 1;
+    mstatus = bit_set_to(mstatus, 3, mpie);
 
-    hart->csrs[MSTATUS] = bit_set_to(hart->csrs[MSTATUS],11,false);
-    hart->csrs[MSTATUS] = bit_set_to(hart->csrs[MSTATUS],12,false);
+    // MPIE ← 1
+    mstatus = bit_set_to(mstatus, 7, true);
+
+    hart->csrs[MSTATUS] = mstatus;
+
+    hart->mode = next_mode;
 
     hart->pc = hart->csrs[MEPC];
-    
     hart->trap_active = false;
     if(hart->dbg) hart->print_d("{0x%.8X} [MRET] ahh returned from exc",hart->pc);
 }

@@ -95,6 +95,8 @@ vector<tuple<string,uint32_t,char,optional<vector<tuple<string,uint8_t,uint8_t>>
         {"TSR", 22, 22},
     }},
     {"cycle", CYCLE, 'c', nullopt},
+    {"time", TIME, 'c', nullopt},
+    {"instret", INSTRET, 'c', nullopt},
     {"misa", MISA, 'c', nullopt},
     {"medeleg", MEDELEG, 'c', nullopt},
     {"mideleg", MIDELEG, 'c', nullopt},
@@ -314,16 +316,17 @@ void GDB_parsePacket(const char* buffer) {
                                 }
                             }
                             
-                            if(gdb_hart->trap_active != prevState) {
+                            /*if(gdb_hart->trap_active != prevState) {
                                 if(gdb_hart->trap_active) {
                                     break;
                                 } else {
                                     prevState = gdb_hart->trap_active;
                                 }
-                            }
+                            }*/
 
                             Device* dev = mmio->devices[1];
                             dynamic_cast<PLIC*>(dev)->plic_service(gdb_hart);
+                            gdb_hart->gdb_advancedstep = true;
                             gdb_hart->cpu_execute();
                         }
                         GDB_sendPacket(gdb_sigint ? "S02" : "S05");
@@ -347,6 +350,7 @@ void GDB_parsePacket(const char* buffer) {
             gdb_isR = false;
             poweroff(false,true);
             std::cout << "[GDB] Killed by GDB stub" << std::endl;
+            exit(0);
             return;
         }
         if(packet.starts_with("c")) {
@@ -371,16 +375,17 @@ void GDB_parsePacket(const char* buffer) {
                         }
                     }
                     
-                    if(gdb_hart->trap_active != prevState) {
+                    /*if(gdb_hart->trap_active != prevState) {
                         if(gdb_hart->trap_active) {
                             break;
                         } else {
                             prevState = gdb_hart->trap_active;
                         }
-                    }
+                    }*/
 
                     Device* dev = mmio->devices[1];
                     dynamic_cast<PLIC*>(dev)->plic_service(gdb_hart);
+                    gdb_hart->gdb_advancedstep = true;
                     gdb_hart->cpu_execute();
                 }
                 GDB_sendPacket(gdb_sigint ? "S02" : "S05");
@@ -436,6 +441,32 @@ void GDB_parsePacket(const char* buffer) {
                 //csr
                 GDB_sendPacket(to_little_endian_hex(gdb_hart->csr_read(idx)));
             }
+            return;
+        }
+        if(packet.starts_with("P")) {
+            //xml get
+            uint64_t idx = stoul(packet.substr(1),nullptr,16);
+            string data = packet.substr(packet.find('=') + 1);
+            uint64_t num = 0;
+            for(uint64_t i = 0; i < 8; i++) {
+                num = num | (stoul(data.substr(i*2,2),nullptr,16) << i);
+            }
+            if(idx <= 31) {
+                //gpr
+                gdb_hart->regs[idx] = num;
+            } else if(idx == 32) {
+                //pc
+                gdb_hart->pc = num;
+            } else if(idx > 32 && idx < 64) {
+                if(idx == 33) {
+                    //priv
+                    gdb_hart->mode = num;
+                }
+            } else if(idx >= 64) {
+                //csr
+                gdb_hart->csr_write(idx,num);
+            }
+            GDB_sendPacket("OK");
             return;
         }
         if(packet.starts_with("g")) {

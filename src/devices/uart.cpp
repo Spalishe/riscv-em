@@ -37,17 +37,29 @@ UART::UART(uint64_t base, DRAM& ram, PLIC* plic, int irq_num, fdt_node* fdt, uin
     }
 
 void UART::trigger_irq() {
-    if (ier & 0x01) { // TX interrupt enabled
-        plic->raise(irq_num);
-    }
+    plic->raise(irq_num);
 }
 
 void UART::clear_irq() {
     plic->clear(irq_num);
 }
 
+uint8_t UART::calc_iir_locked() {
+    // choose RX priority over TX
+    if ((ier & 0x01) && (lsr & LSR_DATA_READY)) {
+        // received data available
+        return IIR_RX_AVAILABLE;
+    }
+    if ((ier & 0x02) && (lsr & LSR_THR_EMPTY)) {
+        // THR empty
+        return IIR_THR_EMPTY;
+    }
+    return IIR_NO_INT;
+}
+
 void UART::update_iir() {
-    if ((ier & 0x02) && (lsr & 0x01)) { // RX interrupt enabled and data ready
+    iir = calc_iir_locked();
+    if (iir != IIR_NO_INT) {
         trigger_irq();
     } else {
         clear_irq();
@@ -133,17 +145,18 @@ void UART::write(HART* hart, uint64_t addr, uint64_t size, uint64_t value) {
                 dll = byte_value;
             } else {
                 thr = byte_value;
+
                 std::putchar(thr);
                 std::fflush(stdout);
-                
-                // TEMT (transmission in progress)
-                lsr &= ~0x40;
-                // THRE (THR empty)
-                lsr |= 0x20;
-                
+
+                lsr |= LSR_THR_EMPTY; // THR empty
+                lsr |= LSR_TEMT;      // Transmitter empty
+
+                if (ier & 0x02) { 
+                    trigger_irq();
+                }
+
                 update_iir();
-                
-                lsr |= 0x40; // Transmission complete
             }
             break;
             
@@ -158,17 +171,16 @@ void UART::write(HART* hart, uint64_t addr, uint64_t size, uint64_t value) {
             
         case 2: // FCR (write) - FIFO Control Register
             fcr = byte_value;
-            fifo_enabled = (fcr & 1) == 1;
-            if((fcr & 3) >> 1 == 1) {
-                std::queue<uint8_t> empty;
+            fifo_enabled = (fcr & 0x01);
+            if (fcr & 0x02) { // clear RX FIFO
+                std::queue<uint8_t> empty; 
                 fifo_buffer.swap(empty);
-                fcr = fcr & ~3 | fifo_enabled;
             }
-            if((fcr & 4) >> 2 == 1) {
+            if (fcr & 0x04) { // clear TX FIFO 
                 //TX Buffer Clear
                 //Empty rn cuz i have no buffer
-                fcr = fcr & ~4 | fifo_enabled;
             }
+
             break;
             
         case 3: // LCR (write)
@@ -206,9 +218,13 @@ void UART::receive_byte(uint8_t byte) {
     } else {
         rhr = byte;
     }
-    lsr |= 0x01; // Data Ready
+    lsr |= LSR_DATA_READY; // Data Ready
+    
+    if (ier & 0x01) { 
+        trigger_irq();
+    }
+
     update_iir();
-    //if (ier & 0x02) trigger_irq(); // RX interrupt enabled
 }
 
 // idk why but why not

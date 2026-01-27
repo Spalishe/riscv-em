@@ -20,6 +20,15 @@ Copyright 2025 Spalishe
 #include "mmio.h"
 #include <queue>
 
+#define IIR_NO_INT 0x01
+#define IIR_THR_EMPTY 0x02
+#define IIR_RX_AVAILABLE 0x04
+
+// LSR bits
+#define LSR_DATA_READY 0x01
+#define LSR_THR_EMPTY 0x20
+#define LSR_TEMT 0x40
+
 struct PLIC;
 
 struct UART : public Device {
@@ -51,6 +60,7 @@ struct UART : public Device {
     void trigger_irq();
     void clear_irq();
     void update_iir();
+    uint8_t calc_iir_locked();
     uint64_t read(HART* hart, uint64_t addr, uint64_t size);
     void write(HART* hart, uint64_t addr, uint64_t size, uint64_t value);
     void receive_byte(uint8_t byte);

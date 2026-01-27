@@ -63,10 +63,23 @@ void ACLINT::start_timer(uint64_t freq_hz) {
         while (!stop_timer) {
             next_time += period;
             std::this_thread::sleep_until(next_time);
-            uint64_t current_time = mtime.fetch_add(1, std::memory_order_seq_cst) + 1;
-            for(HART* hrt : hart_list) {
-                hrt->csrs[TIME] = current_time;
-                update_mip(hrt);
+            if(hart_list[0]->gdbstub) {
+                if(hart_list[0]->gdb_advancedstep) {
+                    mtime.fetch_add(1);
+                    uint64_t current_time = mtime.load();
+                    for(HART* hrt : hart_list) {
+                        hrt->csrs[TIME] = current_time;
+                        update_mip(hrt);
+                    }
+                    hart_list[0]->gdb_advancedstep = false;
+                }
+            } else {
+                mtime.fetch_add(1);
+                uint64_t current_time = mtime.load();
+                for(HART* hrt : hart_list) {
+                    hrt->csrs[TIME] = current_time;
+                    update_mip(hrt);
+                }
             }
         }
     });
@@ -102,8 +115,7 @@ void ACLINT::write(HART* hart, uint64_t addr, uint64_t size, uint64_t value) {
 
 uint64_t ACLINT::read_mswi(HART* hart, uint64_t offset) {
     uint64_t hart_id = offset >> 2;
-    uint64_t pending = hart_list[hart_id]->csrs[MIP] & hart_list[hart_id]->csrs[MIE];
-    return (pending >> IRQ_MSW) & 0x1;
+    return msip[hart_id];
 }
 uint64_t ACLINT::read_mtimer(HART* hart, uint64_t offset) {
     uint64_t hart_id = offset >> 3;
@@ -129,22 +141,20 @@ void ACLINT::write_mtimer(HART* hart, uint64_t offset, uint64_t value) {
 }
 
 void ACLINT::update_mip(HART* hart) {
-    uint64_t mip = hart->h_cpu_csr_read(MIP);
     uint32_t hart_id = hart->h_cpu_id();
 
-    // MSIP -> software interrupt
-    if (msip[hart_id] & 0x1)
+    uint64_t mip = hart->h_cpu_csr_read(MIP);
+
+    if (msip[hart_id] & 1)
         mip |= (1ULL << MIP_MSIP);
     else
         mip &= ~(1ULL << MIP_MSIP);
 
-    // MTIMECMP -> timer interrupt
     if (mtime >= mtimecmp[hart_id])
         mip |= (1ULL << MIP_MTIP);
     else
         mip &= ~(1ULL << MIP_MTIP);
 
-    // STIMECMP -> timer interrupt
     if (mtime >= hart->csrs[STIMECMP])
         mip |= (1ULL << MIP_STIP);
     else

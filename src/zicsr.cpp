@@ -201,8 +201,7 @@ void exec_CSRRWI(struct HART *hart, uint32_t inst, CACHE_DecodedOperands* opers)
         if (rd_l != 0) {
             hart->regs[rd_l] = hart->csr_read(imm);
         }
-        if (rs1_l != 0)
-            hart->csr_write(imm,rs1_l);
+        hart->csr_write(imm,rs1_l);
     }
 
     if(!opers->s){

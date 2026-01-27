@@ -16,6 +16,7 @@ Copyright 2025 Spalishe
 */
 
 #include "../../include/devices/mmio.h"
+#include "../../include/devices/uart.hpp"
 #include "../../include/cpu.h"
 #include "../../include/csr.h"
 #include "../../include/dram.h"

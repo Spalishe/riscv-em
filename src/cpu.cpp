@@ -64,7 +64,8 @@ uint32_t HART::cpu_fetch(uint64_t _pc) {
 	uint64_t fetch_buffer_end = fetch_pc + 28;
 	if(_pc < fetch_pc || _pc > fetch_buffer_end) {
 		// Refetch
-		memmap.copy_mem(_pc,32,&fetch_buffer);
+		bool out = memmap.copy_mem_safe(_pc,32,&fetch_buffer);
+		if(out == false) return 0; 
 		fetch_pc = _pc;
 	}
 	uint8_t fetch_indx = (_pc - fetch_pc) / 4;
@@ -457,6 +458,14 @@ void HART::cpu_execute() {
 				cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false);
 			}
 			instr = parse_instruction(this,inst,upc);
+			if(instr.valid == false) {
+				std::cout << "[RISCVEM] ILLEGAL INSTR at PC 0x" << std::hex << upc << " from PC 0x" << debug_last_pc << std::dec << std::endl;
+				std::cout << "[RISCVEM] PC Trace:" << std::endl;
+				for(uint64_t i = pc_trace_full.size()-1; i > pc_trace_full.size()-9; i--) {
+					std::cout << std::format("    [{:}] 0x{:08x}",i,pc_trace_full[i]) << std::endl;
+				}
+				cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false);
+			}
 		}
 		debug_last_pc = upc;
 		if(dbg && dbg_showinst) {
@@ -470,7 +479,7 @@ void HART::cpu_execute() {
 		(void)__2;
 		int32_t immo = (int32_t)immopt;
 		int OP = inst & 3;
-		if(block_enabled && instr_block_cache_count_executed[pc] >= (gdbstub ? UINT64_MAX : PC_EXECUTE_COUNT_TO_BLOCK)) {
+		if(block_enabled && instr_block_cache_count_executed[pc] >= (gdbstub ? UINT64_MAX : UINT64_MAX)) {
 			if(!j) {
 				instr_block.push_back(instr);
 				virt_pc += (OP == 3 ? 4 : 2);
@@ -602,184 +611,196 @@ uint64_t HART::cpu_readfile(std::string path, uint64_t addr, bool bigendian) {
     return static_cast<uint64_t>(size);
 }
 
-// convenience macro to set mcause interrupt bit for XLEN=64
-static inline uint64_t mcause_encode(bool interrupt, uint64_t code) {
-    if (sizeof(uintptr_t) == 8)
-        return (interrupt ? (1ULL << 63) : 0ULL) | (code & ~(1ULL<<63));
-    else
-        return (interrupt ? (1U << 31) : 0U) | (code & ~(1U<<31));
-}
 
+void HART::cpu_trap(uint64_t cause, uint64_t tval, bool is_interrupt)
+{
+    if (trap_active)
+        return;
 
-void HART::cpu_trap(uint64_t cause, uint64_t tval, bool is_interrupt) {
-	trap_active = true;
-	trap_notify = true;
-	instr_block.clear(); // Trap changes PC so yea
-	if(dbg) {
-		std::cout << (is_interrupt ? "INTERRUPT" : "EXCEPTION") << " " << cause << "   " << tval << std::endl;
-	}
+	if (mode == 3)
+		csrs[MSTATUS] &= ~(1ULL << MSTATUS_MIE_BIT);
+	else if (mode == 1)
+		csrs[MSTATUS] &= ~(1ULL << SSTATUS_SIE_BIT);
 
-    // current mode
-    uint64_t cur_mode = mode; // 0=U,1=S,2=H,3=M
+    trap_active = true;
+    trap_notify = true;
+    instr_block.clear();
 
-	if (is_interrupt && stopexec) {
-		stopexec = false;
-	}
+    if (dbg) {
+        std::cout << (is_interrupt ? "INTERRUPT" : "EXCEPTION")
+                  << " cause=" << cause
+                  << " tval=" << tval << std::endl;
+    }
 
-    // Read delegation registers
+    uint64_t cur_mode = mode; // 0=U, 1=S, 3=M
+
+    if (is_interrupt && stopexec)
+        stopexec = false;
+
     uint64_t medeleg = csrs[MEDELEG];
     uint64_t mideleg = csrs[MIDELEG];
 
-    // Decide whether to delegate to S-mode:
-    bool can_delegate_to_s = (cur_mode != 3); // only traps from U or S can be delegated
     bool delegate_to_s = false;
-    if (can_delegate_to_s && cur_mode < 3) {
-        if (is_interrupt) {
-            if ( (mideleg >> cause) & 1ULL ) delegate_to_s = true;
-        } else {
-            if ( (medeleg >> cause) & 1ULL ) delegate_to_s = true;
-        }
+    if (cur_mode != 3) {
+        if (is_interrupt)
+            delegate_to_s = (mideleg >> cause) & 1ULL;
+        else
+            delegate_to_s = (medeleg >> cause) & 1ULL;
     }
 
     if (delegate_to_s) {
-        // Supervisor trap handling (write sepc/scause/stval, update sstatus, jump to stvec)
-		csr_write(SEPC,pc);
-		csr_write(SCAUSE,mcause_encode(is_interrupt, cause));
-		csr_write(STVAL,tval);
 
-        // Update sstatus: SPIE <- SIE; SIE <- 0; SPP <- old privilege (0 for U, 1 for S)
+        csr_write(SEPC, pc);
+        csr_write(SCAUSE, ((uint64_t)is_interrupt << 63 | cause));
+        csr_write(STVAL, tval);
+
         uint64_t sstatus = csr_read(SSTATUS);
-        uint64_t old_sie = (sstatus >> SSTATUS_SIE_BIT) & 1ULL;
-        // clear SPIE, SPP, SIE
-        sstatus &= ~((1ULL<<SSTATUS_SPIE_BIT) | (1ULL<<SSTATUS_SPP_BIT) | (1ULL<<SSTATUS_SIE_BIT));
-        if (old_sie) sstatus |= (1ULL<<SSTATUS_SPIE_BIT);
-        if (cur_mode == 1) sstatus |= (1ULL<<SSTATUS_SPP_BIT); // set SPP if came from S; else leave 0 for U
-		csr_write(SSTATUS,sstatus);
 
-        // Switch to S-mode
+        uint64_t sie = (sstatus >> SSTATUS_SIE_BIT) & 1ULL;
+
+        sstatus &= ~(
+            (1ULL << SSTATUS_SIE_BIT)  |
+            (1ULL << SSTATUS_SPIE_BIT) |
+            (1ULL << SSTATUS_SPP_BIT)
+        );
+
+        if (sie)
+            sstatus |= (1ULL << SSTATUS_SPIE_BIT);
+
+        if (cur_mode == 1)
+            sstatus |= (1ULL << SSTATUS_SPP_BIT);
+
+        csr_write(SSTATUS, sstatus);
+
         mode = 1;
 
-        // Compute target PC from stvec
         uint64_t stvec = csr_read(STVEC);
-        uint64_t v_mode = stvec & TVEC_MODE_MASK;
-        uint64_t base = stvec & TVEC_BASE_MASK;
-        if (v_mode == 0) {
+        uint64_t base  = stvec & TVEC_BASE_MASK;
+        uint64_t vmode = stvec & TVEC_MODE_MASK;
+
+        if (vmode == 1 && is_interrupt)
+            pc = base + 4 * cause;
+        else
             pc = base;
-			virt_pc = base;
-        } else if (v_mode == 1 && is_interrupt) {
-            // vectored only for interrupts
-			pc = base + 4 * cause;
-			virt_pc = base + 4 * cause;
-			return;
-        } else {
-            pc = base; // fallback
-			virt_pc = base;
-        }
+		
 
-    } else {
-        // Machine trap handling (write mepc/mcause/mtval, update mstatus, jump to mtvec)
-        csrs[MEPC] = pc;
-        csrs[MCAUSE] = mcause_encode(is_interrupt, cause);
-        csrs[MTVAL] = tval;
-
-        // Update mstatus: MPIE <- MIE; MIE <- 0; MPP <- cur_mode
-        uint64_t mstatus = csrs[MSTATUS];
-        uint64_t old_mie = (mstatus >> MSTATUS_MIE_BIT) & 1ULL;
-        // clear MPIE, MPP, MIE
-        mstatus &= ~((1ULL<<MSTATUS_MPIE_BIT) | MSTATUS_MPP_MASK | (1ULL<<MSTATUS_MIE_BIT));
-        if (old_mie) mstatus |= (1ULL<<MSTATUS_MPIE_BIT);
-        uint64_t mpp = cur_mode;
-        mstatus |= ((mpp << MSTATUS_MPP_SHIFT) & MSTATUS_MPP_MASK);
-        csrs[MSTATUS] = mstatus;
-
-        // Switch to M-mode
-        mode = 3;
-
-        // Compute target PC from mtvec
-        uint64_t mtvec = csrs[MTVEC];
-        uint64_t v_mode = mtvec & TVEC_MODE_MASK;
-        uint64_t base = mtvec & TVEC_BASE_MASK;
-        if (v_mode == 0) {
-            pc = base;
-			virt_pc = base;
-        } else if (v_mode == 1 && is_interrupt) {
-			pc = base + 4 * cause;
-			virt_pc = base + 4 * cause;
-			return;
-        } else {
-            pc = base;
-			virt_pc = base;
-        }
+        virt_pc = pc;
+        return;
     }
+
+    csrs[MEPC]   = pc;
+    csrs[MCAUSE] = ((uint64_t)is_interrupt << 63 | cause);
+    csrs[MTVAL]  = tval;
+
+    uint64_t mstatus = csrs[MSTATUS];
+    uint64_t mie = (mstatus >> MSTATUS_MIE_BIT) & 1ULL;
+
+    mstatus &= ~(
+        (1ULL << MSTATUS_MIE_BIT)  |
+        (1ULL << MSTATUS_MPIE_BIT) |
+        MSTATUS_MPP_MASK
+    );
+
+    if (mie)
+        mstatus |= (1ULL << MSTATUS_MPIE_BIT);
+
+    mstatus |= (cur_mode << MSTATUS_MPP_SHIFT) & MSTATUS_MPP_MASK;
+
+    csrs[MSTATUS] = mstatus;
+
+    mode = 3;
+
+    uint64_t mtvec = csrs[MTVEC];
+    uint64_t base  = mtvec & TVEC_BASE_MASK;
+    uint64_t vmode = mtvec & TVEC_MODE_MASK;
+
+    if (vmode == 1 && is_interrupt)
+        pc = base + 4 * cause;
+    else
+        pc = base;
+
+    virt_pc = pc;
 }
 
 void HART::cpu_check_interrupts() {
-    uint64_t mip = csrs[MIP];
-    uint64_t mie = csrs[MIE];
+    uint64_t mip     = csrs[MIP];
+    uint64_t mie     = csrs[MIE];
     uint64_t mstatus = csrs[MSTATUS];
     uint64_t sstatus = csr_read(SSTATUS);
     uint64_t mideleg = csrs[MIDELEG];
 
-    bool m_ie_glob = (mstatus >> MSTATUS_MIE_BIT) & 1;
-    bool s_ie_glob = (sstatus >> SSTATUS_SIE_BIT) & 1;
+    bool m_ie = (mstatus >> MSTATUS_MIE_BIT) & 1;
+    bool s_ie = (sstatus >> SSTATUS_SIE_BIT) & 1;
 
-    uint64_t m_irq_mask = (1ULL << MIP_MEIP) | (1ULL << MIP_MSIP) | (1ULL << MIP_MTIP);
-    uint64_t m_pending = mip & m_irq_mask;
-    uint64_t m_enabled = mie & m_pending;
-    if (m_ie_glob && m_enabled) {
-        if (m_enabled & (1ULL << MIP_MEIP)) {
+    uint64_t pending = mip & mie;
+	if(trap_active) return;
+    if (!pending)
+        return;
+
+    if (mode == 3) {
+        if (!m_ie)
+            return;
+
+        if (pending & (1ULL << MIP_MEIP)) {
             cpu_trap(IRQ_MEXT, 0, true);
             return;
-        } else if (m_enabled & (1ULL << MIP_MSIP)) {
+        }
+        if (pending & (1ULL << MIP_MSIP)) {
             cpu_trap(IRQ_MSW, 0, true);
             return;
-        } else if (m_enabled & (1ULL << MIP_MTIP)) {
+        }
+        if (pending & (1ULL << MIP_MTIP)) {
             cpu_trap(IRQ_MTIMER, 0, true);
             return;
         }
+        return;
     }
-    uint64_t s_irq_mask = (1ULL << MIP_SEIP) | (1ULL << MIP_SSIP) | (1ULL << MIP_STIP);
-    if (mode == 3 || mode == 1) {
-        uint64_t s_pending = mip & s_irq_mask;
-        uint64_t s_view_pending = s_pending;
-        bool s_glob_ie;
-        if (mode == 1) {
-            s_view_pending &= mideleg;
-            s_glob_ie = s_ie_glob;
-        } else {
-            s_glob_ie = m_ie_glob;
+
+    /* ---- external ---- */
+    if (pending & (1ULL << MIP_SEIP)) {
+        if ((mideleg & (1ULL << IRQ_SEXT)) && s_ie) {
+            cpu_trap(IRQ_SEXT, 0, true);
+        } else if (m_ie) {
+            cpu_trap(IRQ_SEXT, 0, true);
         }
-        uint64_t s_enabled = mie & s_view_pending;
-        if (s_glob_ie && s_enabled) {
-            if (s_enabled & (1ULL << MIP_SEIP)) {
-				//Heizenbug: if no actions with those are not applied under a gdb stub it fucking explodes
-				if(gdbstub)
-					std::cout << s_glob_ie << " " << (uint64_t)mode << std::endl;
-                cpu_trap(IRQ_SEXT, 0, true);
-                return;
-            } else if (s_enabled & (1ULL << MIP_SSIP)) {
-				if(gdbstub)
-					std::cout << s_glob_ie << " " << (uint64_t)mode << std::endl;
-                cpu_trap(IRQ_SSW, 0, true);
-                return;
-            } else if (s_enabled & (1ULL << MIP_STIP)) {
-				if(gdbstub)
-					std::cout << s_glob_ie << " " << (uint64_t)mode << std::endl;
-                cpu_trap(IRQ_STIMER, 0, true);
-                return;
-            }
+        return;
+    }
+
+    /* ---- software ---- */
+    if (pending & (1ULL << MIP_SSIP)) {
+        if ((mideleg & (1ULL << IRQ_SSW)) && s_ie) {
+            cpu_trap(IRQ_SSW, 0, true);
+        } else if (m_ie) {
+            cpu_trap(IRQ_SSW, 0, true);
         }
+        return;
+    }
+
+    /* ---- timer ---- */
+    if (pending & (1ULL << MIP_STIP)) {
+        if ((mideleg & (1ULL << IRQ_STIMER)) && s_ie) {
+            cpu_trap(IRQ_STIMER, 0, true);
+        } else if (m_ie) {
+            cpu_trap(IRQ_STIMER, 0, true);
+        }
+        return;
     }
 }
+
+#define SSTATUS_MASK 0x80000003000DE762
+
+#define SIE_MASK ((1ULL << MIP_SSIP) | (1ULL << MIP_STIP) | (1ULL << MIP_SEIP))
+
+#define SIP_WMASK (1ULL << MIP_SSIP)
 
 uint64_t HART::csr_read(uint64_t addr) {
 	switch(addr) {
 		case SSTATUS:
-			return csrs[MSTATUS] & 0x80000003000DE762; // Bit mask for S-bits
+			return csrs[MSTATUS] & SSTATUS_MASK; // Bit mask for S-bits
 		case SIE:
-			return csrs[MIE] & 0x222;
+			return csrs[MIE] & SIE_MASK;
 		case SIP:
-			return csrs[MIP] & 0x222;
+			return csrs[MIP] & SIE_MASK;
 		default:
 			return csrs[addr];
 	}
@@ -795,13 +816,13 @@ void HART::csr_write(uint64_t addr,uint64_t val) {
 			csrs[STVEC] = val;
 			break;
 		case SSTATUS:
-			csrs[MSTATUS] = (csrs[MSTATUS] & ~0x80000003000DE762) | (val & 0x80000003000DE762); // Bit mask for S-bits
+			csrs[MSTATUS] = (csrs[MSTATUS] & ~SSTATUS_MASK) | (val & SSTATUS_MASK); // Bit mask for S-bits
 			break;
 		case SIE:
-			csrs[MIE] = (csrs[MIE] & ~0x222) | (val & 0x222);
+			csrs[MIE] = (csrs[MIE] & ~SIE_MASK) | (val & SIE_MASK);
 			break;
 		case SIP:
-			csrs[MIP] = (csrs[MIP] & ~0x222) | (val & 0x222);
+			csrs[MIP] = (csrs[MIP] & ~SIP_WMASK) | (val & SIP_WMASK);
 			break;
 		default:
 			csrs[addr] = val;

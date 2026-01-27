@@ -66,12 +66,14 @@ struct HART {
 
     bool testing;
     bool gdbstub;
+    bool gdb_advancedstep;
     bool dbg;
     bool dbg_showinst = true;
     bool dbg_singlestep;
 	uint64_t breakpoint;
 
     std::vector<uint64_t> pc_trace_full;
+
 
 	uint8_t id;
 
