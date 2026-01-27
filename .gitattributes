@@ -1,1 +1,2 @@
 disk.img filter=lfs diff=lfs merge=lfs -text
+deprecated merge=ours
