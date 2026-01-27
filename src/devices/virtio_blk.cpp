@@ -294,7 +294,7 @@ uint64_t VirtIO_BLK::read(HART* hart, uint64_t addr, uint64_t size) {
         case VIRT_REG_VERSION:
         case VIRT_REG_DEVICEID:
             return 0x2;
-        case VIRT_REG_VENDORID: return 0x554d4551; // 0x554d4551 for xv6 idk why
+        case VIRT_REG_VENDORID: return 0x4d455652; // 0x554d4551 for xv6 idk why
         case VIRT_REG_DEVICEFEATURES: {
             if (device_features_sel == 0) return (uint32_t)(device_features & 0xFFFFFFFF);
             else return (uint32_t)(device_features >> 32);
