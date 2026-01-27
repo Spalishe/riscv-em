@@ -20,31 +20,16 @@ Copyright 2025 Spalishe
 #include "../include/argparser.h"
 
 #include "../include/devices/mmio.h"
-#include "../include/devices/clint.hpp"
 #include "../include/devices/aclint.hpp"
 #include "../include/devices/rom.hpp"
 #include "../include/devices/plic.hpp"
 #include "../include/devices/uart.hpp"
 #include "../include/devices/dtb.hpp"
 #include "../include/devices/syscon.hpp"
-#include "../include/devices/pci.hpp"
-#include "../include/devices/i2c_oc.hpp"
-#include "../include/devices/i2c_hid.hpp"
-#include "../include/devices/hid_keyboard.hpp"
-#include "../include/devices/framebuffer.hpp"
 #include "../include/devices/virtio_blk.hpp"
-
-#include <linux/input.h>
-#include <poll.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <termios.h>
-
-#include "../include/sdl.hpp"
 
 #include "../include/memory_map.h"
 #include "../include/libfdt.hpp"
-#include "../include/main.hpp"
 #include "../include/gdbstub.hpp"
 #include <string>
 #include <vector>
@@ -59,13 +44,12 @@ Copyright 2025 Spalishe
 /*
 	What should i add to functionality if i want to add 2 harts:
 		- FENCE
+		- THE REAL ATOMICITY
 
 	The Broken Insts:
 		none
 	TODO:
-		-CSR Write/Read functions:
-			Must Replace:
-				JIT (Don't touch rn, there still chance of removing it)
+		Entire core btw
 		- Counter CSRs
 		-RTC GoldFish
 
@@ -86,33 +70,10 @@ Copyright 2025 Spalishe
 		-RV64D for RV64C
 */
 
-bool hasValue(char* arr[], int arrlen, std::string match) {
-	bool has = false;
-	for (int i = 1; i < arrlen; ++i) {
-        if (std::string(arr[i]) == match) {
-            has = true;
-            break;
-        }
-	}
-	return has;
-}
-
-struct termios oldt;
-struct termios newt;
-bool termios_override;
-void termios_reset(int signum) {
-	tcsetattr(STDIN_FILENO, TCSAFLUSH, &oldt);
-	_exit(signum);
-}
-void termios_reset_noexit() {
-	tcsetattr(STDIN_FILENO, TCSAFLUSH, &oldt);
-}
-
 MemoryMap memmap;
 
 
 std::string file;
-bool debug = false;
 
 bool gdb_stub = false;
 
@@ -129,11 +90,6 @@ bool dtb_dump_has = false;
 std::string image_path;
 bool image_has = false;
 
-bool testing_enabled = false; // This must be enabled only if cpu testing required. For this to work, you need to compile https://github.com/riscv-software-src/riscv-tests
-std::vector<std::string> testing_files;
-
-bool nojit = false;
-
 std::string cmdline_append;
 
 fdt_node* fdt; 
@@ -141,21 +97,9 @@ fdt_node* fdt;
 HART* hart;
 MMIO* mmio;
 ACLINT* clint;
-FRAMEBUFFER* fb;
-uint16_t fb_width = 640;
-uint16_t fb_height = 480;
-
-bool shutdown = false;
-
-bool kb_running = true;
-std::thread kb_t;
 
 std::vector<HART*> hart_list;
 std::unordered_map<HART*,std::thread> hart_list_threads;
-
-//WHY
-std::atomic<bool> remove_california = false;
-std::atomic<bool> reset_pending = false;
 
 void add_devices_and_map() {
 	memmap.add_region(DRAM_BASE, DRAM_SIZE);
@@ -264,71 +208,12 @@ void add_devices_and_map() {
 	mmio->add(uart);
 	irq_num ++;
 
-	memmap.add_region(0x10030000, 0x1000);
-	i2c_bus_t* i2c_os = new i2c_bus_t(0x10030000,hart->dram,plic,irq_num,(dtb_has ? NULL : fdt));
-	mmio->add(i2c_os);
-	irq_num ++;
-
-	hid_keyboard* kb = hid_keyboard_init(1,hart->dram,plic,irq_num,(dtb_has ? NULL : fdt),i2c_os);
-	irq_num ++;
-	if(!debug) {
-		kb_running = true;
-		struct sigaction sa;
-		sa.sa_handler = termios_reset;
-		sigemptyset(&sa.sa_mask);
-		sa.sa_flags = 0;
-		sigaction(SIGINT, &sa, NULL);
-		sigaction(SIGKILL, &sa, NULL);
-		sigaction(SIGTERM, &sa, NULL);
-		sigaction(SIGABRT, &sa, NULL);
-		sigaction(SIGSEGV, &sa, NULL);
-
-		termios_override = true;
-		tcgetattr(STDIN_FILENO, &oldt);
-		tcgetattr(STDIN_FILENO, &newt);
-		newt.c_lflag &= ~(ICANON | ECHO | ISIG);
-		tcsetattr(STDIN_FILENO, TCSANOW, &newt);
-		
-		kb_t = std::thread([]() {
-			while (kb_running) {
-				fd_set fds;
-				FD_ZERO(&fds);
-				FD_SET(STDIN_FILENO, &fds);
-				
-				struct timeval tv = {0, 100000}; // 100ms timeout
-				
-				if (select(1, &fds, NULL, NULL, &tv) > 0) {
-					unsigned char buf[8];
-					int n = read(STDIN_FILENO, buf, sizeof(buf));
-					if (n > 0) {
-						// Ctrl+Alt+C
-						if (n >= 2 && buf[0] == 0x1B && buf[1] == 0x03) {
-							poweroff(false,true);
-							break;
-						}
-						else {
-							for (int i = 0; i < n; i++) {
-								dynamic_cast<UART*>(mmio->devices[3])->receive_byte(buf[i]);
-							}
-						}
-        			}
-				}
-			}
-		});
-	}
-
 	memmap.add_region(0x02000000, 0x10000);
 	clint = new ACLINT(0x02000000,hart->dram,1,(dtb_has ? NULL : fdt));
 	uint64_t clint_freq = 100000;
 	if(!dtb_has) fdt_node_add_prop_u32(fdt_node_find(fdt,"cpus"), "timebase-frequency", clint_freq);
 	clint->start_timer(clint_freq);
 	mmio->add(clint);
-	
-	if(using_SDL) {
-		memmap.add_region(0x18000000, fb_width*fb_height*4);
-		fb = new FRAMEBUFFER(0x18000000,hart->dram,(dtb_has ? NULL : fdt),fb_width,fb_height);
-		mmio->add(fb);
-	}
 
 	/*memmap.add_region(0x30000000, 0x10000000);
 	PCI* pci = new PCI(0x30000000,0x10000000,hart->dram,(dtb_has ? NULL : fdt));
@@ -343,54 +228,13 @@ void add_devices_and_map() {
 	}
 }
 
-void sdl_loop() {
-	while(true) {
-		if(remove_california) poweroff(false,false);
-		if(reset_pending) reset(false);
-		if(shutdown) break;
-		if(using_SDL) SDL_loop();
-	}
-	shutdown = false;
+void poweroff() {
+	// FIXME
 }
 
-void poweroff(bool ctrlc, bool isNotMain) {
-	if(isNotMain) {
-		remove_california = true;
-		return;
-	} else {
-		kb_running = false;
-		if(termios_override) {termios_reset_noexit();}
-		if(!ctrlc) {
-			if (kb_t.joinable())
-				kb_t.join();
-		} else kb_t.detach();
-		clint->stop_timer_thread();
-		for(HART* hrt : hart_list) {
-			hrt->god_said_to_destroy_this_thread = true;
-			if (hart_list_threads[hrt].joinable())
-				hart_list_threads[hrt].join();
-			delete hrt;
-		}
-		shutdown = true;
-		GDB_Stop();
-		exit(0);
-	}
-}
-
-void fastexit() {
-	clint->stop_timer_thread();
-	for(HART* hrt : hart_list) {
-		hrt->god_said_to_destroy_this_thread = true;
-		if (hart_list_threads[hrt].joinable())
-			hart_list_threads[hrt].join();
-		delete hrt;
-	}
-	shutdown = true;
-	if(termios_override) {termios_reset(1);}
-}
-
-void reset(bool isNotMain) {
-	if(isNotMain) {
+void reset() {
+	// FIXME
+	/*if(isNotMain) {
 		reset_pending = true;
 		return;
 	} else {
@@ -460,7 +304,7 @@ void reset(bool isNotMain) {
 			hart_list_threads[hrt] = std::thread(&HART::cpu_start,hart,debug,dtb_path_in_memory,gdb_stub);
 		}
 		sdl_loop();
-	}
+	}*/
 }
 
 int main(int argc, char* argv[]) {
@@ -473,22 +317,15 @@ int main(int argc, char* argv[]) {
 
 	parser.addArgument("--dtb", "Use specified FDT instead of auto-generated",false,false,Argparser::ArgumentType::str);
 	parser.addArgument("--dumpdtb", "Dumps auto-generated FDT to file",false,false,Argparser::ArgumentType::str);
-	parser.addArgument("--debug", "Enables DEBUG mode", false, false, Argparser::ArgumentType::def);
 	parser.addArgument("--gdb", "Starts GDB Stub on port 1234", false, false, Argparser::ArgumentType::def);
-	parser.addArgument("--tests", "Enables TESTING mode(dev only)", false, false, Argparser::ArgumentType::def);
-	parser.addArgument("--nographic", "Disables Framebuffer", false, false, Argparser::ArgumentType::def);
 	parser.addArgument("--append", "Append command line arguments", false, false, Argparser::ArgumentType::str);
 
 	parser.parse();
 
-	if(parser.getDefined(9)) {
-		cmdline_append = parser.getString(9);
+	if(parser.getDefined(6)) {
+		cmdline_append = parser.getString(6);
 		std::cout << "Custom cmdargs defined: " << cmdline_append << std::endl;
 	}
-
-	using_SDL = !parser.getDefined(8);
-	if(using_SDL)
-		SDL_initSDL(fb_width,fb_height);
 
 	kernel_has = parser.getDefined(1);
 	if(kernel_has) 
@@ -505,46 +342,13 @@ int main(int argc, char* argv[]) {
 	dtb_dump_has = parser.getDefined(4);
 	if(dtb_dump_has)
 		dtb_dump_path = parser.getString(4);
-
-	debug = parser.getDefined(5);
-	if(debug)
-		std::cout << "[DEBUG] Entered debug mode." << std::endl;
 	
-	gdb_stub = parser.getDefined(6);
-
-	testing_enabled = parser.getDefined(7);
-	if(testing_enabled) {
-		std::cout << "[TESTING] You entered testing mode." << std::endl;
-		std::cout << "[TESTING] In this mode, ./tests folder will be iterated by .bin files" << std::endl;
-		std::cout << "[TESTING] Those bin files must be tests from repository https://github.com/riscv-software-src/riscv-tests" << std::endl;
-		DIR *dp;
-		int i = 0;
-		struct dirent *ep;     
-		dp = opendir ("./tests");
-		if (dp == NULL) {
-			std::cerr << "[TESTING] Couldn't open the \"tests\" directory" << std::endl;
-			return 1;
-		}
-		
-		using recursive_directory_iterator = std::filesystem::recursive_directory_iterator;
-		for (const auto& dirEntry : recursive_directory_iterator("./tests")) {
-			testing_files.push_back(dirEntry.path());
-			i += 1;
-		}
-
-		std::cout << "[TESTING] CPU will iterate over " << i << " files" << std::endl;	
-	}
+	gdb_stub = parser.getDefined(5);
 
 	bool file_has = parser.getDefined(0);
 	if(file_has) {
 		file = parser.getString(0);
 		std::cout << "Opening bootloader: " << file << std::endl;
-	} else {
-		if(!testing_enabled && !debug) {
-			std::cerr << "--bios has not been specified" << std::endl;
-			parser.printHelp();
-			return 1;
-		}
 	}
 
 	hart = new HART();
@@ -582,86 +386,25 @@ int main(int argc, char* argv[]) {
 	} else {
 		// places our dtb in memory
 
-		hart->cpu_readfile(dtb_path, dtb_path_in_memory, false);
+		// FIXME: Load dtb to memory
+		//hart->cpu_readfile(dtb_path, dtb_path_in_memory, false);
 	}
 
 	if (kernel_has) {
 		std::cout << "Loading kernel: " << kernel_path << std::endl;
-		hart->cpu_readfile(kernel_path, DRAM_BASE + 0x200000,false);
-	}
-
-	static struct termios old_tio;
-	if(!debug && false) { // disable for rn
-		struct termios new_tio;
-
-		if (tcgetattr(STDIN_FILENO, &old_tio) < 0) {
-			perror("tcgetattr");
-			exit(1);
-		}
-
-		new_tio = old_tio;
-		
-		new_tio.c_lflag &= ~(ICANON | ECHO);
-
-		if (tcsetattr(STDIN_FILENO, TCSANOW, &new_tio) < 0) {
-			perror("tcsetattr");
-			exit(1);
-		}
+		// FIXME: Load kernel to memory
+		//hart->cpu_readfile(kernel_path, DRAM_BASE + 0x200000,false);
 	}
 
 	if (!file.empty()) {
-		hart->cpu_readfile(file, DRAM_BASE,false);
+		// FIXME: Load bios to memory
+		//hart->cpu_readfile(file, DRAM_BASE,false);
 	}
 
-	if(!testing_enabled) {
-		for (HART* hrt : hart_list) {
-			hart_list_threads[hrt] = std::thread(&HART::cpu_start,hrt,debug,dtb_path_in_memory,gdb_stub);
-		}
-		if(gdb_stub) GDB_Create(hart_list[0]);
-	} else {
-		std::vector<std::string> failed;
-		int succeded = 0;
-		
-		for(std::string &val : testing_files) {
-			for(int i=0; i < 0x8000; i++) {
-				dram_store(&hart->dram,DRAM_BASE + i, 8, 0);
-			}
-			std::cout << "[TESTING] Executing file " << val << "... ";
-			hart->cpu_readfile(val, DRAM_BASE,false);
-			int out = hart->cpu_start_testing();
-			if(out != 0) {
-				std::cout << "[\033[31mFAIL\033[0m] A0 = " << out << std::endl;	
-				failed.push_back(val);
-			} else {
-				std::cout << "[\033[32mSUCCESS\033[0m]" << std::endl;	
-				succeded += 1;
-			}
-		}
-		
-		std::cout << "[TESTING] " << succeded << " tests out of " << testing_files.size() << " passed." << std::endl;
-		if(failed.size() > 0) {
-			std::cout << "[TESTING] Failed tests:" << std::endl;
-			for(std::string &val : failed) {
-				std::cout << "[TESTING] "  << val << std::endl;
-			}
-		}
-		
-		kb_running = false;
-		if (kb_t.joinable())
-			kb_t.join();
-		kb_t.detach();
-		clint->stop_timer_thread();
-
-		for(HART* hrt : hart_list) {
-			hrt->god_said_to_destroy_this_thread = true;
-			hart_list_threads[hrt].join();
-			delete hrt;
-		}
-		
-		exit(0);
+	for (HART* hrt : hart_list) {
+		hart_list_threads[hrt] = std::thread(&HART::cpu_start,hrt,dtb_path_in_memory,gdb_stub);
 	}
-	
-	sdl_loop();
+	if(gdb_stub) GDB_Create(hart_list[0]);
 
 	for(HART* hrt : hart_list) {
 		hart_list_threads[hrt].join();

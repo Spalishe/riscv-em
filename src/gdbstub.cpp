@@ -1,5 +1,4 @@
 #include "../include/gdbstub.hpp"
-#include "../include/main.hpp"
 #include "../include/devices/plic.hpp"
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -235,7 +234,6 @@ void GDB_Stop() {
 }
 
 uint32_t GDB_send(string buffer, uint32_t flags = 0) {
-    if(debug) cout << "[GDB] Send: " << buffer << endl;
     size_t total = 0;
     while (total < buffer.size() ) {
         ssize_t sent = send(gdb_recv, buffer.c_str() + total, buffer.size() - total, flags);
@@ -250,7 +248,6 @@ uint32_t GDB_sendPacket(string buffer, uint32_t flags = 0) {
         sum += ch;
     }
     buffer = format("${:}#{:02x}\0",buffer,sum);
-    if(debug) cout << "[GDB] Send: " << buffer << endl;
     size_t total = 0;
     while (total < buffer.size() ) {
         ssize_t sent = send(gdb_recv, buffer.c_str() + total, buffer.size() - total, flags);
@@ -297,38 +294,7 @@ void GDB_parsePacket(const char* buffer) {
                 case 'c': {
                     gdb_exec = true;
                     gdb_execth = thread([]() {
-                        bool prevState = gdb_hart->trap_active;
-                        while(true) {
-                            if(gdb_hart->god_said_to_destroy_this_thread) break;
-                            if(!gdb_exec) break;
-                            if(gdb_hart->stopexec) continue;
-
-                            auto it = find(gdb_bp.begin(), gdb_bp.end(), gdb_hart->pc);
-                            if(it != gdb_bp.end()) {
-                                gdb_exec = false;
-                                break;
-                            }
-
-                            if(gdb_hart->reservation_valid) {
-                                uint64_t val = dram_load(&(gdb_hart->dram),gdb_hart->reservation_addr,gdb_hart->reservation_size);
-                                if(val != gdb_hart->reservation_value) {
-                                    gdb_hart->reservation_valid = false;
-                                }
-                            }
-                            
-                            /*if(gdb_hart->trap_active != prevState) {
-                                if(gdb_hart->trap_active) {
-                                    break;
-                                } else {
-                                    prevState = gdb_hart->trap_active;
-                                }
-                            }*/
-
-                            Device* dev = mmio->devices[1];
-                            dynamic_cast<PLIC*>(dev)->plic_service(gdb_hart);
-                            gdb_hart->gdb_advancedstep = true;
-                            gdb_hart->cpu_execute();
-                        }
+                        // FIXME: Place there Continuation code
                         GDB_sendPacket(gdb_sigint ? "S02" : "S05");
                         gdb_sigint = false;
                     });
@@ -337,7 +303,7 @@ void GDB_parsePacket(const char* buffer) {
                     break;
                 }
                 case 's':
-                    gdb_hart->cpu_execute();
+                    // FIXME: Place there Step code
                     GDB_sendPacket("S05");
                     break;
                 default:
@@ -348,7 +314,7 @@ void GDB_parsePacket(const char* buffer) {
         }
         if(packet.starts_with("k")) {
             gdb_isR = false;
-            poweroff(false,true);
+            // FIXME: Exit from program
             std::cout << "[GDB] Killed by GDB stub" << std::endl;
             exit(0);
             return;
@@ -356,38 +322,7 @@ void GDB_parsePacket(const char* buffer) {
         if(packet.starts_with("c")) {
             gdb_exec = true;
             gdb_execth = thread([]() {
-                bool prevState = gdb_hart->trap_active;
-                while(true) {
-                    if(gdb_hart->god_said_to_destroy_this_thread) break;
-                    if(!gdb_exec) break;
-                    if(gdb_hart->stopexec) continue;
-
-                    auto it = find(gdb_bp.begin(), gdb_bp.end(), gdb_hart->pc);
-                    if(it != gdb_bp.end()) {
-                        gdb_exec = false;
-                        break;
-                    }
-
-                    if(gdb_hart->reservation_valid) {
-                        uint64_t val = dram_load(&(gdb_hart->dram),gdb_hart->reservation_addr,gdb_hart->reservation_size);
-                        if(val != gdb_hart->reservation_value) {
-                            gdb_hart->reservation_valid = false;
-                        }
-                    }
-                    
-                    /*if(gdb_hart->trap_active != prevState) {
-                        if(gdb_hart->trap_active) {
-                            break;
-                        } else {
-                            prevState = gdb_hart->trap_active;
-                        }
-                    }*/
-
-                    Device* dev = mmio->devices[1];
-                    dynamic_cast<PLIC*>(dev)->plic_service(gdb_hart);
-                    gdb_hart->gdb_advancedstep = true;
-                    gdb_hart->cpu_execute();
-                }
+                // FIXME: Place there Continuation code
                 GDB_sendPacket(gdb_sigint ? "S02" : "S05");
                 gdb_sigint = false;
             });
@@ -395,7 +330,7 @@ void GDB_parsePacket(const char* buffer) {
             return;
         }
         if(packet.starts_with("s")) {
-            gdb_hart->cpu_execute();
+            // FIXME: Place there Step code
             GDB_sendPacket("S05");
             return;
         }
@@ -491,7 +426,6 @@ void GDB_parsePacket(const char* buffer) {
                 val = stoull(swapHexEndian(data.substr(i * 16, 16), 8),
                             nullptr, 16);
                 gdb_hart->regs[i] = val;
-                if(debug) cout << format("[GDB] Setting x{} to 0x{:x}", i, val) << endl;
             }
 
             val = stoull(
@@ -500,7 +434,6 @@ void GDB_parsePacket(const char* buffer) {
                     8),
                 nullptr, 16);
 
-            if(debug) cout << format("[GDB] Setting PC to 0x{:x}", val) << endl;
             gdb_hart->pc = val;
             GDB_sendPacket("OK");
             return;
@@ -574,61 +507,50 @@ void GDB_parsePacket(const char* buffer) {
         if(packet.starts_with("X")) {
             
         }
-        if(debug) cout << "Sending empty due to developer skill issue" << endl;
         GDB_sendPacket("");
     } else {
-        if(debug) cout << "[GDB] Invalid packet!" << endl;
     }
 }
 
 void GDB_Loop() {
-    if(!remove_california) {
-        if(debug) cout << "[GDB] Listening to socket.." << endl;
-        // listening to the assigned socket
-        listen(gdb_socket, 5);
+    // listening to the assigned socket
+    listen(gdb_socket, 5);
 
-        if(debug) cout << "[GDB] Awaiting for client.." << endl;
-        // accepting connection request
-        gdb_recv = accept(gdb_socket, nullptr, nullptr);
-        int flag = 1;
-        setsockopt(gdb_recv, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(int));
+    // accepting connection request
+    gdb_recv = accept(gdb_socket, nullptr, nullptr);
+    int flag = 1;
+    setsockopt(gdb_recv, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(int));
 
-        if(debug) cout << "[GDB] Client connected" << endl;
-        char buffer[4096] = { 0 };
-        while(gdb_isR) {
-            if(remove_california) break;
-            memset(&buffer,0,sizeof(buffer));
-            int received = recv(gdb_recv, buffer, sizeof(buffer), 0);
-            if(received == 0) {
-                if(debug) cout << "[GDB] Client disconnected" << endl;
-                break;
-            }
-            if(received < 0) {
-                if(debug) cout << "[GDB] Client error: " << received << endl;
-                break;
-            }
-            if(debug) cout << "[GDB] Recv: " << buffer << " (first byte: " << (uint16_t)buffer[0] << ")" << endl;
-            if(buffer[0] == '$') {
+    char buffer[4096] = { 0 };
+    while(gdb_isR) {
+        memset(&buffer,0,sizeof(buffer));
+        int received = recv(gdb_recv, buffer, sizeof(buffer), 0);
+        if(received == 0) {
+            break;
+        }
+        if(received < 0) {
+            break;
+        }
+        if(buffer[0] == '$') {
+            GDB_send("+\0",0);
+            GDB_parsePacket(buffer);
+        }
+        if(buffer[0] == 3) {
+            //SIGINT
+            GDB_send("+\0",0);
+            gdb_sigint = true;
+            gdb_exec = false;
+        }
+        if(buffer[0] == '-' || buffer[0] == '+') {
+            if(buffer[1] == '$') {
+                // new packet right after ack
+                string str = string(buffer);
+                str.erase(0, 1);
                 GDB_send("+\0",0);
-                GDB_parsePacket(buffer);
-            }
-            if(buffer[0] == 3) {
-                //SIGINT
-                GDB_send("+\0",0);
-                gdb_sigint = true;
-                gdb_exec = false;
-            }
-            if(buffer[0] == '-' || buffer[0] == '+') {
-                if(buffer[1] == '$') {
-                    // new packet right after ack
-                    string str = string(buffer);
-                    str.erase(0, 1);
-                    GDB_send("+\0",0);
-                    GDB_parsePacket(str.c_str());
-                }
+                GDB_parsePacket(str.c_str());
             }
         }
-        close(gdb_recv);
-        GDB_Loop();
     }
+    close(gdb_recv);
+    GDB_Loop();
 }
