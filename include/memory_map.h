@@ -63,6 +63,24 @@ struct MemoryMap {
         regions.push_back(new MemoryRegion(base, size));
     }
 
+    void load_file(uint64_t memory_path, std::string path) {
+        std::ifstream file(path, std::ios::binary | std::ios::ate);
+        if(!file.is_open()) {
+            // error
+            std::cout << "[RISCV-EM] FDT file loading error! " << std::strerror(errno) << std::endl;
+            exit(1);
+        }
+
+        std::streamsize size = file.tellg();
+        file.seekg(0, std::ios::beg);
+        std::vector<char> buffer(size);
+        file.read(buffer.data(), size);
+
+        auto region = find_region(memory_path);
+		uint8_t* ptr = region->ptr(memory_path);
+		memcpy(ptr, buffer.data(), size);
+    }
+
     uint64_t load(uint64_t addr, uint64_t size) {
         MemoryRegion* r = find_region(addr);
         uint8_t* p = r->ptr(addr);

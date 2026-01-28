@@ -30,14 +30,18 @@ struct MMIO;
 struct HART;
 
 struct HART {
+    HART();
     uint64_t regs[32];
-    uint64_t pc;
+    uint64_t pc = DRAM_BASE;
     uint64_t csrs[4069];
-    uint8_t mode;
+    uint8_t mode = 3;
 
-	uint8_t id;
+	uint8_t id = 0;
 
     MMIO* mmio;
+
+    bool WFI = false;
+    bool active = false;
 };
 
 void hart_reset(HART&, uint64_t dtb_path, bool gdbstub);
