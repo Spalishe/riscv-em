@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Spalishe
+Copyright 2026 Spalishe
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ void HART::cpu_start(uint64_t dtb_path, bool gdbstub) {
 }
 
 void HART::cpu_loop() {
-	
+	// FIXME: PLIC Loop
 }
 
 void HART::cpu_trap(uint64_t cause, uint64_t tval, bool is_interrupt)

@@ -1,3 +1,20 @@
+/*
+Copyright 2026 Spalishe
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+
+*/
+
 #include "../include/gdbstub.hpp"
 #include "../include/devices/plic.hpp"
 #include <sys/socket.h>
@@ -374,7 +391,7 @@ void GDB_parsePacket(const char* buffer) {
                 }
             } else if(idx >= 64) {
                 //csr
-                GDB_sendPacket(to_little_endian_hex(gdb_hart->csr_read(idx)));
+                GDB_sendPacket(to_little_endian_hex(gdb_hart->csrs[idx]));
             }
             return;
         }
@@ -399,7 +416,7 @@ void GDB_parsePacket(const char* buffer) {
                 }
             } else if(idx >= 64) {
                 //csr
-                gdb_hart->csr_write(idx,num);
+                gdb_hart->csrs[idx] = num;
             }
             GDB_sendPacket("OK");
             return;

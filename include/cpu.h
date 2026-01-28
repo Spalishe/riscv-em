@@ -1,5 +1,5 @@
 /*
-Copyright 2025 Spalishe
+Copyright 2026 Spalishe
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -37,16 +37,15 @@ struct HART {
 
 	uint8_t id;
 
-    DRAM dram;
     MMIO* mmio;
-
-    void cpu_start(uint64_t dtb_path, bool gdbstub);
-    uint32_t cpu_fetch(uint64_t _pc);
-    void cpu_check_interrupts();
-    void cpu_loop();
-    void cpu_execute();
-    void cpu_trap(uint64_t cause, uint64_t tval, bool is_interrupt);
 };
+
+void hart_reset(HART&, uint64_t dtb_path, bool gdbstub);
+uint32_t hart_fetch(HART&, uint64_t _pc);
+void hart_step(HART&);
+void hart_execute(HART&);
+void hart_check_interrupts(HART&);
+void hart_trap(HART&, uint64_t cause, uint64_t tval, bool is_interrupt);
 
 static uint64_t riscv_mkmisa(const char* str)
 {

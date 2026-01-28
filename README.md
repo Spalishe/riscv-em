@@ -17,8 +17,8 @@ Available arguments are:
   --image: File with Image file that will put on VirtIO-BLK
   --dtb: Use specified FDT instead of auto-generated
   --dumpdtb: Dumps auto-generated FDT to file
-  --debug: Enables DEBUG mode
-  --tests: Enables TESTING mode
+  --gdb: Starts GDB Stub on port 1512
+  --append: Append command line arguments
 ```
 
 Running:
@@ -29,20 +29,20 @@ Running:
 ## Features List
 
 The emulator supports the following features:
-- [x] RV64G ISA
-  - [x] RV64I
-  - [x] RV64M
-  - [x] RV64A (No atomicity for now)
+- [ ] RV64G ISA
+  - [ ] RV64I
+  - [ ] RV64M
+  - [ ] RV64A (No atomicity for now)
   - [ ] RV64F
   - [ ] RV64D
-  - [x] Zifencei: (`fence.i` does nothing for
+  - [ ] Zifencei: (`fence.i` does nothing for
     now)
-  - [x] Zicsr: (No atomicity for now)
+  - [ ] Zicsr: (No atomicity for now)
 - [ ] RV64C
-- [x] Privileged ISA
-- [x] Control and status registers (CSRs)
-  - [x] Machine-level CSRs
-  - [x] Supervisor-level CSRs
+- [ ] Privileged ISA
+- [ ] Control and status registers (CSRs)
+  - [ ] Machine-level CSRs
+  - [ ] Supervisor-level CSRs
   - [ ] User-level CSRs
 - [x] Devices
   - [x] UART: universal asynchronous receiver-transmitter
@@ -56,12 +56,12 @@ You can install all required dependencies using:
 
 Arch:
 ```bash
-sudo pacman -S cmake make gcc llvm
+sudo pacman -S cmake make gcc
 ```
 
 Ubuntu:
 ```bash
-sudo apt install cmake make gcc llvm
+sudo apt install cmake make gcc
 ```
 
 ## License
