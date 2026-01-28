@@ -22,15 +22,40 @@ Copyright 2026 Spalishe
 #include "../include/machine.hpp"
 
 void machine_run(Machine& cpu) {
+    cpu.state = MachineState::Running;
+    using clock = std::chrono::steady_clock;
+    auto last = clock::now();
+    
+    while(cpu.state != MachineState::PoweredOff) {
+        if (cpu.state == MachineState::Halted) {
+            std::this_thread::yield();
+            continue;
+        }
+        for (auto& h : cpu.harts) {
+            if(h->WFI) {
+                hart_check_interrupts(*h);
+                continue;
+            }
+            hart_step(*h);
+        }
 
+        auto now = clock::now();
+        auto delta = now - last;
+        last = now;
+
+        cpu.clint->tick(delta);
+    }
+    machine_destroy_harts(cpu);
 }
-void machine_create_memory(Machine& cpu, uint64_t size = DRAM_SIZE) {
-    cpu.memmap.add_region(DRAM_BASE,size);
+
+void machine_create_memory(Machine& cpu) {
+    cpu.memmap.add_region(DRAM_BASE,cpu.memsize);
     cpu.mmio = new MMIO(cpu.dram);
     cpu.dram.mmap = &cpu.memmap;
     cpu.mmio->ram = cpu.dram;
 }
-void machine_create_fdt(Machine& cpu, string file_dtb = "", string cmdline_append) {
+
+void machine_create_fdt(Machine& cpu, const string file_dtb = "", const string cmdline_append = "", const string dtb_dump_path = "") {
     uint64_t dtb_path_in_memory = DRAM_BASE + cpu.memsize - 0x20000;
     if(file_dtb.length() == 0) {
         // Generate FDT
@@ -115,12 +140,30 @@ void machine_create_fdt(Machine& cpu, string file_dtb = "", string cmdline_appen
 		fdt_node_add_prop_str(soc, "compatible", "simple-bus");
 		fdt_node_add_prop(soc, "ranges", NULL, 0);
 		fdt_node_add_child(fdt, soc);
+
+
+        size_t dtb_size = fdt_size(fdt);
+		void* buffer = malloc(dtb_size);
+
+		size_t size = fdt_serialize(fdt,buffer,0x1000,0);
+
+		if(dtb_dump_path.length() != 0) {
+			FILE* f = fopen(dtb_dump_path.c_str(), "wb");
+			fwrite(buffer, 1, size, f);
+			fclose(f);
+		}
+
+		char* bytes = static_cast<char*>(buffer);
+		cpu.memmap.load_buffer(dtb_path_in_memory, bytes, size);
+
+		free(buffer);
     } else {
         cpu.memmap.load_file(dtb_path_in_memory, file_dtb);
         cpu.dtb_is_file = true;
     }
 }
-void machine_create_devices(Machine& cpu, string image_path = "") {
+
+void machine_create_devices(Machine& cpu, const string image_path = "") {
     uint64_t irq_num = 1;
 
 	cpu.memmap.add_region(0x00001000, 1024*1024*4); // Do not make it round 16 mb, or it will override syscon
@@ -153,7 +196,6 @@ void machine_create_devices(Machine& cpu, string image_path = "") {
 
 	if(image_path.length() != 0) {
 		cpu.memmap.add_region(0x10001000, 0x1000);
-		std::cout << "[RISCV-EM] Loading image: " << image_path << std::endl;
 		VirtIO_BLK* virtio_blk = new VirtIO_BLK(0x10001000,0x1000,cpu.dram,plic,(cpu.dtb_is_file ? NULL : cpu.fdt),irq_num,image_path);
 		cpu.mmio->add(virtio_blk);
         cpu.image = virtio_blk;
@@ -170,30 +212,17 @@ void machine_reset(Machine& cpu) {
 }
 
 void machine_create_harts(Machine& cpu) {
-    /*for (HART* hrt : hart_list) {
-		hart_list_threads[hrt] = std::thread(&HART::cpu_start,hrt,dtb_path_in_memory,gdb_stub);
-	}
-	if(gdb_stub) GDB_Create(hart_list[0]);
-
-	for(HART* hrt : hart_list) {
-		hart_list_threads[hrt].join();
-	}*/
-    
     uint64_t dtb_path_in_memory = DRAM_BASE + cpu.memsize - 0x20000;
 
     for(uint8_t i = 0; cpu.core_count < i; i++) {
         HART* hart = new HART();
         hart->mmio = cpu.mmio;
         hart->id = i;
-        cpu.harts_threads[hart->id] = std::thread(&hart_reset,hart,dtb_path_in_memory,cpu.gdb);
+        hart_reset(*hart,dtb_path_in_memory,cpu.gdb);
     }
 	if(cpu.gdb) GDB_Create(cpu.harts[0]);
 }
 
 void machine_destroy_harts(Machine& cpu) {
-    for(uint8_t i = 0; i < cpu.core_count; i++) {
-		cpu.harts_threads[i].join();
-	}
-    cpu.harts_threads.clear();
     cpu.harts.clear();
 }

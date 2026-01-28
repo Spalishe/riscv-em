@@ -19,8 +19,8 @@ Copyright 2026 Spalishe
 #include "../../include/devices/plic.hpp"
 #include "../../include/libfdt.hpp"
 
-UART::UART(uint64_t base, DRAM& ram, PLIC* plic, int irq_num, fdt_node* fdt, uint8_t hartcount)
-        : Device(base, 0x100, ram), plic(plic), irq_num(irq_num)
+UART::UART(uint64_t base, Machine& cpu, PLIC* plic, int irq_num, fdt_node* fdt)
+        : Device(base, 0x100, cpu), plic(plic), irq_num(irq_num)
     {
         struct fdt_node* uart_fdt = fdt_node_create_reg("serial", base);
         fdt_node_add_prop_reg(uart_fdt, "reg", base, 0x100);

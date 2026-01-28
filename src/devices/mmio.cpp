@@ -25,7 +25,7 @@ Copyright 2026 Spalishe
 
 std::optional<uint64_t> MMIO::load(HART* hart, uint64_t addr, uint64_t size) {
     if((addr % (size/8)) != 0) {
-        hart->cpu_trap(EXC_LOAD_ADDR_MISALIGNED,addr,false);
+        hart_trap(*hart,EXC_LOAD_ADDR_MISALIGNED,addr,false);
         return std::nullopt;
     }
 
@@ -42,13 +42,13 @@ std::optional<uint64_t> MMIO::load(HART* hart, uint64_t addr, uint64_t size) {
     }
 
     // Fault
-    hart->cpu_trap(EXC_LOAD_ACCESS_FAULT,addr,false);
+    hart_trap(*hart,EXC_LOAD_ACCESS_FAULT,addr,false);
     return std::nullopt;
 }
 
 bool MMIO::store(HART* hart, uint64_t addr, uint64_t size, uint64_t value) {
     if(addr % (size/8) != 0) {
-        hart->cpu_trap(EXC_STORE_ADDR_MISALIGNED,addr,false);
+        hart_trap(*hart,EXC_STORE_ADDR_MISALIGNED,addr,false);
         return false;
     }
 
@@ -67,7 +67,7 @@ bool MMIO::store(HART* hart, uint64_t addr, uint64_t size, uint64_t value) {
     }
     
     // Fault
-    hart->cpu_trap(EXC_STORE_ACCESS_FAULT,addr,false);
+    hart_trap(*hart,EXC_STORE_ACCESS_FAULT,addr,false);
     return false;
 }
 

@@ -81,6 +81,12 @@ struct MemoryMap {
 		memcpy(ptr, buffer.data(), size);
     }
 
+    void load_buffer(uint64_t memory_path, char* buffer, uint64_t size) {
+        auto region = find_region(memory_path);
+		uint8_t* ptr = region->ptr(memory_path);
+		memcpy(ptr, buffer, size);
+    }
+
     uint64_t load(uint64_t addr, uint64_t size) {
         MemoryRegion* r = find_region(addr);
         uint8_t* p = r->ptr(addr);

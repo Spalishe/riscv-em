@@ -55,7 +55,7 @@ struct UART : public Device {
     bool fifo_enabled;
     std::queue<uint8_t> fifo_buffer;
 
-    UART(uint64_t base, DRAM& ram, PLIC* plic, int irq_num, fdt_node* fdt, uint8_t hartcount);
+    UART(uint64_t base, Machine& cpu, PLIC* plic, int irq_num, fdt_node* fdt);
 
     void trigger_irq();
     void clear_irq();

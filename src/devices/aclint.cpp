@@ -21,16 +21,17 @@ Copyright 2026 Spalishe
 
 #define ACLINT_MSWI_SIZE   0x4000
 #define ACLINT_MTIMER_SIZE 0x8000
+#define ACLINT_FREQ_HZ     100000
 
-ACLINT::ACLINT(uint64_t base, DRAM& ram, uint32_t num_harts, fdt_node* fdt)
-    : Device(base, 0x10000, ram),
-        msip(num_harts, 0),
-        mtimecmp(num_harts, 0)
+ACLINT::ACLINT(uint64_t base, Machine& cpu, fdt_node* fdt)
+    : Device(base, 0x10000, cpu),
+        msip(cpu.core_count, 0),
+        mtimecmp(cpu.core_count, 0)
 {    
     if(fdt != NULL) {
         struct fdt_node* cpus = fdt_node_find(fdt, "cpus");
         std::vector<uint32_t> irq_ext = {}; 
-        for(int i=0; i < num_harts; i++) {
+        for(int i=0; i < cpu.core_count; i++) {
             struct fdt_node* cpu = fdt_node_find_reg(cpus, "cpu", i);
             struct fdt_node* cpu_irq = fdt_node_find(cpu, "interrupt-controller");
             uint32_t irq_phandle = fdt_node_get_phandle(cpu_irq);
@@ -54,41 +55,16 @@ ACLINT::ACLINT(uint64_t base, DRAM& ram, uint32_t num_harts, fdt_node* fdt)
     }
 }
 
-void ACLINT::start_timer(uint64_t freq_hz) {
-    stop_timer = false;
-    timer_thread = std::thread([this, freq_hz]() {
-        using namespace std::chrono;
-        auto period = nanoseconds(1'000'000'000ULL / freq_hz);
-        auto next_time = steady_clock::now();
-        while (!stop_timer) {
-            next_time += period;
-            std::this_thread::sleep_until(next_time);
-            if(hart_list[0]->gdbstub) {
-                if(hart_list[0]->gdb_advancedstep) {
-                    mtime.fetch_add(1);
-                    uint64_t current_time = mtime.load();
-                    for(HART* hrt : hart_list) {
-                        hrt->csrs[TIME] = current_time;
-                        update_mip(hrt);
-                    }
-                    hart_list[0]->gdb_advancedstep = false;
-                }
-            } else {
-                mtime.fetch_add(1);
-                uint64_t current_time = mtime.load();
-                for(HART* hrt : hart_list) {
-                    hrt->csrs[TIME] = current_time;
-                    update_mip(hrt);
-                }
-            }
-        }
-    });
-}
+void ACLINT::tick(const std::chrono::nanoseconds time_passed) {
+    uint64_t ticks = std::chrono::duration_cast<std::chrono::nanoseconds>(time_passed).count()
+        * ACLINT_FREQ_HZ / 1'000'000'000;
 
-void ACLINT::stop_timer_thread() {
-    stop_timer = true;
-    if (timer_thread.joinable())
-        timer_thread.join();
+    mtime += ticks;
+
+    for(HART* hrt : cpu.harts) {
+        hrt->csrs[TIME] = mtime;
+        update_mip(hrt);
+    }
 }
 
 uint64_t ACLINT::read(HART* hart, uint64_t addr, uint64_t size) {
@@ -127,7 +103,7 @@ uint64_t ACLINT::read_mtimer(HART* hart, uint64_t offset) {
 void ACLINT::write_mswi(HART* hart, uint64_t offset, uint64_t value) {
     uint64_t hart_id = offset >> 2;
     msip[hart_id] = value;
-    update_mip(hart_list[hart_id]);
+    update_mip(cpu.harts[hart_id]);
 }
 void ACLINT::write_mtimer(HART* hart, uint64_t offset, uint64_t value) {
     uint64_t hart_id = offset >> 3;
@@ -137,13 +113,13 @@ void ACLINT::write_mtimer(HART* hart, uint64_t offset, uint64_t value) {
     }
 
     mtimecmp[hart_id] = value;
-    update_mip(hart_list[hart_id]);
+    update_mip(cpu.harts[hart_id]);
 }
 
 void ACLINT::update_mip(HART* hart) {
-    uint32_t hart_id = hart->h_cpu_id();
+    uint32_t hart_id = hart->id;
 
-    uint64_t mip = hart->h_cpu_csr_read(MIP);
+    uint64_t mip = hart->csrs[MIP];
 
     if (msip[hart_id] & 1)
         mip |= (1ULL << MIP_MSIP);
@@ -160,5 +136,5 @@ void ACLINT::update_mip(HART* hart) {
     else
         mip &= ~(1ULL << MIP_STIP);
 
-    hart->h_cpu_csr_write(MIP, mip);
+    hart->csrs[MIP] = mip;
 }

@@ -61,7 +61,6 @@ struct Machine {
     MemoryMap memmap;
 
     std::vector<HART*> harts;
-    std::unordered_map<uint8_t,thread> harts_threads; // Hart ID -> Thread
 
     MachineState state = MachineState::PoweredOff;
     bool gdb = false;
@@ -69,9 +68,9 @@ struct Machine {
 };
 
 void machine_run(Machine&);
-void machine_create_memory(Machine&, uint64_t size);
-void machine_create_fdt(Machine&, string cmdline_append);
-void machine_create_devices(Machine&);
+void machine_create_memory(Machine&);
+void machine_create_fdt(Machine&, const string file_dtb = "", const string cmdline_append = "", const string dtb_dump_path = "");
+void machine_create_devices(Machine&, const string image_path = "");
 void machine_create_harts(Machine&);
 void machine_poweroff(Machine&);
 void machine_reset(Machine&);

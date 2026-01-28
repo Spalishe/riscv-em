@@ -15,6 +15,7 @@ Copyright 2026 Spalishe
 
 */
 
+
 #include "../include/gdbstub.hpp"
 #include "../include/devices/plic.hpp"
 #include <sys/socket.h>

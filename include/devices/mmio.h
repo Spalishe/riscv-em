@@ -28,16 +28,17 @@ Copyright 2026 Spalishe
 #include <thread>
 #include <iostream>
 #include "libfdt.hpp"
+#include "../machine.hpp"
 
 struct HART;
 
 struct Device {
     uint64_t base;
     uint64_t size;
-    DRAM& ram;
+    Machine& cpu;
 
-    Device(uint64_t base, uint64_t size, DRAM& ram)
-        : base(base), size(size), ram(ram) {}
+    Device(uint64_t base, uint64_t size, Machine& cpu)
+        : base(base), size(size), cpu(cpu) {}
 
     virtual uint64_t read(HART* hart,uint64_t addr,uint64_t size) = 0;
     virtual void write(HART* hart,uint64_t addr, uint64_t size,uint64_t value) = 0;

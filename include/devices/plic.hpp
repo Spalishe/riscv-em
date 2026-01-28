@@ -43,7 +43,7 @@ struct PLIC : public Device {
     std::vector<uint32_t> threshold;                
     std::vector<uint32_t> last_claimed;             
 
-    PLIC(uint64_t base, uint64_t size, DRAM& ram, uint32_t num_sources, fdt_node* fdt, uint8_t hartcount);
+    PLIC(uint64_t base, uint64_t size, Machine& cpu, uint32_t num_sources, fdt_node* fdt);
 
     void raise(uint32_t src);
     void clear(uint32_t src);

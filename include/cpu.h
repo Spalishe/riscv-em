@@ -41,7 +41,6 @@ struct HART {
     MMIO* mmio;
 
     bool WFI = false;
-    bool active = false;
 };
 
 void hart_reset(HART&, uint64_t dtb_path, bool gdbstub);

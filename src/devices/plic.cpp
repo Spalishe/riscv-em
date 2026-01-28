@@ -25,13 +25,13 @@ Copyright 2026 Spalishe
 #define PLIC_CTX_CLAIMCOMP 0x4
 #endif
 
-PLIC::PLIC(uint64_t base, uint64_t size, DRAM& ram, uint32_t num_sources, fdt_node* fdt, uint8_t hartcount)
-    : Device(base, size, ram),
+PLIC::PLIC(uint64_t base, uint64_t size, Machine& cpu, uint32_t num_sources, fdt_node* fdt)
+    : Device(base, size, cpu),
       base_addr(base),
       size_bytes(size),
       num_sources(num_sources),
-      num_harts(hartcount),
-      num_contexts(hartcount * 2),
+      num_harts(cpu.core_count),
+      num_contexts(cpu.core_count * 2),
       priority(num_sources + 1, 1),
       pending(num_sources + 1, 0),
       active(num_sources + 1, 0),
@@ -44,7 +44,7 @@ PLIC::PLIC(uint64_t base, uint64_t size, DRAM& ram, uint32_t num_sources, fdt_no
     if (fdt) {
         struct fdt_node* cpus = fdt_node_find(fdt, "cpus");
         std::vector<uint32_t> irq_ext;
-        for (int i = 0; i < (int)hartcount; ++i) {
+        for (int i = 0; i < (int)cpu.core_count; ++i) {
             struct fdt_node* cpu = fdt_node_find_reg(cpus, "cpu", i);
             struct fdt_node* cpu_irq = fdt_node_find(cpu, "interrupt-controller");
             uint32_t irq_phandle = fdt_node_get_phandle(cpu_irq);
@@ -214,14 +214,14 @@ void PLIC::plic_service(HART* hart) {
     last_claimed[ctx] = best_src;
 
     if (hart->mode == 3) {
-        uint64_t mip = hart->h_cpu_csr_read(MIP);
+        uint64_t mip = hart->csrs[MIP];
         mip |= (1ULL << MIP_MEIP);
-        hart->h_cpu_csr_write(MIP, mip);
-        hart->cpu_trap(IRQ_MEXT, 0, true);
+        hart->csrs[MIP] = mip;
+        hart_trap(*hart,IRQ_MEXT, 0, true);
     } else if (hart->mode == 1) {
-        uint64_t sip = hart->h_cpu_csr_read(SIP);
+        uint64_t sip = hart->csrs[SIP];
         sip |= (1ULL << MIP_SEIP);
-        hart->h_cpu_csr_write(SIP, sip);
-        hart->cpu_trap(IRQ_SEXT, 0, true);
+        hart->csrs[SIP] = sip;
+        hart_trap(*hart,IRQ_SEXT, 0, true);
     }
 }

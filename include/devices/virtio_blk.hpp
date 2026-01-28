@@ -138,7 +138,7 @@ struct VirtQueueState {
 };
 
 struct VirtIO_BLK : public Device {
-    VirtIO_BLK(uint64_t base, uint64_t size, DRAM& ram, PLIC* plic, fdt_node* fdt, uint8_t irq_num, std::string image_path);
+    VirtIO_BLK(uint64_t base, uint64_t size, Machine& cpu, PLIC* plic, fdt_node* fdt, uint8_t irq_num, std::string image_path);
 
     uint64_t read(HART* hart, uint64_t addr, uint64_t size) override;
     void write(HART* hart, uint64_t addr, uint64_t size, uint64_t val) override;

@@ -30,23 +30,26 @@ Copyright 2026 Spalishe
 #include <iomanip>
 #include <functional>
 
-uint32_t HART::cpu_fetch(uint64_t _pc) {
-
-}
-
-void HART::cpu_start(uint64_t dtb_path, bool gdbstub) {
+void hart_reset(HART&, uint64_t dtb_path, bool gdbstub) {
 	
 }
 
-void HART::cpu_loop() {
-	// FIXME: PLIC Loop
-}
-
-void HART::cpu_trap(uint64_t cause, uint64_t tval, bool is_interrupt)
-{
+uint32_t hart_fetch(HART&, uint64_t _pc) {
 
 }
 
-void HART::cpu_check_interrupts() {
-    
+void hart_step(HART&) {
+
+}
+
+void hart_execute(HART&) {
+
+}
+
+void hart_check_interrupts(HART&) {
+
+}
+
+void hart_trap(HART&, uint64_t cause, uint64_t tval, bool is_interrupt) {
+
 }

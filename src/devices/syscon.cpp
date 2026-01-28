@@ -18,8 +18,8 @@ Copyright 2026 Spalishe
 #include "../../include/devices/syscon.hpp"
 #include "../../include/main.hpp"
 
-SYSCON::SYSCON(uint64_t base, uint64_t size, DRAM& ram,fdt_node* fdt)
-        : Device(base, size, ram)
+SYSCON::SYSCON(uint64_t base, uint64_t size, Machine& cpu,fdt_node* fdt)
+        : Device(base, size, cpu)
     {
         if(fdt != NULL) {
             struct fdt_node* test_fdt = fdt_node_create_reg("test", base);
@@ -47,7 +47,7 @@ SYSCON::SYSCON(uint64_t base, uint64_t size, DRAM& ram,fdt_node* fdt)
     }
 
 uint64_t SYSCON::read(HART* hart,uint64_t addr, uint64_t size) {
-    return dram_load(&ram,addr,size);
+    return dram_load(&cpu.dram,addr,size);
 }
 
 void SYSCON::write(HART* hart, uint64_t addr, uint64_t size, uint64_t val) {
@@ -58,12 +58,12 @@ void SYSCON::write(HART* hart, uint64_t addr, uint64_t size, uint64_t val) {
                 case 0x5555: {
                     //Power off
                     std::cout << "[SYSCON] Poweroff.." << std::endl;
-                    poweroff(false,true);
+                    machine_poweroff(cpu);
                 }; break;
                 case 0x7777: {
                     //Reboot
                     std::cout << "[SYSCON] Reset.." << std::endl;
-                    reset(true);
+                    machine_reset(cpu);
                 }; break;
             }; break;
     }
