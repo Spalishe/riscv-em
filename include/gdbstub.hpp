@@ -19,7 +19,9 @@ Copyright 2026 Spalishe
 
 #include <unistd.h>
 #include <cstdint>
-#include "../include/cpu.h"
+#include "cpu.h"
+
+struct HART;
 
 void GDB_Create(HART* hart);
 void GDB_Stop();

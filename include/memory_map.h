@@ -24,6 +24,7 @@ Copyright 2026 Spalishe
 #include <format>
 #include <optional>
 #include <iostream>
+#include <fstream>
 
 struct MemoryRegion {
     uint64_t base_addr;
@@ -63,7 +64,7 @@ struct MemoryMap {
         regions.push_back(new MemoryRegion(base, size));
     }
 
-    void load_file(uint64_t memory_path, std::string path) {
+    void load_file(uint64_t memory_path, std::string path = "") {
         std::ifstream file(path, std::ios::binary | std::ios::ate);
         if(!file.is_open()) {
             // error

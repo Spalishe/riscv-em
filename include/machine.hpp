@@ -69,8 +69,8 @@ struct Machine {
 
 void machine_run(Machine&);
 void machine_create_memory(Machine&);
-void machine_create_fdt(Machine&, const string file_dtb = "", const string cmdline_append = "", const string dtb_dump_path = "");
-void machine_create_devices(Machine&, const string image_path = "");
+void machine_create_fdt(Machine&, const string file_dtb, const string cmdline_append, const string dtb_dump_path);
+void machine_create_devices(Machine&, const string image_path);
 void machine_create_harts(Machine&);
 void machine_poweroff(Machine&);
 void machine_reset(Machine&);

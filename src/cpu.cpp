@@ -20,7 +20,7 @@ Copyright 2026 Spalishe
 #include <stdint.h>
 #include <string>
 #include <fstream>
-#include "../include/opcodes.h"
+#include "../include/decode.h"
 #include "../include/csr.h"
 #include "../include/devices/plic.hpp"
 #include <cstdio>
@@ -31,7 +31,7 @@ Copyright 2026 Spalishe
 #include <functional>
 
 void hart_reset(HART&, uint64_t dtb_path, bool gdbstub) {
-	
+
 }
 
 uint32_t hart_fetch(HART&, uint64_t _pc) {

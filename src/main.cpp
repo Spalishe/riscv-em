@@ -16,33 +16,11 @@ Copyright 2026 Spalishe
 */
 
 #include <iostream>
-#include "../include/cpu.h"
 #include "../include/argparser.h"
-
-#include "../include/devices/mmio.h"
-#include "../include/devices/aclint.hpp"
-#include "../include/devices/rom.hpp"
-#include "../include/devices/plic.hpp"
-#include "../include/devices/uart.hpp"
-#include "../include/devices/dtb.hpp"
-#include "../include/devices/syscon.hpp"
-#include "../include/devices/virtio_blk.hpp"
-
-#include "../include/memory_map.h"
-#include "../include/libfdt.hpp"
-#include "../include/gdbstub.hpp"
 #include <string>
-#include <vector>
-#include <random>
 
 #include "../include/main.hpp"
 #include "../include/machine.hpp"
-
-#include <stdio.h>
-#include <signal.h>
-#include <sys/types.h>
-#include <dirent.h>
-#include <filesystem>
 
 /*
 	What should i add to functionality if i want to add 2 harts:
@@ -121,8 +99,7 @@ int main(int argc, char* argv[]) {
 		VM.memmap.load_file(DRAM_BASE+0x200000,kernel_path);
 	}
 
-	machine_run(VM);
-	std::thread VM_thread = std::thread(machine_run,VM);
+	std::thread VM_thread(machine_run,std::ref(VM));
 
 	VM_thread.join();
 	

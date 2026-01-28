@@ -28,9 +28,9 @@ Copyright 2026 Spalishe
 #include <thread>
 #include <iostream>
 #include "libfdt.hpp"
-#include "../machine.hpp"
 
 struct HART;
+struct Machine;
 
 struct Device {
     uint64_t base;
@@ -62,3 +62,4 @@ struct MMIO {
     void store_GDB(HART* hart, uint64_t addr, uint64_t size, uint64_t value);
 };
 
+#include "machine.hpp"

@@ -19,6 +19,10 @@ Copyright 2026 Spalishe
 
 #include "mmio.h"
 
+#define ACLINT_MSWI_SIZE   0x4000
+#define ACLINT_MTIMER_SIZE 0x8000
+#define ACLINT_FREQ_HZ     100000
+
 struct ACLINT : public Device {
     // Memory-mapped registers
     std::vector<uint32_t> msip;      // one per HART, 32-bit

@@ -167,36 +167,34 @@ void machine_create_devices(Machine& cpu, const string image_path = "") {
     uint64_t irq_num = 1;
 
 	cpu.memmap.add_region(0x00001000, 1024*1024*4); // Do not make it round 16 mb, or it will override syscon
-	ROM* rom = new ROM(0x00001000,1024*1024*4,cpu.dram);
+	ROM* rom = new ROM(0x00001000,1024*1024*4,cpu);
 	cpu.mmio->add(rom);
 
 	cpu.memmap.add_region(0x0C000000, 0x400000);
-	PLIC* plic = new PLIC(0x0C000000,0x400000,cpu.dram,64,(cpu.dtb_is_file ? NULL : cpu.fdt),1);
+	PLIC* plic = new PLIC(0x0C000000,0x400000,cpu,64,(cpu.dtb_is_file ? NULL : cpu.fdt));
 	cpu.mmio->add(plic);
     cpu.plic = plic;
 	
 	cpu.memmap.add_region(0x1000000, 0x1000);
-	SYSCON* syscon = new SYSCON(0x1000000,0x1000,cpu.dram,(cpu.dtb_is_file ? NULL : cpu.fdt));
+	SYSCON* syscon = new SYSCON(0x1000000,0x1000,cpu,(cpu.dtb_is_file ? NULL : cpu.fdt));
 	cpu.mmio->add(syscon);
     cpu.syscon = syscon;
 	
 	cpu.memmap.add_region(0x10000000, 0x100);
-	UART* uart = new UART(0x10000000,cpu.dram,plic,irq_num,(cpu.dtb_is_file ? NULL : cpu.fdt),1);
+	UART* uart = new UART(0x10000000,cpu,plic,irq_num,(cpu.dtb_is_file ? NULL : cpu.fdt));
 	cpu.mmio->add(uart);
     cpu.uart = uart;
 	irq_num ++;
 
 	cpu.memmap.add_region(0x02000000, 0x10000);
-	ACLINT* clint = new ACLINT(0x02000000,cpu.dram,1,(cpu.dtb_is_file ? NULL : cpu.fdt));
-	uint64_t clint_freq = 100000;
-	if(!cpu.dtb_is_file) fdt_node_add_prop_u32(fdt_node_find(cpu.fdt,"cpus"), "timebase-frequency", clint_freq);
-	clint->start_timer(clint_freq);
+	ACLINT* clint = new ACLINT(0x02000000,cpu,(cpu.dtb_is_file ? NULL : cpu.fdt));
+	if(!cpu.dtb_is_file) fdt_node_add_prop_u32(fdt_node_find(cpu.fdt,"cpus"), "timebase-frequency", ACLINT_FREQ_HZ);
     cpu.clint = clint;
 	cpu.mmio->add(clint);
 
 	if(image_path.length() != 0) {
 		cpu.memmap.add_region(0x10001000, 0x1000);
-		VirtIO_BLK* virtio_blk = new VirtIO_BLK(0x10001000,0x1000,cpu.dram,plic,(cpu.dtb_is_file ? NULL : cpu.fdt),irq_num,image_path);
+		VirtIO_BLK* virtio_blk = new VirtIO_BLK(0x10001000,0x1000,cpu,plic,(cpu.dtb_is_file ? NULL : cpu.fdt),irq_num,image_path);
 		cpu.mmio->add(virtio_blk);
         cpu.image = virtio_blk;
 		irq_num ++;

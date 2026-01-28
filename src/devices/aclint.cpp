@@ -19,10 +19,6 @@ Copyright 2026 Spalishe
 #include "../../include/libfdt.hpp"
 #include "../../include/main.hpp"
 
-#define ACLINT_MSWI_SIZE   0x4000
-#define ACLINT_MTIMER_SIZE 0x8000
-#define ACLINT_FREQ_HZ     100000
-
 ACLINT::ACLINT(uint64_t base, Machine& cpu, fdt_node* fdt)
     : Device(base, 0x10000, cpu),
         msip(cpu.core_count, 0),

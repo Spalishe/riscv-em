@@ -20,6 +20,7 @@ Copyright 2026 Spalishe
 #include <stdint.h>
 #include "dram.h"
 #include "devices/mmio.h"
+#include "decode.h"
 #include <string>
 #include <functional>
 #include <unordered_map>
@@ -35,6 +36,8 @@ struct HART {
     uint64_t pc = DRAM_BASE;
     uint64_t csrs[4069];
     uint8_t mode = 3;
+
+    inst_data instr_cache[8192];
 
 	uint8_t id = 0;
 
