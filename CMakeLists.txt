@@ -12,7 +12,7 @@ file(GLOB DEVICE_SOURCES "src/devices/*.cpp")
 
 add_executable(riscvem ${SOURCES} ${DEVICE_SOURCES} ${JIT_SOURCES})
 
-set(CMAKE_CXX_FLAGS_DEBUG "-latomic -O3 -march=native -g")
+set(CMAKE_CXX_FLAGS_DEBUG "-latomic -O0 -march=native -g")
 set(CMAKE_CXX_FLAGS_RELEASE "-latomic -O3 -march=native")
 
 target_include_directories(riscvem PRIVATE include)

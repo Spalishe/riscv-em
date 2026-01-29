@@ -33,6 +33,7 @@ uint32_t gdb_recv;
 sockaddr_in gdb_address;
 bool gdb_isR;
 HART* gdb_hart;
+Machine* gdb_cpu;
 atomic<bool> gdb_exec = true;
 atomic<bool> gdb_sigint = false;
 std::vector<uint64_t> gdb_bp;
@@ -218,11 +219,12 @@ string GDB_CreateXML() {
     return output.str();
 }
 
-void GDB_Create(HART* hart) {
+void GDB_Create(HART* hart, Machine* cpu) {
     gdb_socket = socket(AF_INET, SOCK_STREAM, 0);
     int op = 1;
     setsockopt(gdb_socket,SOL_SOCKET, SO_REUSEADDR, &op, sizeof(op));
     gdb_hart = hart;
+    gdb_cpu = cpu;
 
     sockaddr_in serverAddress;
     serverAddress.sin_family = AF_INET;
@@ -312,7 +314,17 @@ void GDB_parsePacket(const char* buffer) {
                 case 'c': {
                     gdb_exec = true;
                     gdb_execth = thread([]() {
-                        // FIXME: Place there Continuation code
+                        while(gdb_exec) {
+                            if(!gdb_cpu->gdb_single_step) {
+                                uint64_t pc = gdb_hart->pc;
+                                auto it = find(gdb_bp.begin(), gdb_bp.end(), gdb_hart->pc);
+                                if(it != gdb_bp.end()) {
+                                    gdb_exec = false;
+                                    break;
+                                }
+                                gdb_cpu->gdb_single_step = true;
+                            }
+                        }
                         GDB_sendPacket(gdb_sigint ? "S02" : "S05");
                         gdb_sigint = false;
                     });
@@ -321,7 +333,7 @@ void GDB_parsePacket(const char* buffer) {
                     break;
                 }
                 case 's':
-                    // FIXME: Place there Step code
+                    gdb_cpu->gdb_single_step = true;
                     GDB_sendPacket("S05");
                     break;
                 default:
@@ -332,15 +344,24 @@ void GDB_parsePacket(const char* buffer) {
         }
         if(packet.starts_with("k")) {
             gdb_isR = false;
-            // FIXME: Exit from program
             std::cout << "[GDB] Killed by GDB stub" << std::endl;
-            exit(0);
+            gdb_cpu->state = MachineState::PoweringOff;
             return;
         }
         if(packet.starts_with("c")) {
             gdb_exec = true;
             gdb_execth = thread([]() {
-                // FIXME: Place there Continuation code
+                while(gdb_exec) {
+                    if(!gdb_cpu->gdb_single_step) {
+                        uint64_t pc = gdb_hart->pc;
+                        auto it = find(gdb_bp.begin(), gdb_bp.end(), gdb_hart->pc);
+                        if(it != gdb_bp.end()) {
+                            gdb_exec = false;
+                            break;
+                        }
+                        gdb_cpu->gdb_single_step = true;
+                    }
+                }
                 GDB_sendPacket(gdb_sigint ? "S02" : "S05");
                 gdb_sigint = false;
             });
@@ -348,7 +369,7 @@ void GDB_parsePacket(const char* buffer) {
             return;
         }
         if(packet.starts_with("s")) {
-            // FIXME: Place there Step code
+            gdb_cpu->gdb_single_step = true;
             GDB_sendPacket("S05");
             return;
         }
@@ -381,7 +402,7 @@ void GDB_parsePacket(const char* buffer) {
             uint64_t idx = stoul(packet.substr(1),nullptr,16);
             if(idx <= 31) {
                 //gpr
-                GDB_sendPacket(to_little_endian_hex(gdb_hart->regs[idx]));
+                GDB_sendPacket(to_little_endian_hex(gdb_hart->GPR[idx]));
             } else if(idx == 32) {
                 //pc
                 GDB_sendPacket(to_little_endian_hex(gdb_hart->pc));
@@ -406,7 +427,7 @@ void GDB_parsePacket(const char* buffer) {
             }
             if(idx <= 31) {
                 //gpr
-                gdb_hart->regs[idx] = num;
+                gdb_hart->GPR[idx] = num;
             } else if(idx == 32) {
                 //pc
                 gdb_hart->pc = num;
@@ -426,7 +447,7 @@ void GDB_parsePacket(const char* buffer) {
             //registers
             string packet;
             for(int i = 0; i < 32; i++) {
-                packet += to_little_endian_hex(gdb_hart->regs[i]);
+                packet += to_little_endian_hex(gdb_hart->GPR[i]);
             }
             //pc
             packet += to_little_endian_hex(gdb_hart->pc);
@@ -443,7 +464,7 @@ void GDB_parsePacket(const char* buffer) {
             {
                 val = stoull(swapHexEndian(data.substr(i * 16, 16), 8),
                             nullptr, 16);
-                gdb_hart->regs[i] = val;
+                gdb_hart->GPR[i] = val;
             }
 
             val = stoull(
@@ -538,6 +559,7 @@ void GDB_Loop() {
     gdb_recv = accept(gdb_socket, nullptr, nullptr);
     int flag = 1;
     setsockopt(gdb_recv, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(int));
+    std::cout << "[GDB] Got connection" << std::endl;
 
     char buffer[4096] = { 0 };
     while(gdb_isR) {
@@ -549,6 +571,7 @@ void GDB_Loop() {
         if(received < 0) {
             break;
         }
+
         if(buffer[0] == '$') {
             GDB_send("+\0",0);
             GDB_parsePacket(buffer);

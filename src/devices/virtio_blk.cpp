@@ -21,8 +21,8 @@ Copyright 2026 Spalishe
 #include <sys/stat.h>
 #include <unistd.h>
 
-VirtIO_BLK::VirtIO_BLK(uint64_t base, uint64_t size, DRAM& ram_, PLIC* plic_, fdt_node* fdt, uint8_t irq_num_, std::string image_path_)
-    : Device(base, size, ram_), ram(ram_), plic(plic_), irq_num(irq_num_), image_path(std::move(image_path_))
+VirtIO_BLK::VirtIO_BLK(uint64_t base, uint64_t size, Machine& cpu, PLIC* plic, fdt_node* fdt, uint8_t irq_num, std::string image_path)
+    : Device(base, size, cpu), plic(plic), irq_num(irq_num), image_path(std::move(image_path))
 {
     fdt_node* virtio_blk_node = fdt_node_create_reg("virtio_mmio",base);
     fdt_node_add_prop(virtio_blk_node,"compatible","virtio,mmio\0",12);
@@ -67,53 +67,17 @@ VirtIO_BLK::VirtIO_BLK(uint64_t base, uint64_t size, DRAM& ram_, PLIC* plic_, fd
 }
 
 // -------------------- DRAM memory helpers --------------------
-uint8_t VirtIO_BLK::read_u8(uint64_t gpa) {
-    uint64_t v = ram.mmap->load(gpa, 8);
-    return static_cast<uint8_t>(v & 0xFF);
-}
-uint16_t VirtIO_BLK::read_u16(uint64_t gpa) {
-    uint64_t v = ram.mmap->load(gpa, 16);
-    return static_cast<uint16_t>(v & 0xFFFF);
-}
-uint32_t VirtIO_BLK::read_u32(uint64_t gpa) {
-    uint64_t v = ram.mmap->load(gpa, 32);
-    return static_cast<uint32_t>(v & 0xFFFFFFFF);
-}
-uint64_t VirtIO_BLK::read_u64(uint64_t gpa) {
-    // assume load supports 64-bit
-    uint64_t v_low = ram.mmap->load(gpa, 32);
-    uint64_t v_high = ram.mmap->load(gpa + 4, 32);
-    return (v_high << 32) | (v_low & 0xFFFFFFFF);
-}
-
-void VirtIO_BLK::write_u8(uint64_t gpa, uint8_t v) {
-    ram.mmap->store(gpa, 8, v);
-}
-void VirtIO_BLK::write_u16(uint64_t gpa, uint16_t v) {
-    ram.mmap->store(gpa, 16, v);
-}
-void VirtIO_BLK::write_u32(uint64_t gpa, uint32_t v) {
-    ram.mmap->store(gpa, 32, v);
-}
-void VirtIO_BLK::write_u64(uint64_t gpa, uint64_t v) {
-    // break into two 32-bit stores (assumption about store API)
-    uint32_t low = (uint32_t)(v & 0xFFFFFFFF);
-    uint32_t high = (uint32_t)(v >> 32);
-    ram.mmap->store(gpa, 32, low);
-    ram.mmap->store(gpa + 4, 32, high);
-}
 
 void VirtIO_BLK::copy_from_dram(uint64_t gpa, void* dst, uint64_t len) {
-    // naive byte copy via read_u8
     uint8_t* out = reinterpret_cast<uint8_t*>(dst);
     for (uint64_t i = 0; i < len; ++i) {
-        out[i] = read_u8(gpa + i);
+        out[i] = (uint8_t)dram_load(&cpu.dram,gpa + i,8);
     }
 }
 void VirtIO_BLK::copy_to_dram(uint64_t gpa, const void* src, uint64_t len) {
     const uint8_t* in = reinterpret_cast<const uint8_t*>(src);
     for (uint64_t i = 0; i < len; ++i) {
-        write_u8(gpa + i, in[i]);
+        dram_store(&cpu.dram,gpa + i, 8, in[i]);
     }
 }
 
@@ -151,10 +115,10 @@ bool VirtIO_BLK::fetch_descriptor_chain(uint16_t head, std::vector<VirtqDesc>& o
     for (uint32_t iter = 0; iter < q.size; ++iter) {
         uint64_t desc_addr = q.desc_addr + (uint64_t)idx * VIRTQ_DESC_SIZE;
         VirtqDesc d;
-        d.addr = read_u64(desc_addr + 0);
-        d.len  = read_u32(desc_addr + 8);
-        d.flags = read_u16(desc_addr + 12);
-        d.next  = read_u16(desc_addr + 14);
+        d.addr = (uint64_t)dram_load(&cpu.dram,desc_addr + 0,64);
+        d.len  = (uint32_t)dram_load(&cpu.dram,desc_addr + 8,32);
+        d.flags = (uint16_t)dram_load(&cpu.dram,desc_addr + 12,16);
+        d.next  = (uint16_t)dram_load(&cpu.dram,desc_addr + 14,16);
         out_chain.push_back(d);
         if (d.flags & VIRTQ_DESC_F_NEXT) {
             idx = d.next;
@@ -175,13 +139,13 @@ void VirtIO_BLK::process_queue(uint32_t qsel) {
 
     // read avail.idx
     uint64_t avail_idx_addr = q.avail_addr + offsetof(VirtqAvail, idx);
-    uint16_t avail_idx = read_u16(q.avail_addr + 2); // flags(2) then idx(2)
-
+    uint16_t avail_idx = (uint16_t)dram_load(&cpu.dram,q.avail_addr + 2,16); // flags(2) then idx(2)
+    
     // iterate new entries
     while (q.last_avail_idx != avail_idx) {
         uint16_t ring_index = q.last_avail_idx % q.size;
         uint64_t ring_entry_addr = q.avail_addr + 4 + (uint64_t)ring_index * 2; // ring starts at offset 4, entries are u16
-        uint16_t head = read_u16(ring_entry_addr);
+        uint16_t head = (uint16_t)dram_load(&cpu.dram,ring_entry_addr,16);
 
         // fetch chain
         std::vector<VirtqDesc> chain;
@@ -263,18 +227,19 @@ void VirtIO_BLK::process_queue(uint32_t qsel) {
 
             // write status byte into status descriptor (first byte)
             uint64_t status_addr = chain[status_desc_i].addr;
-            write_u8(status_addr, status_val);
+            dram_store(&cpu.dram,status_addr, 8, status_val);
         }
 
         // add used element
         uint16_t used_ring_idx = queue0.last_used_idx % q.size;
         uint64_t used_elem_addr = q.used_addr + sizeof(uint16_t) * 2 + (uint64_t)used_ring_idx * sizeof(VirtqUsedElem);
         // write id (head) and len (set to 0 or total bytes processed)
-        write_u32(used_elem_addr + 0, head);
-        write_u32(used_elem_addr + 4, 0); // len ignored typically
+        dram_store(&cpu.dram,used_elem_addr + 0, 32, head);
+        dram_store(&cpu.dram,used_elem_addr + 4, 32, 0); // len ignored typically
+        
         queue0.last_used_idx++;
         // update used.idx in guest memory
-        write_u16(q.used_addr + 2, queue0.last_used_idx);
+        dram_store(&cpu.dram,q.used_addr + 2, 16, queue0.last_used_idx);
 
         // mark that we've consumed this avail
         q.last_avail_idx++;

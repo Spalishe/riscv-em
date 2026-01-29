@@ -38,8 +38,14 @@ enum class MachineState {
     PoweredOff = 3,
 };
 
+struct MMIO;
+struct ACLINT;
+struct PLIC;
+struct VirtIO_BLK;
+struct UART;
+struct SYSCON;
+
 struct Machine {
-    Machine();
     ~Machine() {
         for(Device* dev : mmio->devices) {
             delete dev;
@@ -64,6 +70,7 @@ struct Machine {
 
     MachineState state = MachineState::PoweredOff;
     bool gdb = false;
+    bool gdb_single_step = false;
     bool dtb_is_file = false;
 };
 

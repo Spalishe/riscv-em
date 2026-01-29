@@ -20,6 +20,7 @@ Copyright 2026 Spalishe
 #include "mmio.h"
 #include "plic.hpp"
 #include "../libfdt.hpp"
+#include "../machine.hpp"
 
 #include <cstdint>
 #include <string>
@@ -169,7 +170,6 @@ private:
     void clear_interrupt(uint32_t bits);
 
 private:
-    DRAM& ram;           // reference to memory
     PLIC* plic;
     uint8_t irq_num;
     std::string image_path;

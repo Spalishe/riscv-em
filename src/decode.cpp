@@ -92,7 +92,7 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
     int64_t imm = 0;
 
     bool valid = false;
-	void (*fn)(HART*, inst_data);
+	void (*fn)(HART*, inst_data&);
 
     inst_data cache = hart->instr_cache[(pc >> 2) & 0x1FFF];
     if(cache.valid && cache.pc == pc) {
@@ -309,12 +309,12 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
                 break;
             case ECALL: 
                 switch(funct3) {
-                    //case CSRRW: fn = exec_CSRRW; valid = true; break;
-                    //case CSRRS: fn = exec_CSRRS; valid = true; break;
-                    //case CSRRC: fn = exec_CSRRC; valid = true; break;
-                    //case CSRRWI: fn = exec_CSRRWI; valid = true; break;
-                    //case CSRRSI: fn = exec_CSRRSI; valid = true; break;
-                    //case CSRRCI: fn = exec_CSRRCI; valid = true; break;
+                    case CSRRW: fn = exec_CSRRW; rd = d_rd(inst); rs1 = d_rs1(inst); imm = imm_Zicsr(inst); valid = true; break;
+                    case CSRRS: fn = exec_CSRRS; rd = d_rd(inst); rs1 = d_rs1(inst); imm = imm_Zicsr(inst); valid = true; break;
+                    case CSRRC: fn = exec_CSRRC; rd = d_rd(inst); rs1 = d_rs1(inst); imm = imm_Zicsr(inst); valid = true; break;
+                    case CSRRWI: fn = exec_CSRRWI; rd = d_rd(inst); rs1 = d_rs1(inst); imm = imm_Zicsr(inst); valid = true; break;
+                    case CSRRSI: fn = exec_CSRRSI; rd = d_rd(inst); rs1 = d_rs1(inst); imm = imm_Zicsr(inst); valid = true; break;
+                    case CSRRCI: fn = exec_CSRRCI; rd = d_rd(inst); rs1 = d_rs1(inst); imm = imm_Zicsr(inst); valid = true; break;
                     case 0:
                         switch(imm) {
                             case 0: fn = exec_ECALL; valid = true; break;
@@ -330,7 +330,7 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
         }
         //if(increase) pc += 4;
         
-        inst_data dec = inst_data{valid, pc, inst,rd,rs1,rs2,imm};
+        inst_data dec = inst_data{valid, pc, inst,rd,rs1,rs2,imm,fn};
         hart->instr_cache[(pc >> 2) & 0x1FFF] = dec;
         return dec;
     }

@@ -17,6 +17,8 @@ Copyright 2026 Spalishe
 
 #pragma once
 
+struct HART;
+
 struct inst_data {
     bool valid;
     uint64_t pc;
@@ -26,11 +28,12 @@ struct inst_data {
     uint8_t rs1;
     uint8_t rs2;
     int64_t imm;
+    void (*fn)(HART*, inst_data&);
 };
 
-uint64_t rd(uint32_t inst);
-uint64_t rs1(uint32_t inst);
-uint64_t rs2(uint32_t inst);
+uint64_t d_rd(uint32_t inst);
+uint64_t d_rs1(uint32_t inst);
+uint64_t d_rs2(uint32_t inst);
 uint64_t imm_Zicsr(uint32_t inst);
 uint64_t imm_I(uint32_t inst);
 uint64_t imm_S(uint32_t inst);
@@ -44,7 +47,7 @@ int32_t sext(uint32_t val, int bits);
 uint32_t get_bits(uint32_t inst, int hi, int lo);
 uint32_t switch_endian(uint32_t const input);
 
-extern inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc);
+extern inst_data parse_instruction(HART* hart, uint32_t inst, uint64_t pc);
 
 #define R_TYPE  0x33
     #define ADDSUB  0x0
@@ -125,68 +128,77 @@ extern inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc
 
 //// RV64I
 // R-Type
-void exec_ADD(struct HART *hart, inst_data inst);
-void exec_SUB(struct HART *hart, inst_data inst);
-void exec_XOR(struct HART *hart, inst_data inst);
-void exec_OR(struct HART *hart, inst_data inst);
-void exec_AND(struct HART *hart, inst_data inst);
-void exec_SLL(struct HART *hart, inst_data inst);
-void exec_SRL(struct HART *hart, inst_data inst);
-void exec_SRA(struct HART *hart, inst_data inst);
-void exec_SLT(struct HART *hart, inst_data inst);
-void exec_SLTU(struct HART *hart, inst_data inst);
+void exec_ADD(HART *hart, inst_data& inst);
+void exec_SUB(HART *hart, inst_data& inst);
+void exec_XOR(HART *hart, inst_data& inst);
+void exec_OR(HART *hart, inst_data& inst);
+void exec_AND(HART *hart, inst_data& inst);
+void exec_SLL(HART *hart, inst_data& inst);
+void exec_SRL(HART *hart, inst_data& inst);
+void exec_SRA(HART *hart, inst_data& inst);
+void exec_SLT(HART *hart, inst_data& inst);
+void exec_SLTU(HART *hart, inst_data& inst);
 
-void exec_ADDW(struct HART *hart, inst_data inst);
-void exec_SUBW(struct HART *hart, inst_data inst);
-void exec_SLLW(struct HART *hart, inst_data inst);
-void exec_SRLW(struct HART *hart, inst_data inst);
-void exec_SRAW(struct HART *hart, inst_data inst);
+void exec_ADDW(HART *hart, inst_data& inst);
+void exec_SUBW(HART *hart, inst_data& inst);
+void exec_SLLW(HART *hart, inst_data& inst);
+void exec_SRLW(HART *hart, inst_data& inst);
+void exec_SRAW(HART *hart, inst_data& inst);
 
 // I-Type
-void exec_ADDI(struct HART *hart, inst_data inst);
-void exec_XORI(struct HART *hart, inst_data inst);
-void exec_ORI(struct HART *hart, inst_data inst);
-void exec_ANDI(struct HART *hart, inst_data inst);
-void exec_SLLI(struct HART *hart, inst_data inst);
-void exec_SRLI(struct HART *hart, inst_data inst);
-void exec_SRAI(struct HART *hart, inst_data inst);
-void exec_SLTI(struct HART *hart, inst_data inst);
-void exec_SLTIU(struct HART *hart, inst_data inst);
-void exec_LB(struct HART *hart, inst_data inst);
-void exec_LH(struct HART *hart, inst_data inst);
-void exec_LW(struct HART *hart, inst_data inst);
-void exec_LBU(struct HART *hart, inst_data inst);
-void exec_LHU(struct HART *hart, inst_data inst);
+void exec_ADDI(HART *hart, inst_data& inst);
+void exec_XORI(HART *hart, inst_data& inst);
+void exec_ORI(HART *hart, inst_data& inst);
+void exec_ANDI(HART *hart, inst_data& inst);
+void exec_SLLI(HART *hart, inst_data& inst);
+void exec_SRLI(HART *hart, inst_data& inst);
+void exec_SRAI(HART *hart, inst_data& inst);
+void exec_SLTI(HART *hart, inst_data& inst);
+void exec_SLTIU(HART *hart, inst_data& inst);
+void exec_LB(HART *hart, inst_data& inst);
+void exec_LH(HART *hart, inst_data& inst);
+void exec_LW(HART *hart, inst_data& inst);
+void exec_LBU(HART *hart, inst_data& inst);
+void exec_LHU(HART *hart, inst_data& inst);
 
-void exec_ADDIW(struct HART *hart, inst_data inst);
-void exec_SLLIW(struct HART *hart, inst_data inst);
-void exec_SRLIW(struct HART *hart, inst_data inst);
-void exec_SRAIW(struct HART *hart, inst_data inst);
+void exec_ADDIW(HART *hart, inst_data& inst);
+void exec_SLLIW(HART *hart, inst_data& inst);
+void exec_SRLIW(HART *hart, inst_data& inst);
+void exec_SRAIW(HART *hart, inst_data& inst);
 
-void exec_LWU(struct HART *hart, inst_data inst);
-void exec_LD(struct HART *hart, inst_data inst);
+void exec_LWU(HART *hart, inst_data& inst);
+void exec_LD(HART *hart, inst_data& inst);
 
 // S-Type
-void exec_SB(struct HART *hart, inst_data inst);
-void exec_SH(struct HART *hart, inst_data inst);
-void exec_SW(struct HART *hart, inst_data inst);
-void exec_SD(struct HART *hart, inst_data inst);
+void exec_SB(HART *hart, inst_data& inst);
+void exec_SH(HART *hart, inst_data& inst);
+void exec_SW(HART *hart, inst_data& inst);
+void exec_SD(HART *hart, inst_data& inst);
 
 // B-Type
-void exec_BEQ(struct HART *hart, inst_data inst);
-void exec_BNE(struct HART *hart, inst_data inst);
-void exec_BLT(struct HART *hart, inst_data inst);
-void exec_BGE(struct HART *hart, inst_data inst);
-void exec_BLTU(struct HART *hart, inst_data inst);
-void exec_BGEU(struct HART *hart, inst_data inst);
+void exec_BEQ(HART *hart, inst_data& inst);
+void exec_BNE(HART *hart, inst_data& inst);
+void exec_BLT(HART *hart, inst_data& inst);
+void exec_BGE(HART *hart, inst_data& inst);
+void exec_BLTU(HART *hart, inst_data& inst);
+void exec_BGEU(HART *hart, inst_data& inst);
 
 // JUMP
-void exec_JAL(struct HART *hart, inst_data inst);
-void exec_JALR(struct HART *hart, inst_data inst);
+void exec_JAL(HART *hart, inst_data& inst);
+void exec_JALR(HART *hart, inst_data& inst);
 
 // what
-void exec_LUI(struct HART *hart, inst_data inst);
-void exec_AUIPC(struct HART *hart, inst_data inst);
+void exec_LUI(HART *hart, inst_data& inst);
+void exec_AUIPC(HART *hart, inst_data& inst);
 
-void exec_ECALL(struct HART *hart, inst_data inst);
-void exec_EBREAK(struct HART *hart, inst_data inst);
+void exec_ECALL(HART *hart, inst_data& inst);
+void exec_EBREAK(HART *hart, inst_data& inst);
+
+//// ZiCSR
+
+void exec_CSRRW(HART *hart, inst_data& inst);
+void exec_CSRRS(HART *hart, inst_data& inst);
+void exec_CSRRC(HART *hart, inst_data& inst);
+void exec_CSRRWI(HART *hart, inst_data& inst);
+void exec_CSRRSI(HART *hart, inst_data& inst);
+void exec_CSRRCI(HART *hart, inst_data& inst);

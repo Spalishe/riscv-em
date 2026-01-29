@@ -22,16 +22,21 @@ Copyright 2026 Spalishe
 #include "../include/machine.hpp"
 
 void machine_run(Machine& cpu) {
-    cpu.state = MachineState::Running;
+    cpu.state = cpu.gdb ? MachineState::Halted : MachineState::Running;
     using clock = std::chrono::steady_clock;
     auto last = clock::now();
-    
+
     while(cpu.state != MachineState::PoweredOff) {
         if (cpu.state == MachineState::Halted) {
+			if(cpu.gdb_single_step) {
+				cpu.state = MachineState::Running;
+			}
             std::this_thread::yield();
             continue;
         }
         for (auto& h : cpu.harts) {
+			cpu.plic->plic_service(h);
+			h->GPR[0] = 0;
             if(h->WFI) {
                 hart_check_interrupts(*h);
                 continue;
@@ -44,6 +49,10 @@ void machine_run(Machine& cpu) {
         last = now;
 
         cpu.clint->tick(delta);
+		if(cpu.gdb_single_step) {
+			cpu.gdb_single_step = false;
+			cpu.state = MachineState::Halted;
+		}
     }
     machine_destroy_harts(cpu);
 }
@@ -212,13 +221,13 @@ void machine_reset(Machine& cpu) {
 void machine_create_harts(Machine& cpu) {
     uint64_t dtb_path_in_memory = DRAM_BASE + cpu.memsize - 0x20000;
 
-    for(uint8_t i = 0; cpu.core_count < i; i++) {
+    for(uint8_t i = 0; i < cpu.core_count; i++) {
         HART* hart = new HART();
         hart->mmio = cpu.mmio;
         hart->id = i;
-        hart_reset(*hart,dtb_path_in_memory,cpu.gdb);
+        hart_reset(*hart,dtb_path_in_memory);
+		cpu.harts.push_back(hart);
     }
-	if(cpu.gdb) GDB_Create(cpu.harts[0]);
 }
 
 void machine_destroy_harts(Machine& cpu) {

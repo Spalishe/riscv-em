@@ -30,17 +30,17 @@ Running:
 
 The emulator supports the following features:
 - [ ] RV64G ISA
-  - [ ] RV64I
+  - [X] RV64I
   - [ ] RV64M
   - [ ] RV64A (No atomicity for now)
   - [ ] RV64F
   - [ ] RV64D
   - [ ] Zifencei: (`fence.i` does nothing for
     now)
-  - [ ] Zicsr: (No atomicity for now)
+  - [X] Zicsr
 - [ ] RV64C
 - [ ] Privileged ISA
-- [ ] Control and status registers (CSRs)
+- [X] Control and status registers (CSRs)
   - [ ] Machine-level CSRs
   - [ ] Supervisor-level CSRs
   - [ ] User-level CSRs

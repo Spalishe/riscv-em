@@ -24,13 +24,14 @@ Copyright 2026 Spalishe
 
 /*
 	What should i add to functionality if i want to add 2 harts:
-		- FENCE
 		- THE REAL ATOMICITY
 
 	The Broken Insts:
 		none
 	TODO:
-		Entire core btw
+		- FENCE
+		- MRET
+		- SRET
 		- Counter CSRs
 		-RTC GoldFish
 
@@ -54,7 +55,7 @@ Copyright 2026 Spalishe
 int main(int argc, char* argv[]) {
 	Argparser::Argparser parser(argc,argv);
 	parser.setProgramName("RISC-V EM");
-	parser.addArgument("--bios", "File with Machine Level program (bootloader)",false,false,Argparser::ArgumentType::str);
+	parser.addArgument("--bios", "File with Machine Level program (bootloader)",true,false,Argparser::ArgumentType::str);
 
 	parser.addArgument("--kernel", "File with Supervisor Level program",false,false,Argparser::ArgumentType::str);
 	parser.addArgument("--image", "File with Image file that will put on VirtIO-BLK",false,false,Argparser::ArgumentType::str);
@@ -98,8 +99,13 @@ int main(int argc, char* argv[]) {
 		std::string kernel_path = parser.getString(1);
 		VM.memmap.load_file(DRAM_BASE+0x200000,kernel_path);
 	}
+	machine_create_harts(VM);
 
 	std::thread VM_thread(machine_run,std::ref(VM));
+	if(gdb_stub) {
+		std::thread GDB_thread(GDB_Create,VM.harts[0],&VM);
+		GDB_thread.join();
+	}
 
 	VM_thread.join();
 	
