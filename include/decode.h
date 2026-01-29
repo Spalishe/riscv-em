@@ -191,6 +191,8 @@ void exec_JALR(HART *hart, inst_data& inst);
 void exec_LUI(HART *hart, inst_data& inst);
 void exec_AUIPC(HART *hart, inst_data& inst);
 
+void exec_FENCE(HART *hart, inst_data& inst);
+
 void exec_ECALL(HART *hart, inst_data& inst);
 void exec_EBREAK(HART *hart, inst_data& inst);
 
@@ -202,3 +204,8 @@ void exec_CSRRC(HART *hart, inst_data& inst);
 void exec_CSRRWI(HART *hart, inst_data& inst);
 void exec_CSRRSI(HART *hart, inst_data& inst);
 void exec_CSRRCI(HART *hart, inst_data& inst);
+
+//// SYSTEM
+
+void exec_MRET(HART *hart, inst_data& inst);
+void exec_SRET(HART *hart, inst_data& inst);

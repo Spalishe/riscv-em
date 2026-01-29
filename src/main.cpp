@@ -24,9 +24,6 @@ Copyright 2026 Spalishe
 
 /*
 	TODO:
-		- FENCE
-		- MRET
-		- SRET
 		- Counter CSRs
 
 		-MMU

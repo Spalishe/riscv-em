@@ -21,6 +21,7 @@ Copyright 2026 Spalishe
 #include "dram.h"
 #include "devices/mmio.h"
 #include "decode.h"
+#include "csr.h"
 #include <string>
 #include <functional>
 #include <unordered_map>
@@ -32,11 +33,18 @@ struct HART;
 
 struct inst_data;
 
+enum class PrivilegeMode {
+    User = 0,
+    Supervisor = 1,
+    Hypervisor = 2,
+    Machine = 3
+};
+
 struct HART {
     uint64_t GPR[32];
     uint64_t pc = DRAM_BASE;
     uint64_t csrs[4069];
-    uint8_t mode = 3;
+    PrivilegeMode mode = PrivilegeMode::Machine;
 
     inst_data instr_cache[8192];
 
@@ -69,4 +77,34 @@ static uint64_t riscv_mkmisa(const char* str)
         str++;
     }
     return ret;
+}
+
+inline uint64_t csr_read_mstatus(HART *hart, uint8_t bit_low, uint8_t bit_high) {
+    uint64_t mstatus = hart->csrs[MSTATUS];
+    uint64_t mask = (1 << (bit_high - bit_low + 1)) - 1;
+    uint64_t val = (mstatus >> bit_low) & mask;
+    return val;
+}
+inline void csr_write_mstatus(HART *hart, uint8_t bit_low, uint8_t bit_high, uint64_t val) {
+    uint64_t mstatus = hart->csrs[MSTATUS];
+    uint64_t width = bit_high - bit_low + 1;
+    uint64_t mask = (1 << width) - 1;
+    mstatus = (mstatus & ~(mask << bit_low)) | ((val & mask) << bit_low);
+    hart->csrs[MSTATUS] = mstatus;
+}
+inline uint64_t csr_read(HART *hart, uint16_t csr) {
+    switch(csr) {
+        case SSTATUS:
+            return hart->csrs[MSTATUS] & SSTATUS_MASK;
+        default:
+            return hart->csrs[csr];
+    }
+}
+inline void csr_write(HART *hart, uint16_t csr, uint64_t val) {
+    if(csr == SSTATUS) {
+        uint64_t mst = hart->csrs[MSTATUS] & ~SSTATUS_MASK;
+        hart->csrs[MSTATUS] = mst | (val & SSTATUS_MASK);
+    } else {
+        hart->csrs[csr] = val;
+    }
 }

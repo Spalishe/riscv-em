@@ -21,7 +21,7 @@ Copyright 2026 Spalishe
 #include <vector>
 #include <dram.h>
 #include <csr.h>
-#include <cpu.h>
+#include <cpu.hpp>
 #include <optional>
 #include <cstdio>
 #include <atomic>

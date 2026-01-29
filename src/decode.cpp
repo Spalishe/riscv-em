@@ -15,7 +15,7 @@ Copyright 2026 Spalishe
 
 */
 
-#include "../include/cpu.h"
+#include "../include/cpu.hpp"
 #include "../include/decode.h"
 #include <stdint.h>
 
@@ -105,11 +105,12 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
         int funct6 = (inst >> 26);
         int imm = (inst >> 20);
         switch(opcode) {
-            /*case FENCE:
+            case FENCE:
                 switch(funct3) {
-                    case 1: fn = exec_FENCE_I; junction = true; valid = true; break;
-                    case 0: fn = exec_FENCE; junction = true; valid = true; break;
-                }*/
+                    //case 1: fn = exec_FENCE_I; valid = true; break;
+                    case 0: fn = exec_FENCE; valid = true; break;
+                };
+                break;
             case R_TYPE:
                 switch(funct3) {
                     case ADDSUB:
@@ -288,22 +289,26 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
                 break;
             case JAL: 
                 fn = exec_JAL;
+                valid = true;
                 rd = d_rd(inst);
                 imm = imm_J(inst);
                 break;
             case JALR:
                 fn = exec_JALR; 
+                valid = true;
                 rd = d_rd(inst);
                 rs1 = d_rs1(inst);
                 imm = imm_J(inst);
                 break;
             case LUI:
                 fn = exec_LUI;
+                valid = true;
                 rd = d_rd(inst);
                 imm = imm_U(inst);
                 break;
             case AUIPC:
                 fn = exec_AUIPC;
+                valid = true;
                 rd = d_rd(inst);
                 imm = imm_U(inst);
                 break;
@@ -320,9 +325,9 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
                             case 0: fn = exec_ECALL; valid = true; break;
                             case 1: fn = exec_EBREAK; valid = true; break;
                             //case 261: fn = exec_WFI; valid = true; break;
-                            //case 258: fn = exec_SRET; valid = true; break;
+                            case 258: fn = exec_SRET; valid = true; break;
                             //case 288: fn = exec_SFENCE_VMA; valid = true; break;
-                            //case 770: fn = exec_MRET; valid = true; break;
+                            case 770: fn = exec_MRET; valid = true; break;
                         }; break;
                 }; break;
 

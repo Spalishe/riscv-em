@@ -19,7 +19,7 @@ Copyright 2026 Spalishe
 
 #include <unistd.h>
 #include <cstdint>
-#include "cpu.h"
+#include "cpu.hpp"
 #include "machine.hpp"
 
 struct HART;

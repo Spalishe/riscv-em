@@ -15,8 +15,8 @@ Copyright 2026 Spalishe
 
 */
 
-#include "../include/cpu.h"
-#include <iostream>
+#include "../../include/cpu.hpp"
+#include "../../include/decode.h"
 
 // R-Type
 
@@ -257,13 +257,14 @@ void exec_LUI(HART *hart, inst_data& inst) {
 	hart->GPR[inst.rd] = (int64_t) (int32_t) (inst.imm << 12);
 }
 void exec_AUIPC(HART *hart, inst_data& inst) {
+    hart->GPR[inst.rd] = hart->pc + ((int64_t) (int32_t) (inst.imm << 12));
 }
 
 void exec_ECALL(HART *hart, inst_data& inst) {
 	switch(hart->mode) {
-		case 3: hart_trap(*hart,EXC_ENV_CALL_FROM_M,0,false); break;
-		case 1: hart_trap(*hart,EXC_ENV_CALL_FROM_S,0,false); break;
-		case 0: hart_trap(*hart,EXC_ENV_CALL_FROM_U,0,false); break;
+		case PrivilegeMode::Machine: hart_trap(*hart,EXC_ENV_CALL_FROM_M,0,false); break;
+		case PrivilegeMode::Supervisor: hart_trap(*hart,EXC_ENV_CALL_FROM_S,0,false); break;
+		case PrivilegeMode::User: hart_trap(*hart,EXC_ENV_CALL_FROM_U,0,false); break;
 	}
 }
 void exec_EBREAK(HART *hart, inst_data& inst) {
@@ -272,5 +273,7 @@ void exec_EBREAK(HART *hart, inst_data& inst) {
 
 
 void exec_FENCE(HART *hart, inst_data& inst) {
-    
+    // nop
+    // If you planning adding some memory write/read buffer, you have to implement this instruction then
+    // FENCE guaranties that all cores will see all changes that have done by 1 specific core before FENCE instruction
 }

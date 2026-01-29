@@ -409,7 +409,7 @@ void GDB_parsePacket(const char* buffer) {
             } else if(idx > 32 && idx < 64) {
                 if(idx == 33) {
                     //priv
-                    GDB_sendPacket(to_little_endian_hex(gdb_hart->mode));
+                    GDB_sendPacket(to_little_endian_hex((uint8_t)gdb_hart->mode));
                 }
             } else if(idx >= 64) {
                 //csr
@@ -434,7 +434,7 @@ void GDB_parsePacket(const char* buffer) {
             } else if(idx > 32 && idx < 64) {
                 if(idx == 33) {
                     //priv
-                    gdb_hart->mode = num;
+                    gdb_hart->mode = (PrivilegeMode)num;
                 }
             } else if(idx >= 64) {
                 //csr

@@ -17,7 +17,7 @@ Copyright 2026 Spalishe
 
 #pragma once
 #include <vector>
-#include "cpu.h"
+#include "cpu.hpp"
 #include "libfdt.hpp"
 #include "gdbstub.hpp"
 #include "devices/aclint.hpp"

@@ -41,8 +41,8 @@ The emulator supports the following features:
 - [ ] RV64C
 - [ ] Privileged ISA
 - [X] Control and status registers (CSRs)
-  - [ ] Machine-level CSRs
-  - [ ] Supervisor-level CSRs
+  - [X] Machine-level CSRs
+  - [X] Supervisor-level CSRs
   - [ ] User-level CSRs
 - [x] Devices
   - [x] UART: universal asynchronous receiver-transmitter

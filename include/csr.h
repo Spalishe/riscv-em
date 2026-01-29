@@ -194,12 +194,6 @@ Copyright 2026 Spalishe
 #define IRQ_SEXT   9
 #define IRQ_MEXT   11
 
-// MSTATUS/SSTATUS bit positions (spec)
-#define MSTATUS_MIE_BIT   3
-#define MSTATUS_MPIE_BIT  7
-#define MSTATUS_MPP_SHIFT 11
-#define MSTATUS_MPP_MASK  (3ULL << MSTATUS_MPP_SHIFT)
-
 // SSTATUS bits (these are aliases typically)
 #define SSTATUS_SIE_BIT   1
 #define SSTATUS_SPIE_BIT  5
@@ -232,3 +226,17 @@ Copyright 2026 Spalishe
 #define SIE_STIE_BIT 5
 #define MIE_STIE_BIT 5
 #define SIP_STIP_BIT 5
+
+
+
+#define MSTATUS_MPRV 17
+#define MSTATUS_MPP_LOW 11
+#define MSTATUS_MPP_HIGH 12
+#define MSTATUS_MIE 3
+#define MSTATUS_MPIE 7
+#define MSTATUS_TSR 22
+#define MSTATUS_SPP 8
+#define MSTATUS_SIE 1
+#define MSTATUS_SPIE 5
+
+#define SSTATUS_MASK 0x80000003000DE762ULL

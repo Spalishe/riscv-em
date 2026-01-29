@@ -9,8 +9,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 file(GLOB SOURCES "src/*.cpp")
 file(GLOB DEVICE_SOURCES "src/devices/*.cpp")
+file(GLOB INSTR_SETS "src/sets/*.cpp")
 
-add_executable(riscvem ${SOURCES} ${DEVICE_SOURCES} ${JIT_SOURCES})
+add_executable(riscvem ${SOURCES} ${DEVICE_SOURCES} ${INSTR_SETS})
 
 set(CMAKE_CXX_FLAGS_DEBUG "-latomic -O0 -march=native -g")
 set(CMAKE_CXX_FLAGS_RELEASE "-latomic -O3 -march=native")
