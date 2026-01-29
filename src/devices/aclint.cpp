@@ -24,6 +24,7 @@ ACLINT::ACLINT(uint64_t base, Machine& cpu, fdt_node* fdt)
         msip(cpu.core_count, 0),
         mtimecmp(cpu.core_count, 0)
 {    
+    last = std::chrono::steady_clock::now();
     if(fdt != NULL) {
         struct fdt_node* cpus = fdt_node_find(fdt, "cpus");
         std::vector<uint32_t> irq_ext = {}; 
@@ -51,11 +52,21 @@ ACLINT::ACLINT(uint64_t base, Machine& cpu, fdt_node* fdt)
     }
 }
 
-void ACLINT::tick(const std::chrono::nanoseconds time_passed) {
-    uint64_t ticks = std::chrono::duration_cast<std::chrono::nanoseconds>(time_passed).count()
-        * ACLINT_FREQ_HZ / 1'000'000'000;
+void ACLINT::tick() {
+    auto now = std::chrono::steady_clock::now();
 
-    mtime += ticks;
+    std::chrono::duration<double> elapsed_ns = now - last;
+    last = now;
+    
+    double ticks_to_add = elapsed_ns.count() * ACLINT_FREQ_HZ;
+        
+    ns_accum += ticks_to_add;
+
+    if (ns_accum >= 1.0) {
+        uint64_t whole_ticks = static_cast<uint64_t>(ns_accum);
+        mtime += whole_ticks;
+        ns_accum -= whole_ticks;
+    }
 
     for(HART* hrt : cpu.harts) {
         hrt->csrs[TIME] = mtime;
@@ -92,7 +103,7 @@ uint64_t ACLINT::read_mswi(HART* hart, uint64_t offset) {
 uint64_t ACLINT::read_mtimer(HART* hart, uint64_t offset) {
     uint64_t hart_id = offset >> 3;
     if(offset == 0x7FF8) {
-        return (uint64_t)mtime.load();
+        return mtime;
     }
     return mtimecmp[hart_id];
 }
@@ -104,7 +115,7 @@ void ACLINT::write_mswi(HART* hart, uint64_t offset, uint64_t value) {
 void ACLINT::write_mtimer(HART* hart, uint64_t offset, uint64_t value) {
     uint64_t hart_id = offset >> 3;
     if (offset == 0x7FF8) {
-        mtime.store(value);
+        mtime = value;
         return;
     }
 

@@ -23,25 +23,21 @@ Copyright 2026 Spalishe
 #include "../include/machine.hpp"
 
 /*
-	What should i add to functionality if i want to add 2 harts:
-		- THE REAL ATOMICITY
-
-	The Broken Insts:
-		none
 	TODO:
 		- FENCE
 		- MRET
 		- SRET
 		- Counter CSRs
-		-RTC GoldFish
 
+		-MMU
 		-Zba - bit manip
 		-Zbb - bit manip
 		-Zbc - carry-less mul
 		-Zicbom - non-coherent DMA
 		-Zicboz - fast memory zeroing
 
-		-MMU
+		-RTC GoldFish
+
 		-RV32F
 		-RV64F
 		-RV32F for RV32C

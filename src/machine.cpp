@@ -23,8 +23,6 @@ Copyright 2026 Spalishe
 
 void machine_run(Machine& cpu) {
     cpu.state = cpu.gdb ? MachineState::Halted : MachineState::Running;
-    using clock = std::chrono::steady_clock;
-    auto last = clock::now();
 
     while(cpu.state != MachineState::PoweredOff) {
         if (cpu.state == MachineState::Halted) {
@@ -44,11 +42,7 @@ void machine_run(Machine& cpu) {
             hart_step(*h);
         }
 
-        auto now = clock::now();
-        auto delta = now - last;
-        last = now;
-
-        cpu.clint->tick(delta);
+        cpu.clint->tick();
 		if(cpu.gdb_single_step) {
 			cpu.gdb_single_step = false;
 			cpu.state = MachineState::Halted;

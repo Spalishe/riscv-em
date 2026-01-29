@@ -24,13 +24,14 @@ Copyright 2026 Spalishe
 #define ACLINT_FREQ_HZ     100000
 
 struct ACLINT : public Device {
+    ACLINT(uint64_t base, Machine& cpu, fdt_node* fdt);
+
     // Memory-mapped registers
     std::vector<uint32_t> msip;      // one per HART, 32-bit
     std::vector<uint64_t> mtimecmp;  // one per HART, 64-bit
-    std::atomic<uint64_t> mtime = 0; // global timer
+    uint64_t mtime = 0; // global timer
 
-    ACLINT(uint64_t base, Machine& cpu, fdt_node* fdt);
-    void tick(const std::chrono::nanoseconds time_passed);
+    void tick();
     uint64_t read(HART* hart, uint64_t addr, uint64_t size);
     void write(HART* hart, uint64_t addr, uint64_t size, uint64_t value);
     uint64_t read_mswi(HART* hart, uint64_t offset);
@@ -39,5 +40,7 @@ struct ACLINT : public Device {
     void write_mtimer(HART* hart, uint64_t offset, uint64_t value);
 
 private:
+    std::chrono::steady_clock::time_point last;
+    double ns_accum = 0;
     void update_mip(HART* hart);
 };
