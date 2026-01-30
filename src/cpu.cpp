@@ -168,7 +168,7 @@ void hart_trap(HART& h, uint64_t cause, uint64_t tval, bool is_interrupt) {
         // Supervisor
         h.mode = PrivilegeMode::Supervisor;
         uint64_t vector = ((h.csrs[STVEC] & 1 == 1 && is_interrupt) ? 4 * cause : 0);
-        h.pc = (h.csrs[STVEC] & ~1) + vector;
+        h.pc = (h.csrs[STVEC] & ~1) + vector - 4;
         h.csrs[SEPC] = trap_pc & ~1;
         h.csrs[SCAUSE] = ((is_interrupt ? (1ULL << 63) : 0) | cause);
         h.csrs[STVAL] = tval;
@@ -179,7 +179,7 @@ void hart_trap(HART& h, uint64_t cause, uint64_t tval, bool is_interrupt) {
         // Machine
         h.mode = PrivilegeMode::Machine;
         uint64_t vector = ((h.csrs[MTVEC] & 1 == 1 && is_interrupt) ? 4 * cause : 0);
-        h.pc = (h.csrs[MTVEC] & ~1) + vector;
+        h.pc = (h.csrs[MTVEC] & ~1) + vector - 4;
         h.csrs[MEPC] = trap_pc & ~1;
         h.csrs[MCAUSE] = ((is_interrupt ? (1ULL << 63) : 0) | cause);
         h.csrs[MTVAL] = tval;

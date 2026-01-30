@@ -25,6 +25,10 @@ void machine_run(Machine& cpu) {
     cpu.state = cpu.gdb ? MachineState::Halted : MachineState::Running;
 
     while(cpu.state != MachineState::PoweredOff) {
+		if (cpu.state == MachineState::PoweringOff) {
+			cpu.state = MachineState::PoweredOff;
+			break;
+		}
         if (cpu.state == MachineState::Halted) {
 			if(cpu.gdb_single_step) {
 				cpu.state = MachineState::Running;

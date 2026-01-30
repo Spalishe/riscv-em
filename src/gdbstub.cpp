@@ -593,5 +593,5 @@ void GDB_Loop() {
         }
     }
     close(gdb_recv);
-    GDB_Loop();
+    if(gdb_isR) GDB_Loop();
 }
