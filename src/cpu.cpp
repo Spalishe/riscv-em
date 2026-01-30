@@ -63,8 +63,11 @@ uint32_t hart_fetch(HART& h, uint64_t _pc) {
 }
 
 void hart_step(HART& h) {
-    uint32_t inst = hart_fetch(h,h.pc);
-    inst_data d = parse_instruction(&h, inst, h.pc);
+    auto phys = mmu_translate(*h.mmio->mmu, &h, h.pc, AccessType::EXECUTE);
+    if (!phys.has_value()) return;
+    uint64_t addr = phys.value();
+    uint32_t inst = hart_fetch(h,addr);
+    inst_data d = parse_instruction(&h, inst, addr);
     h.csrs[CYCLE]++;
     if(d.valid == false) {
         hart_trap(h,EXC_ILLEGAL_INSTRUCTION, inst, false);

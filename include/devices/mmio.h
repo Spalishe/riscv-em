@@ -22,6 +22,7 @@ Copyright 2026 Spalishe
 #include <dram.h>
 #include <csr.h>
 #include <cpu.hpp>
+#include <mmu.hpp>
 #include <optional>
 #include <cstdio>
 #include <atomic>
@@ -31,6 +32,7 @@ Copyright 2026 Spalishe
 
 struct HART;
 struct Machine;
+struct MMU;
 
 struct Device {
     uint64_t base;
@@ -47,6 +49,7 @@ struct Device {
 struct MMIO {
     std::vector<Device*> devices;
     DRAM& ram;
+    MMU* mmu;
 
     MMIO(DRAM& ram)
         : ram(ram) {}

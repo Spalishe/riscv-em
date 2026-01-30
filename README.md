@@ -39,7 +39,7 @@ The emulator supports the following features:
     now)
   - [X] Zicsr
 - [ ] RV64C
-- [ ] Privileged ISA
+- [X] Privileged ISA
 - [X] Control and status registers (CSRs)
   - [X] Machine-level CSRs
   - [X] Supervisor-level CSRs

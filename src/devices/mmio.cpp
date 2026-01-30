@@ -20,10 +20,15 @@ Copyright 2026 Spalishe
 #include "../../include/cpu.hpp"
 #include "../../include/csr.h"
 #include "../../include/dram.h"
+#include "../../include/mmu.hpp"
 #include <optional>
 #include <iostream>
 
 std::optional<uint64_t> MMIO::load(HART* hart, uint64_t addr, uint64_t size) {
+    auto phys = mmu_translate(*mmu, hart, addr, AccessType::LOAD);
+    if (!phys.has_value()) return std::nullopt;
+    addr = phys.value();
+
     if((addr % (size/8)) != 0) {
         hart_trap(*hart,EXC_LOAD_ADDR_MISALIGNED,addr,false);
         return std::nullopt;
@@ -47,6 +52,10 @@ std::optional<uint64_t> MMIO::load(HART* hart, uint64_t addr, uint64_t size) {
 }
 
 bool MMIO::store(HART* hart, uint64_t addr, uint64_t size, uint64_t value) {
+    auto phys = mmu_translate(*mmu, hart, addr, AccessType::STORE);
+    if (!phys.has_value()) return false;
+    addr = phys.value();
+
     if(addr % (size/8) != 0) {
         hart_trap(*hart,EXC_STORE_ADDR_MISALIGNED,addr,false);
         return false;

@@ -56,6 +56,7 @@ void machine_create_memory(Machine& cpu) {
     cpu.mmio = new MMIO(cpu.dram);
     cpu.dram.mmap = &cpu.memmap;
     cpu.mmio->ram = cpu.dram;
+	cpu.mmio->mmu = cpu.mmu;
 }
 
 void machine_create_fdt(Machine& cpu, const string file_dtb = "", const string cmdline_append = "", const string dtb_dump_path = "") {

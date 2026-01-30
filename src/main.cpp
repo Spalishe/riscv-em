@@ -25,6 +25,7 @@ Copyright 2026 Spalishe
 /*
 	TODO:
 		-MMU
+		-PMP
 		-Zba - bit manip
 		-Zbb - bit manip
 		-Zbc - carry-less mul

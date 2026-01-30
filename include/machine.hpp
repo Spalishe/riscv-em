@@ -20,6 +20,7 @@ Copyright 2026 Spalishe
 #include "cpu.hpp"
 #include "libfdt.hpp"
 #include "gdbstub.hpp"
+#include "mmu.hpp"
 #include "devices/aclint.hpp"
 #include "devices/plic.hpp"
 #include "devices/syscon.hpp"
@@ -44,6 +45,7 @@ struct PLIC;
 struct VirtIO_BLK;
 struct UART;
 struct SYSCON;
+struct MMU;
 
 struct Machine {
     ~Machine() {
@@ -56,6 +58,7 @@ struct Machine {
     uint64_t memsize = DRAM_SIZE;
 
     DRAM dram;
+    MMU* mmu;
     MMIO* mmio;
     ACLINT* clint;
     PLIC* plic;
