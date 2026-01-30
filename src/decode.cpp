@@ -92,7 +92,7 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
     int64_t imm = 0;
 
     bool valid = false;
-	void (*fn)(HART*, inst_data&);
+	bool (*fn)(HART*, inst_data&);
 
     inst_data cache = hart->instr_cache[(pc >> 2) & 0x1FFF];
     if(cache.valid && cache.pc == pc) {

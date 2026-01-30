@@ -20,7 +20,7 @@ Copyright 2026 Spalishe
 
 // SYSTEM
 
-void exec_MRET(HART *hart, inst_data& inst) {
+bool exec_MRET(HART *hart, inst_data& inst) {
     hart->pc = hart->csrs[MEPC] - 4;
     switch(csr_read_mstatus(hart,MSTATUS_MPP_LOW,MSTATUS_MPP_HIGH)) {
         case 0b00:
@@ -40,12 +40,13 @@ void exec_MRET(HART *hart, inst_data& inst) {
     csr_write_mstatus(hart,MSTATUS_MIE,MSTATUS_MIE,csr_read_mstatus(hart,MSTATUS_MPIE,MSTATUS_MPIE));
     csr_write_mstatus(hart,MSTATUS_MPIE,MSTATUS_MPIE,1);
     csr_write_mstatus(hart,MSTATUS_MPP_LOW,MSTATUS_MPP_HIGH,(char)PrivilegeMode::User);
+    return true;
 }
-void exec_SRET(HART *hart, inst_data& inst) {
+bool exec_SRET(HART *hart, inst_data& inst) {
     if (hart->mode == PrivilegeMode::User ||
         (hart->mode == PrivilegeMode::Supervisor && (csr_read_mstatus(hart,MSTATUS_TSR,MSTATUS_TSR) & (1ULL << 22)))) {
         hart_trap(*hart,EXC_ILLEGAL_INSTRUCTION, inst.inst, false);
-        return;
+        return false;
     }
     hart->pc = hart->csrs[SEPC] - 4;
     switch(csr_read_mstatus(hart,MSTATUS_SPP,MSTATUS_SPP)) {
@@ -62,4 +63,5 @@ void exec_SRET(HART *hart, inst_data& inst) {
     csr_write_mstatus(hart,MSTATUS_SIE,MSTATUS_SIE,csr_read_mstatus(hart,MSTATUS_SPIE,MSTATUS_SPIE));
     csr_write_mstatus(hart,MSTATUS_SPIE,MSTATUS_SPIE,1);
     csr_write_mstatus(hart,MSTATUS_SPP,MSTATUS_SPP,(char)PrivilegeMode::User);
+    return true;
 }

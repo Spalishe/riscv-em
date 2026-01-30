@@ -65,6 +65,7 @@ uint32_t hart_fetch(HART& h, uint64_t _pc) {
 void hart_step(HART& h) {
     uint32_t inst = hart_fetch(h,h.pc);
     inst_data d = parse_instruction(&h, inst, h.pc);
+    h.csrs[CYCLE]++;
     if(d.valid == false) {
         hart_trap(h,EXC_ILLEGAL_INSTRUCTION, inst, false);
         return;
@@ -73,7 +74,10 @@ void hart_step(HART& h) {
 }
 
 void hart_execute(HART& h, inst_data inst) {
-    inst.fn(&h,inst);
+    bool success = inst.fn(&h,inst);
+    if(success) {
+        h.csrs[INSTRET]++;
+    }
     h.pc += 4;
 }
 

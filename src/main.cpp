@@ -24,14 +24,14 @@ Copyright 2026 Spalishe
 
 /*
 	TODO:
-		- Counter CSRs
-
 		-MMU
 		-Zba - bit manip
 		-Zbb - bit manip
 		-Zbc - carry-less mul
 		-Zicbom - non-coherent DMA
 		-Zicboz - fast memory zeroing
+
+		- Counter CSRs
 
 		-RTC GoldFish
 

@@ -67,16 +67,16 @@ bool csr_accessible(uint16_t csr_addr, PrivilegeMode current_priv, bool write) {
 
     return true;
 }
-void exec_CSRRW(HART *hart, inst_data& inst) {
+bool exec_CSRRW(HART *hart, inst_data& inst) {
     uint64_t mstatus = hart->csrs[MSTATUS];
     bool tvm = (mstatus >> 20) & 1; // TVM bit
     if(hart->mode == PrivilegeMode::Supervisor && tvm && inst.imm == SATP) {
         hart_trap(*hart,EXC_ILLEGAL_INSTRUCTION,inst.inst,false);
-        return;
+        return false;
     }
     if(!csr_accessible(inst.imm,hart->mode,true)) {
         hart_trap(*hart,EXC_ILLEGAL_INSTRUCTION,inst.inst,false);
-        return;
+        return false;
     }
 
     uint64_t init_val = csr_read(hart,inst.imm);
@@ -86,17 +86,18 @@ void exec_CSRRW(HART *hart, inst_data& inst) {
     if (inst.rd != 0) {
         hart->GPR[inst.rd] = init_val;
     }
+    return true;
 }
-void exec_CSRRS(HART *hart, inst_data& inst) {
+bool exec_CSRRS(HART *hart, inst_data& inst) {
     uint64_t mstatus = hart->csrs[MSTATUS];
     bool tvm = (mstatus >> 20) & 1; // TVM bit
     if(hart->mode == PrivilegeMode::Supervisor && tvm && inst.imm == SATP) {
         hart_trap(*hart,EXC_ILLEGAL_INSTRUCTION,inst.inst,false);
-        return;
+        return false;
     }
     if(!csr_accessible(inst.imm,hart->mode,(inst.rs1 != 0))) {
         hart_trap(*hart,EXC_ILLEGAL_INSTRUCTION,inst.inst,false);
-        return;
+        return false;
     }
 
     uint64_t init_val = csr_read(hart,inst.imm);
@@ -105,17 +106,18 @@ void exec_CSRRS(HART *hart, inst_data& inst) {
 	    csr_write(hart,inst.imm,init_val | mask);
     }
     hart->GPR[inst.rd] = init_val;
+    return true;
 }
-void exec_CSRRC(HART *hart, inst_data& inst) {
+bool exec_CSRRC(HART *hart, inst_data& inst) {
     uint64_t mstatus = hart->csrs[MSTATUS];
     bool tvm = (mstatus >> 20) & 1; // TVM bit
     if(hart->mode == PrivilegeMode::Supervisor && tvm && inst.imm == SATP) {
         hart_trap(*hart,EXC_ILLEGAL_INSTRUCTION,inst.inst,false);
-        return;
+        return false;
     }
     if(!csr_accessible(inst.imm,hart->mode,(inst.rs1 != 0))) {
         hart_trap(*hart,EXC_ILLEGAL_INSTRUCTION,inst.inst,false);
-        return;
+        return false;
     }
 
     uint64_t init_val = csr_read(hart,inst.imm);
@@ -124,35 +126,37 @@ void exec_CSRRC(HART *hart, inst_data& inst) {
 	    csr_write(hart,inst.imm,init_val & ~mask);
     }
     hart->GPR[inst.rd] = init_val;
+    return true;
 }
 
-void exec_CSRRWI(HART *hart, inst_data& inst) {
+bool exec_CSRRWI(HART *hart, inst_data& inst) {
     uint64_t mstatus = hart->csrs[MSTATUS];
     bool tvm = (mstatus >> 20) & 1; // TVM bit
     if(hart->mode == PrivilegeMode::Supervisor && tvm && inst.imm == SATP) {
         hart_trap(*hart,EXC_ILLEGAL_INSTRUCTION,inst.inst,false);
-        return;
+        return false;
     }
     if(!csr_accessible(inst.imm,hart->mode,inst.rs1 != 0)) {
         hart_trap(*hart,EXC_ILLEGAL_INSTRUCTION,inst.inst,false);
-        return;
+        return false;
     }
 
     if (inst.rd != 0) {
         hart->GPR[inst.rd] = csr_read(hart,inst.imm);
     }
 	csr_write(hart,inst.imm,inst.rs1);
+    return true;
 }
-void exec_CSRRSI(HART *hart, inst_data& inst) {
+bool exec_CSRRSI(HART *hart, inst_data& inst) {
     uint64_t mstatus = hart->csrs[MSTATUS];
     bool tvm = (mstatus >> 20) & 1; // TVM bit
     if(hart->mode == PrivilegeMode::Supervisor && tvm && inst.imm == SATP) {
         hart_trap(*hart,EXC_ILLEGAL_INSTRUCTION,inst.inst,false);
-        return;
+        return false;
     }
     if(!csr_accessible(inst.imm,hart->mode,(inst.rs1 != 0))) {
         hart_trap(*hart,EXC_ILLEGAL_INSTRUCTION,inst.inst,false);
-        return;
+        return false;
     }
 
     uint64_t init_val = csr_read(hart,inst.imm);
@@ -161,17 +165,18 @@ void exec_CSRRSI(HART *hart, inst_data& inst) {
 	    csr_write(hart,inst.imm,init_val | mask);
     }
     hart->GPR[inst.rd] = init_val;
+    return true;
 }
-void exec_CSRRCI(HART *hart, inst_data& inst) {
+bool exec_CSRRCI(HART *hart, inst_data& inst) {
     uint64_t mstatus = hart->csrs[MSTATUS];
     bool tvm = (mstatus >> 20) & 1; // TVM bit
     if(hart->mode == PrivilegeMode::Supervisor && tvm && inst.imm == SATP) {
         hart_trap(*hart,EXC_ILLEGAL_INSTRUCTION,inst.inst,false);
-        return;
+        return false;
     }
     if(!csr_accessible(inst.imm,hart->mode,(inst.rs1 != 0))) {
         hart_trap(*hart,EXC_ILLEGAL_INSTRUCTION,inst.inst,false);
-        return;
+        return false;
     }
 
     uint64_t init_val = csr_read(hart,inst.imm);
@@ -180,4 +185,5 @@ void exec_CSRRCI(HART *hart, inst_data& inst) {
 	    csr_write(hart,inst.imm,init_val & ~mask);
     }
     hart->GPR[inst.rd] = init_val;
+    return true;
 }
