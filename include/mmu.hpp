@@ -62,13 +62,29 @@ struct MMU {
 std::optional<uint64_t> mmu_translate(MMU&, HART*, uint64_t VA, AccessType access_type);
 
 inline uint64_t number_read_bits(uint64_t val, uint8_t bit_low, uint8_t bit_high) {
-    uint64_t mask = (1 << (bit_high - bit_low + 1)) - 1;
-    val = (val >> bit_low) & mask;
-    return val;
+    uint8_t width = bit_high - bit_low + 1;
+
+    uint64_t mask;
+    if (width == 64) {
+        mask = ~0ULL;
+    } else {
+        mask = (1ULL << width) - 1;
+    }
+
+    return (val >> bit_low) & mask;
 }
+
 inline uint64_t number_write_bits(uint64_t val, uint8_t bit_low, uint8_t bit_high, uint64_t new_val) {
-    uint64_t width = bit_high - bit_low + 1;
-    uint64_t mask = (1 << width) - 1;
-    val = (val & ~(mask << bit_low)) | ((new_val & mask) << bit_low);
+    uint8_t width = bit_high - bit_low + 1;
+
+    uint64_t mask;
+    if (width == 64) {
+        mask = ~0ULL;
+    } else {
+        mask = (1ULL << width) - 1;
+    }
+
+    val &= ~(mask << bit_low);
+    val |= (new_val & mask) << bit_low;
     return val;
 }

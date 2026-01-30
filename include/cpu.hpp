@@ -81,15 +81,31 @@ static uint64_t riscv_mkmisa(const char* str)
 
 inline uint64_t csr_read_mstatus(HART *hart, uint8_t bit_low, uint8_t bit_high) {
     uint64_t mstatus = hart->csrs[MSTATUS];
-    uint64_t mask = (1 << (bit_high - bit_low + 1)) - 1;
-    uint64_t val = (mstatus >> bit_low) & mask;
-    return val;
+    uint8_t width = bit_high - bit_low + 1;
+
+    uint64_t mask;
+    if (width == 64) {
+        mask = ~0ULL;
+    } else {
+        mask = (1ULL << width) - 1;
+    }
+
+    return (mstatus >> bit_low) & mask;
 }
-inline void csr_write_mstatus(HART *hart, uint8_t bit_low, uint8_t bit_high, uint64_t val) {
+
+inline void csr_write_mstatus(HART *hart, uint8_t bit_low, uint8_t bit_high, uint64_t new_val) {
     uint64_t mstatus = hart->csrs[MSTATUS];
-    uint64_t width = bit_high - bit_low + 1;
-    uint64_t mask = (1 << width) - 1;
-    mstatus = (mstatus & ~(mask << bit_low)) | ((val & mask) << bit_low);
+    uint8_t width = bit_high - bit_low + 1;
+
+    uint64_t mask;
+    if (width == 64) {
+        mask = ~0ULL;
+    } else {
+        mask = (1ULL << width) - 1;
+    }
+
+    mstatus &= ~(mask << bit_low);
+    mstatus |= (new_val & mask) << bit_low;
     hart->csrs[MSTATUS] = mstatus;
 }
 inline uint64_t csr_read(HART *hart, uint16_t csr) {

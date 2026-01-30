@@ -27,7 +27,7 @@ struct inst_data {
     uint8_t rd;
     uint8_t rs1;
     uint8_t rs2;
-    int64_t imm;
+    uint64_t imm;
     bool (*fn)(HART*, inst_data&);
 };
 
@@ -209,3 +209,4 @@ bool exec_CSRRCI(HART *hart, inst_data& inst);
 
 bool exec_MRET(HART *hart, inst_data& inst);
 bool exec_SRET(HART *hart, inst_data& inst);
+bool exec_SFENCE_VMA(HART *hart, inst_data& inst);

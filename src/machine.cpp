@@ -58,6 +58,9 @@ void machine_run(Machine& cpu) {
 void machine_create_memory(Machine& cpu) {
     cpu.memmap.add_region(DRAM_BASE,cpu.memsize);
     cpu.mmio = new MMIO(cpu.dram);
+	cpu.mmu = new MMU();
+	cpu.mmu->cpu = &cpu;
+	cpu.mmu->dram = &cpu.dram;
     cpu.dram.mmap = &cpu.memmap;
     cpu.mmio->ram = cpu.dram;
 	cpu.mmio->mmu = cpu.mmu;
@@ -113,7 +116,7 @@ void machine_create_fdt(Machine& cpu, const string file_dtb = "", const string c
 			fdt_node_add_prop(cpu, "compatible", "riscv\0", 6);
 			fdt_node_add_prop(cpu, "status", "okay\0", 5);
 			fdt_node_add_prop(cpu, "riscv,isa", "rv64ima_zicsr_zifencei\0", 23);
-			fdt_node_add_prop_str(cpu, "mmu-type", "riscv,none");
+			fdt_node_add_prop_str(cpu, "mmu-type", "riscv,sv39");
 			
 			struct fdt_node* clic = fdt_node_create("interrupt-controller");
 			fdt_node_add_prop_u32(clic, "#interrupt-cells", 1);

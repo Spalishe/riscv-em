@@ -65,3 +65,20 @@ bool exec_SRET(HART *hart, inst_data& inst) {
     csr_write_mstatus(hart,MSTATUS_SPP,MSTATUS_SPP,(char)PrivilegeMode::User);
     return true;
 }
+bool exec_SFENCE_VMA(HART *hart, inst_data& inst) {
+    // Clear TLB Cache
+
+    bool tvm = csr_read_mstatus(hart,20,20);
+
+    // Only legal in S or M mode
+    if (hart->mode == PrivilegeMode::User) {
+        hart_trap(*hart,EXC_ILLEGAL_INSTRUCTION, inst.inst, false);
+        return false;
+    }
+    if (hart->mode == PrivilegeMode::Supervisor && tvm) {
+        hart_trap(*hart,EXC_ILLEGAL_INSTRUCTION, inst.inst, false);
+        return false;
+    }
+
+    return true;
+}

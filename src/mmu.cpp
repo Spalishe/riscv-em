@@ -16,6 +16,7 @@ Copyright 2026 Spalishe
 */
 
 #include "../include/mmu.hpp"
+#include <format>
 
 uint64_t PTE_PPN(uint64_t pte, uint64_t VA, int level) {
     uint64_t PPN_2 = number_read_bits(pte,28,53);
@@ -29,6 +30,7 @@ uint64_t PTE_PPN(uint64_t pte, uint64_t VA, int level) {
         case 2:
             return (PPN_2 << 30) | (VA & 0x3FFFFFFF);
     }
+    return 0;
 }
 
 std::optional<uint64_t> mmu_translate(MMU& mmu, HART *hart, uint64_t VA, AccessType access_type) {
@@ -82,7 +84,7 @@ std::optional<uint64_t> mmu_translate(MMU& mmu, HART *hart, uint64_t VA, AccessT
                 hart_trap(*hart, exc_cause, 0, false);
                 return std::nullopt;
             } else if(priv_mode == PrivilegeMode::Supervisor && U==1) {
-                if( (csr_read_mstatus(hart,18,18) & 1) != 1 ) { // SUM bit
+                if( csr_read_mstatus(hart,18,18) != 1 ) { // SUM bit
                     hart_trap(*hart, exc_cause, 0, false);
                     return std::nullopt;
                 }
@@ -99,10 +101,10 @@ std::optional<uint64_t> mmu_translate(MMU& mmu, HART *hart, uint64_t VA, AccessT
                 return std::nullopt;
             }
 
-            if(!A) { A = true; pte = number_write_bits(pte,6,6,A); }
-            if(access_type == AccessType::STORE && !D) { D = true; pte = number_write_bits(pte,7,7,D); }
-            dram_store(mmu.dram, pte_addr, 64, pte);
-
+            if(!A || (access_type == AccessType::STORE && !D)) { 
+                hart_trap(*hart, exc_cause, 0, false);
+                return std::nullopt;
+            }
             uint64_t PPN_2 = number_read_bits(pte,28,53);
             uint64_t PPN_1 = number_read_bits(pte,19,27);
             uint64_t PPN_0 = number_read_bits(pte,10,18);
@@ -118,8 +120,8 @@ std::optional<uint64_t> mmu_translate(MMU& mmu, HART *hart, uint64_t VA, AccessT
             }
             return pa;
         } else { // non-leaf
-            a = ( (number_read_bits(pte,28,53) << 28) | (number_read_bits(pte,19,27)<<19) | (number_read_bits(pte,10,18)<<10) ); // next level table base
-            a = a & ~0xFFFULL;
+            uint64_t next_ppn = number_read_bits(pte, 10, 53);
+            a = next_ppn << 12;
             continue;
         }
     }

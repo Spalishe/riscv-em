@@ -146,6 +146,11 @@ vector<tuple<string,uint32_t,char,optional<vector<tuple<string,uint8_t,uint8_t>>
     {"scause", SCAUSE, 'c', nullopt},
     {"stval", STVAL, 'c', nullopt},
     {"stimecmp", STIMECMP, 'c', nullopt},
+    {"satp", SATP, 'c', vector<tuple<string,uint8_t,uint8_t>>{
+        {"MODE",SATP_MODE_LOW,SATP_MODE_HIGH},
+        {"ASID",SATP_ASID_LOW,SATP_ASID_HIGH},
+        {"PPN",SATP_PPN_LOW,SATP_PPN_HIGH},
+    }},
     {"priv", 0, 'v', nullopt},
 };
 
