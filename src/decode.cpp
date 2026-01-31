@@ -147,6 +147,8 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
                             case 0: fn = exec_SLL; valid = true; break;
                             case 1: fn = exec_MULH; valid = true; break;
                             case 5: fn = exec_CLMUL; valid = true; break;
+                            case 20: fn = exec_BSET; valid = true; break;
+                            case 36: fn = exec_BCLR; valid = true; break;
                             case 48: fn = exec_ROL; valid = true; break;
                         }; break;
                     case SR:
@@ -154,6 +156,7 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
                             case SRL: fn = exec_SRL; valid = true; break;
                             case 5: fn = exec_MINU; valid = true; break;
                             case SRA: fn = exec_SRA; valid = true; break;
+                            case 36: fn = exec_BEXT; valid = true; break;
                             case 48: fn = exec_ROR; valid = true; break;
                             case 1: fn = exec_DIVU; valid = true; break;
                         }; break;
@@ -161,8 +164,9 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
                         switch(funct7) {
                             case 0: fn = exec_SLT; valid = true; break;
                             case 1: fn = exec_MULHSU; valid = true; break;
-                            case 16: fn = exec_SH1ADD; valid = true; break;
                             case 5: fn = exec_CLMULR; valid = true; break;
+                            case 16: fn = exec_SH1ADD; valid = true; break;
+                            case 52: fn = exec_BINV; valid = true; break;
                         }; break;
                     case SLTU: 
                         switch(funct7) {
@@ -257,6 +261,9 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
                     case SLLI: 
                         switch(funct6) {
                             case 0: fn = exec_SLLI; d_imm = shamt64(inst); valid = true; break;
+                            case 10: fn = exec_BSETI; d_imm = shamt64(inst); valid = true; break;
+                            case 26: fn = exec_BINVI; d_imm = shamt64(inst); valid = true; break;
+                            case 36: fn = exec_BCLRI; d_imm = shamt64(inst); valid = true; break;
                             case 48: 
                                 switch((inst >> 20) & 0x1F) {
                                     case 0: fn = exec_CLZ; valid = true; break;
@@ -274,6 +281,7 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
                         switch(funct6) {
                             case SRLI: fn = exec_SRLI; d_imm = shamt64(inst); valid = true; break;
                             case SRAI: fn = exec_SRAI; d_imm = shamt64(inst); valid = true; break;
+                            case 18: fn = exec_BEXTI;d_imm = shamt64(inst); valid = true; break;
                             case 24: fn = exec_RORI; d_imm = shamt64(inst); valid = true; break;
                         }; break;
                         switch(inst >> 12) {

@@ -272,3 +272,14 @@ bool exec_SLLI_UW(HART *hart, inst_data& inst);
 bool exec_CLMUL(HART *hart, inst_data& inst);
 bool exec_CLMULH(HART *hart, inst_data& inst);
 bool exec_CLMULR(HART *hart, inst_data& inst);
+
+// Zbs
+
+bool exec_BCLR(HART *hart, inst_data& inst);
+bool exec_BCLRI(HART *hart, inst_data& inst);
+bool exec_BEXT(HART *hart, inst_data& inst);
+bool exec_BEXTI(HART *hart, inst_data& inst);
+bool exec_BINV(HART *hart, inst_data& inst);
+bool exec_BINVI(HART *hart, inst_data& inst);
+bool exec_BSET(HART *hart, inst_data& inst);
+bool exec_BSETI(HART *hart, inst_data& inst);
