@@ -24,7 +24,6 @@ Copyright 2026 Spalishe
 
 /*
 	TODO:
-		-WFI
 		-Zba - bit manip
 		-Zbb - bit manip
 		-Zbc - carry-less mul

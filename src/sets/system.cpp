@@ -83,3 +83,13 @@ bool exec_SFENCE_VMA(HART *hart, inst_data& inst) {
     tlb_flush(hart->mmio->mmu->tlb);
     return true;
 }
+bool exec_WFI(HART *hart, inst_data& inst) {
+    bool tw = csr_read_mstatus(hart,21,21);
+
+    if (tw) {
+        hart_trap(*hart,EXC_ILLEGAL_INSTRUCTION, inst.inst, false);
+        return false;
+    }
+    hart->WFI = true;
+    return true;
+}
