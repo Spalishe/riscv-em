@@ -15,6 +15,7 @@ Copyright 2026 Spalishe
 
 */
 
+#include <cstdint>
 #pragma once
 
 struct HART;
@@ -196,6 +197,23 @@ bool exec_FENCE(HART *hart, inst_data& inst);
 bool exec_ECALL(HART *hart, inst_data& inst);
 bool exec_EBREAK(HART *hart, inst_data& inst);
 
+//// RV64M
+// R-Type
+bool exec_MUL(HART *hart, inst_data& inst);
+bool exec_MULH(HART *hart, inst_data& inst);
+bool exec_MULHSU(HART *hart, inst_data& inst);
+bool exec_MULHU(HART *hart, inst_data& inst);
+bool exec_DIV(HART *hart, inst_data& inst);
+bool exec_DIVU(HART *hart, inst_data& inst);
+bool exec_REM(HART *hart, inst_data& inst);
+bool exec_REMU(HART *hart, inst_data& inst);
+
+bool exec_MULW(HART *hart, inst_data& inst);
+bool exec_DIVW(HART *hart, inst_data& inst);
+bool exec_DIVUW(HART *hart, inst_data& inst);
+bool exec_REMW(HART *hart, inst_data& inst);
+bool exec_REMUW(HART *hart, inst_data& inst);
+
 //// ZiCSR
 
 bool exec_CSRRW(HART *hart, inst_data& inst);
@@ -237,3 +255,20 @@ bool exec_RORIW(HART *hart, inst_data& inst);
 bool exec_RORW(HART *hart, inst_data& inst);
 bool exec_ORC_B(HART *hart, inst_data& inst);
 bool exec_REV8(HART *hart, inst_data& inst);
+
+// Zba
+
+bool exec_ADD_UW(HART *hart, inst_data& inst);
+bool exec_SH1ADD(HART *hart, inst_data& inst);
+bool exec_SH1ADD_UW(HART *hart, inst_data& inst);
+bool exec_SH2ADD(HART *hart, inst_data& inst);
+bool exec_SH2ADD_UW(HART *hart, inst_data& inst);
+bool exec_SH3ADD(HART *hart, inst_data& inst);
+bool exec_SH3ADD_UW(HART *hart, inst_data& inst);
+bool exec_SLLI_UW(HART *hart, inst_data& inst);
+
+// Zbc
+
+bool exec_CLMUL(HART *hart, inst_data& inst);
+bool exec_CLMULH(HART *hart, inst_data& inst);
+bool exec_CLMULR(HART *hart, inst_data& inst);
