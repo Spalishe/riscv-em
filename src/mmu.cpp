@@ -54,7 +54,7 @@ std::optional<uint64_t> mmu_translate(MMU& mmu, HART *hart, uint64_t VA, AccessT
     uint64_t va_upper = VA >> 39;
     uint64_t sign_ext = va_sign ? ((1ULL << 25) - 1) : 0;
     if(va_upper != sign_ext) {
-        hart_trap(*hart, exc_cause, 0, false);
+        hart_trap(*hart, exc_cause, VA, false);
         return std::nullopt;
     }
 
@@ -78,34 +78,34 @@ std::optional<uint64_t> mmu_translate(MMU& mmu, HART *hart, uint64_t VA, AccessT
         bool D = number_read_bits(pte,7,7);
 
         if(!V || (R==0 && W==1)) { // invalid
-            hart_trap(*hart, exc_cause, 0, false);
+            hart_trap(*hart, exc_cause, VA, false);
             return std::nullopt;
         }
 
         if(R || X) { // leaf
             if(priv_mode == PrivilegeMode::User && U==0) {
-                hart_trap(*hart, exc_cause, 0, false);
+                hart_trap(*hart, exc_cause, VA, false);
                 return std::nullopt;
             } else if(priv_mode == PrivilegeMode::Supervisor && U==1) {
                 if( csr_read_mstatus(hart,18,18) != 1 ) { // SUM bit
-                    hart_trap(*hart, exc_cause, 0, false);
+                    hart_trap(*hart, exc_cause, VA, false);
                     return std::nullopt;
                 }
             }
 
             if(access_type == AccessType::EXECUTE && X==0) {
-                hart_trap(*hart, exc_cause, 0, false);
+                hart_trap(*hart, exc_cause, VA, false);
                 return std::nullopt;
             } else if(access_type == AccessType::LOAD && R==0) {
-                hart_trap(*hart, exc_cause, 0, false);
+                hart_trap(*hart, exc_cause, VA, false);
                 return std::nullopt;
             } else if(access_type == AccessType::STORE && W==0) {
-                hart_trap(*hart, exc_cause, 0, false);
+                hart_trap(*hart, exc_cause, VA, false);
                 return std::nullopt;
             }
 
             if(!A || (access_type == AccessType::STORE && !D)) { 
-                hart_trap(*hart, exc_cause, 0, false);
+                hart_trap(*hart, exc_cause, VA, false);
                 return std::nullopt;
             }
             uint64_t PPN_2 = number_read_bits(pte,28,53);
@@ -116,11 +116,22 @@ std::optional<uint64_t> mmu_translate(MMU& mmu, HART *hart, uint64_t VA, AccessT
                 pa = (PPN_2<<30)|(PPN_1<<21)|(PPN_0<<12)|(VA & 0xFFF);
             } else if(level==1) { // 2MiB page
                 pa = (PPN_2<<30)|(PPN_1<<21)|(VA & 0x1FFFFF);
-                if(PPN_0 != 0) { hart_trap(*hart, exc_cause, 0, false); return std::nullopt; }
+                if(PPN_0 != 0) { hart_trap(*hart, exc_cause, VA, false); return std::nullopt; }
             } else { // level==2, 1GiB page
                 pa = (PPN_2<<30)|(VA & 0x3FFFFFFF);
-                if(PPN_1 != 0 || PPN_0 != 0) { hart_trap(*hart, exc_cause, 0, false); return std::nullopt; }
+                if(PPN_1 != 0 || PPN_0 != 0) { hart_trap(*hart, exc_cause, VA, false); return std::nullopt; }
             }
+
+            if (!pmp_validate(hart, pa, access_type)) {
+                uint64_t cause;
+                if (access_type == AccessType::EXECUTE) cause = EXC_INST_ACCESS_FAULT;
+                if (access_type == AccessType::LOAD)    cause = EXC_LOAD_ACCESS_FAULT;
+                if (access_type == AccessType::STORE)   cause = EXC_STORE_ACCESS_FAULT;
+
+                hart_trap(*hart, cause, pa, false);
+                return std::nullopt;
+            }
+
             tlb_insert(
                 mmu.tlb,
                 VA,
@@ -136,7 +147,7 @@ std::optional<uint64_t> mmu_translate(MMU& mmu, HART *hart, uint64_t VA, AccessT
         }
     }
 
-    hart_trap(*hart, exc_cause, 0, false);
+    hart_trap(*hart, exc_cause, VA, false);
     return std::nullopt;
 }
 

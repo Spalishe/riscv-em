@@ -188,3 +188,40 @@ void hart_trap(HART& h, uint64_t cause, uint64_t tval, bool is_interrupt) {
         csr_write_mstatus(&h,MSTATUS_MPP_LOW,MSTATUS_MPP_HIGH,(uint8_t)prev_mode);
     }
 }
+uint64_t csr_read(HART *hart, uint16_t csr) {
+    switch(csr) {
+        case SSTATUS:
+            return hart->csrs[MSTATUS] & SSTATUS_MASK;
+        default:
+            return hart->csrs[csr];
+    }
+}
+void csr_write(HART *hart, uint16_t csr, uint64_t val) {
+    if(csr == SSTATUS) {
+        uint64_t mst = hart->csrs[MSTATUS] & ~SSTATUS_MASK;
+        hart->csrs[MSTATUS] = mst | (val & SSTATUS_MASK);
+    } else if(csr >= PMPCFG0 && csr <= PMPCFG15) {
+        auto vals = pmp_get_num_cfgs(val);
+        std::vector<uint8_t> update;
+        uint64_t old_val = hart->csrs[csr];
+        uint64_t new_val = val;
+        for(uint8_t i : vals) {
+            if(pmp_check_locked_cfg(hart,i)) {
+                uint64_t mask = 0xFF << (i*8);
+                new_val &= ~mask;
+                new_val |= (old_val & mask);
+            } else {
+                update.push_back(i);
+            }
+        }
+        hart->csrs[csr] = new_val;
+        for(uint8_t i : update) {
+            pmp_update(hart, i);
+        }
+    } else if(csr >= PMPADDR0 && csr <= PMPADDR63) {
+        uint8_t i = csr - PMPADDR0;
+        if(!pmp_check_locked_addr(hart,i)) hart->csrs[csr] = val;
+    } else {
+        hart->csrs[csr] = val;
+    }
+}

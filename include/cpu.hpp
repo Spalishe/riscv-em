@@ -26,6 +26,7 @@ Copyright 2026 Spalishe
 #include <functional>
 #include <unordered_map>
 #include <tuple>
+#include "pmp.hpp"
 
 struct MMIO;
 
@@ -57,6 +58,8 @@ struct HART {
     uint32_t fetch_buffer[8];
     uint64_t fetch_pc; 
     uint8_t fetch_buffer_i;
+    
+    PMP pmp;
 };
 
 void hart_reset(HART&, uint64_t dtb_path);
@@ -108,19 +111,5 @@ inline void csr_write_mstatus(HART *hart, uint8_t bit_low, uint8_t bit_high, uin
     mstatus |= (new_val & mask) << bit_low;
     hart->csrs[MSTATUS] = mstatus;
 }
-inline uint64_t csr_read(HART *hart, uint16_t csr) {
-    switch(csr) {
-        case SSTATUS:
-            return hart->csrs[MSTATUS] & SSTATUS_MASK;
-        default:
-            return hart->csrs[csr];
-    }
-}
-inline void csr_write(HART *hart, uint16_t csr, uint64_t val) {
-    if(csr == SSTATUS) {
-        uint64_t mst = hart->csrs[MSTATUS] & ~SSTATUS_MASK;
-        hart->csrs[MSTATUS] = mst | (val & SSTATUS_MASK);
-    } else {
-        hart->csrs[csr] = val;
-    }
-}
+void csr_write(HART *hart, uint16_t csr, uint64_t val);
+uint64_t csr_read(HART *hart, uint16_t csr);
