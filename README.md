@@ -31,11 +31,11 @@ Running:
 The emulator supports the following features:
 - [ ] RV64G ISA
   - [X] RV64I
-  - [ ] RV64M
+  - [X] RV64M
   - [ ] RV64A (No atomicity for now)
   - [ ] RV64F
   - [ ] RV64D
-  - [ ] Zifencei: (`fence.i` does nothing for
+  - [X] Zifencei: (`fence.i` does nothing for
     now)
   - [X] Zicsr
 - [ ] RV64C

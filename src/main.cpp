@@ -24,6 +24,7 @@ Copyright 2026 Spalishe
 
 /*
 	TODO:
+		- RVA
 		- Counter CSRs
 
 		-RTC GoldFish
