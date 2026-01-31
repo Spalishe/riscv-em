@@ -122,27 +122,36 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
                     case XOR: 
                         switch(funct7) {
                             case 0: fn = exec_XOR; valid = true; break;
+                            case 5: fn = exec_MIN; valid = true; break;
                             //case 1: fn = exec_DIV; valid = true; break;
+                            case 32: fn = exec_XNOR; valid = true; break;
                         }; break;
                     case OR: 
                         switch(funct7) {
                             case 0: fn = exec_OR; valid = true; break;
+                            case 5: fn = exec_MAX; valid = true; break;
                             //case 1: fn = exec_REM; valid = true; break;
+                            case 32: fn = exec_ORN; valid = true; break;
                         };  valid = true; break;
                     case AND: 
                         switch(funct7) {
                             case 0: fn = exec_AND; valid = true; break;
+                            case 5: fn = exec_MAXU; valid = true; break;
                             //case 1: fn = exec_REMU; valid = true; break;
+                            case 32: fn = exec_ANDN; valid = true; break;
                         }; break;
                     case SLL: 
                         switch(funct7) {
                             case 0: fn = exec_SLL; valid = true; break;
+                            case 48: fn = exec_ROL; valid = true; break;
                             //case 1: fn = exec_MULH; valid = true; break;
                         }; break;
                     case SR:
                         switch(funct7) {
                             case SRL: fn = exec_SRL; valid = true; break;
+                            case 5: fn = exec_MINU; valid = true; break;
                             case SRA: fn = exec_SRA; valid = true; break;
+                            case 48: fn = exec_ROR; valid = true; break;
                             //case 1: fn = exec_DIVU; valid = true; break;
                         }; break;
                     case SLT: 
@@ -168,11 +177,16 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
                             case SUB: fn = exec_SUBW; valid = true; break;
                             //case 1: fn = exec_MULW; valid = true; break;
                         }; break;
-                    case SLL: fn = exec_SLLW; valid = true; break;
+                    case SLL: 
+                        switch(funct7) {
+                            case 0: fn = exec_SLLW; valid = true; break;
+                            case 48: fn = exec_ROLW; valid = true; break;
+                        }; break;
                     case SR:
                         switch(funct7) {
                             case SRL: fn = exec_SRLW; valid = true; break;
                             case SRA: fn = exec_SRAW; valid = true; break;
+                            case 48: fn = exec_RORW; valid = true; break;
                             //case 1: fn = exec_DIVUW; valid = true; break;
                         }; break;
                     //case XOR: fn = exec_DIVW; valid = true; break;
@@ -217,18 +231,38 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
             case I_TYPE:
                 switch(funct3) {
                     case ADDI: fn = exec_ADDI; d_imm = imm_I(inst); valid = true; break;
-                    case XORI: fn = exec_XORI; d_imm = imm_I(inst); valid = true; break;
+                    case XORI: 
+                        switch(funct7) {
+                            case 0: fn = exec_XORI; d_imm = imm_I(inst); valid = true; break;
+                            case 4: fn = exec_ZEXT_H; valid = true; break;
+                        }; break;
                     case ORI: fn = exec_ORI; d_imm = imm_I(inst); valid = true; break;
                     case ANDI: fn = exec_ANDI; d_imm = imm_I(inst); valid = true; break;
-                    case SLLI: fn = exec_SLLI; d_imm = shamt64(inst); valid = true; break;
+                    case SLLI: 
+                        switch(funct6) {
+                            case 0: fn = exec_SLLI; d_imm = shamt64(inst); valid = true; break;
+                            case 48: 
+                                switch((inst >> 20) & 0x1F) {
+                                    case 0: fn = exec_CLZ; valid = true; break;
+                                    case 1: fn = exec_CTZ; valid = true; break;
+                                    case 2: fn = exec_CPOP; valid = true; break;
+                                    case 4: fn = exec_SEXT_B; valid = true; break;
+                                    case 5: fn = exec_SEXT_H; valid = true; break;
+                                }; break;
+                        }; break;
                     case SRI:
                         /*switch(funct7) {
                             case SRLI: fn = exec_SRLI; valid = true; break;
                             case SRAI: fn = exec_SRAI; valid = true; break;
-                        }; break;*/
+                        }; break;*/ // 32-bit
                         switch(funct6) {
                             case SRLI: fn = exec_SRLI; d_imm = shamt64(inst); valid = true; break;
                             case SRAI: fn = exec_SRAI; d_imm = shamt64(inst); valid = true; break;
+                            case 24: fn = exec_RORI; d_imm = shamt64(inst); valid = true; break;
+                        }; break;
+                        switch(inst >> 12) {
+                            case 647: fn = exec_ORC_B; valid = true; break;
+                            case 1688: case 1720: fn = exec_REV8; valid = true; break;
                         }; break;
                     case SLTI: fn = exec_SLTI; d_imm = imm_I(inst); valid = true; break;
                     case SLTIU: fn = exec_SLTIU; d_imm = imm_I(inst); valid = true; break;
@@ -238,12 +272,26 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
                 break;
             case I_TYPE64:
                 switch(funct3) {
+                    case XORI:
+                        switch(funct7) {
+                            case 4: fn = exec_ZEXT_H; valid = true; break;
+                        }; break;
                     case ADDI: fn = exec_ADDIW; d_imm = imm_I(inst); valid = true; break;
-                    case SLLI: fn = exec_SLLIW; d_imm = shamt(inst); valid = true; break;
+                    case SLLI:
+                        switch(funct7) {
+                            case 0: fn = exec_SLLIW; d_imm = shamt(inst); valid = true; break;
+                            case 48:
+                                switch((inst >> 20) & 0x1F) {
+                                    case 0: fn = exec_CLZW; valid = true; break;
+                                    case 1: fn = exec_CTZW; valid = true; break;
+                                    case 2: fn = exec_CPOPW; valid = true; break;
+                                }; break;
+                        }; break;
                     case SRI:
                         switch(funct7) {
                             case SRLI: fn = exec_SRLIW; d_imm = shamt(inst); valid = true; break;
                             case SRAIW: fn = exec_SRAIW; d_imm = shamt(inst); valid = true; break;
+                            case 24: fn = exec_RORIW; d_imm = shamt(inst); valid = true; break;
                         }; break;
                 };
                 rs1 = d_rs1(inst);

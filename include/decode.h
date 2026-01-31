@@ -210,3 +210,30 @@ bool exec_CSRRCI(HART *hart, inst_data& inst);
 bool exec_MRET(HART *hart, inst_data& inst);
 bool exec_SRET(HART *hart, inst_data& inst);
 bool exec_SFENCE_VMA(HART *hart, inst_data& inst);
+
+// Zbb
+
+bool exec_ANDN(HART *hart, inst_data& inst);
+bool exec_ORN(HART *hart, inst_data& inst);
+bool exec_XNOR(HART *hart, inst_data& inst);
+bool exec_CLZ(HART *hart, inst_data& inst);
+bool exec_CLZW(HART *hart, inst_data& inst);
+bool exec_CTZ(HART *hart, inst_data& inst);
+bool exec_CTZW(HART *hart, inst_data& inst);
+bool exec_CPOP(HART *hart, inst_data& inst);
+bool exec_CPOPW(HART *hart, inst_data& inst);
+bool exec_MAX(HART *hart, inst_data& inst);
+bool exec_MAXU(HART *hart, inst_data& inst);
+bool exec_MIN(HART *hart, inst_data& inst);
+bool exec_MINU(HART *hart, inst_data& inst);
+bool exec_SEXT_B(HART *hart, inst_data& inst);
+bool exec_SEXT_H(HART *hart, inst_data& inst);
+bool exec_ZEXT_H(HART *hart, inst_data& inst);
+bool exec_ROL(HART *hart, inst_data& inst);
+bool exec_ROLW(HART *hart, inst_data& inst);
+bool exec_ROR(HART *hart, inst_data& inst);
+bool exec_RORI(HART *hart, inst_data& inst);
+bool exec_RORIW(HART *hart, inst_data& inst);
+bool exec_RORW(HART *hart, inst_data& inst);
+bool exec_ORC_B(HART *hart, inst_data& inst);
+bool exec_REV8(HART *hart, inst_data& inst);

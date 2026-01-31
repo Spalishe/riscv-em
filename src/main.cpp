@@ -24,9 +24,9 @@ Copyright 2026 Spalishe
 
 /*
 	TODO:
-		-Zba - bit manip
-		-Zbb - bit manip
 		-Zbc - carry-less mul
+		-Zbs - single-bit instrs
+		
 		-Zicbom - non-coherent DMA
 		-Zicboz - fast memory zeroing
 
