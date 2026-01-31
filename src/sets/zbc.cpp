@@ -47,8 +47,8 @@ bool exec_CLMULR(HART *hart, inst_data& inst) {
     uint64_t rs2 = hart->GPR[inst.rs2];
     uint64_t out = 0;
 
-    for(int i = 1; i < 63; i++) {
-        out = ((rs2 >> i) & 1) ? (out ^ (rs1 >> (64-i-1))) : out;
+    for(int i = 0; i < 64; i++) {
+        out = ((rs2 >> i) & 1) ? (out ^ (rs1 >> (63-i))) : out;
     }
 
     hart->GPR[inst.rd] = out;

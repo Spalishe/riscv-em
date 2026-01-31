@@ -27,7 +27,7 @@ bool exec_SH1ADD(HART *hart, inst_data& inst) {
     return true;
 }
 bool exec_SH1ADD_UW(HART *hart, inst_data& inst) {
-	hart->GPR[inst.rd] = hart->GPR[inst.rs2] + ((uint32_t)hart->GPR[inst.rs1] << 1);
+	hart->GPR[inst.rd] = hart->GPR[inst.rs2] + ((uint64_t)(uint32_t)hart->GPR[inst.rs1] << 1);
     return true;
 }
 bool exec_SH2ADD(HART *hart, inst_data& inst) {
@@ -35,7 +35,7 @@ bool exec_SH2ADD(HART *hart, inst_data& inst) {
     return true;
 }
 bool exec_SH2ADD_UW(HART *hart, inst_data& inst) {
-	hart->GPR[inst.rd] = hart->GPR[inst.rs2] + ((uint32_t)hart->GPR[inst.rs1] << 2);
+	hart->GPR[inst.rd] = hart->GPR[inst.rs2] + ((uint64_t)(uint32_t)hart->GPR[inst.rs1] << 2);
     return true;
 }
 bool exec_SH3ADD(HART *hart, inst_data& inst) {
@@ -43,10 +43,10 @@ bool exec_SH3ADD(HART *hart, inst_data& inst) {
     return true;
 }
 bool exec_SH3ADD_UW(HART *hart, inst_data& inst) {
-	hart->GPR[inst.rd] = hart->GPR[inst.rs2] + ((uint32_t)hart->GPR[inst.rs1] << 3);
+	hart->GPR[inst.rd] = hart->GPR[inst.rs2] + ((uint64_t)(uint32_t)hart->GPR[inst.rs1] << 3);
     return true;
 }
 bool exec_SLLI_UW(HART *hart, inst_data& inst) {
-	hart->GPR[inst.rd] = ((uint32_t)hart->GPR[inst.rs1]) << inst.imm;
+	hart->GPR[inst.rd] = ((uint64_t)(uint32_t)hart->GPR[inst.rs1]) << inst.imm;
     return true;
 }
