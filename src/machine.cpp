@@ -109,13 +109,10 @@ void machine_create_fdt(Machine& cpu, const string file_dtb = "", const string c
 
 			fdt_node_add_prop_str(cpu, "device_type", "cpu");
 			fdt_node_add_prop_u32(cpu, "reg", i);
-			fdt_node_add_prop_u32(cpu, "riscv,cbop-block-size", 0x40);
-			fdt_node_add_prop_u32(cpu, "riscv,cboz-block-size", 0x40);
-			fdt_node_add_prop_u32(cpu, "riscv,cbom-block-size", 0x40);
 
 			fdt_node_add_prop(cpu, "compatible", "riscv\0", 6);
 			fdt_node_add_prop(cpu, "status", "okay\0", 5);
-			fdt_node_add_prop(cpu, "riscv,isa", "rv64ima_zicsr_zifencei\0", 23);
+			fdt_node_add_prop(cpu, "riscv,isa", "rv64ima_zicsr_zifencei_zba_zbb_zbc_zbs\0", 23);
 			fdt_node_add_prop_str(cpu, "mmu-type", "riscv,sv39");
 			
 			struct fdt_node* clic = fdt_node_create("interrupt-controller");

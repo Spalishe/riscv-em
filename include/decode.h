@@ -228,6 +228,7 @@ bool exec_CSRRCI(HART *hart, inst_data& inst);
 bool exec_MRET(HART *hart, inst_data& inst);
 bool exec_SRET(HART *hart, inst_data& inst);
 bool exec_SFENCE_VMA(HART *hart, inst_data& inst);
+bool exec_WFI(HART *hart, inst_data& inst);
 
 // Zbb
 
@@ -283,3 +284,7 @@ bool exec_BINV(HART *hart, inst_data& inst);
 bool exec_BINVI(HART *hart, inst_data& inst);
 bool exec_BSET(HART *hart, inst_data& inst);
 bool exec_BSETI(HART *hart, inst_data& inst);
+
+// ZifenceI
+
+bool exec_FENCE_I(HART *hart, inst_data& inst);

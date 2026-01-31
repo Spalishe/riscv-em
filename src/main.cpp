@@ -24,9 +24,6 @@ Copyright 2026 Spalishe
 
 /*
 	TODO:
-		-Zicbom - non-coherent DMA
-		-Zicboz - fast memory zeroing
-
 		- Counter CSRs
 
 		-RTC GoldFish

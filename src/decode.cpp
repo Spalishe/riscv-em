@@ -107,7 +107,7 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
         switch(opcode) {
             case FENCE:
                 switch(funct3) {
-                    //case 1: fn = exec_FENCE_I; valid = true; break;
+                    case 1: fn = exec_FENCE_I; valid = true; break;
                     case 0: fn = exec_FENCE; valid = true; break;
                 };
                 break;
@@ -399,7 +399,7 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
                         switch(imm) {
                             case 0: fn = exec_ECALL; valid = true; break;
                             case 1: fn = exec_EBREAK; valid = true; break;
-                            //case 261: fn = exec_WFI; valid = true; break;
+                            case 261: fn = exec_WFI; valid = true; break;
                             case 258: fn = exec_SRET; valid = true; break;
                             case 288: fn = exec_SFENCE_VMA; valid = true; break;
                             case 770: fn = exec_MRET; valid = true; break;
