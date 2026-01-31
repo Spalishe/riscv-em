@@ -52,12 +52,31 @@ enum class AccessType {
 struct DRAM;
 struct HART;
 struct Machine;
+enum class PrivilegeMode;
+
+static constexpr int TLB_SIZE = 32;
+struct TLBEntry {
+    uint64_t vpn;
+    uint64_t ppn;
+    uint8_t  level;   // 0=4K, 1=2M, 2=1G
+    bool R, W, X, U;
+    bool valid;
+};
+struct TLB {
+    TLBEntry entries[TLB_SIZE];
+};
 
 struct MMU {
     ~MMU();
     Machine* cpu;
     DRAM* dram;
+    TLB tlb;
 };
+
+void tlb_flush(TLB& tlb);
+uint64_t make_tlb_vpn(uint64_t va, int level);
+std::optional<uint64_t> tlb_lookup(TLB&, uint64_t va, AccessType type, PrivilegeMode priv);
+void tlb_insert(TLB&, uint64_t va, uint64_t pa, int level,bool R, bool W, bool X, bool U);
 
 std::optional<uint64_t> mmu_translate(MMU&, HART*, uint64_t VA, AccessType access_type);
 

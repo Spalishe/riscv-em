@@ -17,6 +17,7 @@ Copyright 2026 Spalishe
 
 #include "../../include/cpu.hpp"
 #include "../../include/decode.h"
+#include "../../include/mmu.hpp"
 
 // SYSTEM
 
@@ -79,6 +80,6 @@ bool exec_SFENCE_VMA(HART *hart, inst_data& inst) {
         hart_trap(*hart,EXC_ILLEGAL_INSTRUCTION, inst.inst, false);
         return false;
     }
-
+    tlb_flush(hart->mmio->mmu->tlb);
     return true;
 }

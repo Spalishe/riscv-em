@@ -39,6 +39,9 @@ std::optional<uint64_t> mmu_translate(MMU& mmu, HART *hart, uint64_t VA, AccessT
     uint64_t root_table = number_read_bits(satp, SATP_PPN_LOW, SATP_PPN_HIGH) << 12; // page table base
     PrivilegeMode priv_mode = hart->mode;
 
+    if (auto pa = tlb_lookup(mmu.tlb, VA, access_type, priv_mode))
+        return *pa;
+
     uint64_t exc_cause = EXC_INST_PAGE_FAULT;
     if(access_type == AccessType::LOAD) exc_cause = EXC_LOAD_PAGE_FAULT;
     if(access_type == AccessType::STORE) exc_cause = EXC_STORE_PAGE_FAULT;
@@ -118,6 +121,13 @@ std::optional<uint64_t> mmu_translate(MMU& mmu, HART *hart, uint64_t VA, AccessT
                 pa = (PPN_2<<30)|(VA & 0x3FFFFFFF);
                 if(PPN_1 != 0 || PPN_0 != 0) { hart_trap(*hart, exc_cause, 0, false); return std::nullopt; }
             }
+            tlb_insert(
+                mmu.tlb,
+                VA,
+                pa,
+                level,
+                R, W, X, U
+            );
             return pa;
         } else { // non-leaf
             uint64_t next_ppn = number_read_bits(pte, 10, 53);
@@ -128,4 +138,53 @@ std::optional<uint64_t> mmu_translate(MMU& mmu, HART *hart, uint64_t VA, AccessT
 
     hart_trap(*hart, exc_cause, 0, false);
     return std::nullopt;
+}
+
+void tlb_flush(TLB& tlb) {
+    for(auto& entry : tlb.entries) {
+        entry.valid = false;
+    }
+}
+uint64_t make_tlb_vpn(uint64_t va, int level) {
+    if (level == 0)
+        return va >> 12;        // VPN[2:0]
+    if (level == 1)
+        return va >> 21;        // VPN[2:1]
+    return va >> 30;            // VPN[2]
+}
+std::optional<uint64_t> tlb_lookup(TLB& tlb, uint64_t va, AccessType type, PrivilegeMode priv) {
+    for (auto& e : tlb.entries) {
+        if (!e.valid) continue;
+
+        uint64_t vpn = make_tlb_vpn(va, e.level);
+        if (vpn != e.vpn) continue;
+
+        if (type == AccessType::EXECUTE && !e.X) return std::nullopt;
+        if (type == AccessType::LOAD    && !e.R) return std::nullopt;
+        if (type == AccessType::STORE   && !e.W) return std::nullopt;
+
+        if (priv == PrivilegeMode::User && !e.U)
+            return std::nullopt;
+
+        uint64_t offset_mask =
+            (e.level == 0) ? 0xFFF :
+            (e.level == 1) ? 0x1FFFFF :
+                             0x3FFFFFFF;
+
+        return (e.ppn << 12) | (va & offset_mask);
+    }
+
+    return std::nullopt;
+}
+void tlb_insert(TLB& tlb, uint64_t va, uint64_t pa, int level,bool R, bool W, bool X, bool U) {
+    static int victim = 0;
+
+    TLBEntry& e = tlb.entries[victim];
+    victim = (victim + 1) % TLB_SIZE;
+
+    e.vpn   = make_tlb_vpn(va, level);
+    e.ppn   = pa >> 12;
+    e.level = level;
+    e.R = R; e.W = W; e.X = X; e.U = U;
+    e.valid = true;
 }
