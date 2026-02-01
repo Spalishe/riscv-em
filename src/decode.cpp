@@ -217,7 +217,7 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
                 rs2 = d_rs2(inst);
                 rd = d_rd(inst);
                 break;
-            /*case AMO:
+            case AMO:
                 switch(funct3) {
                     case AMO_W: 
                         switch(amo_funct5) {
@@ -232,7 +232,7 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
                             case AMOMAX: fn = exec_AMOMAX_W; valid = true; break;
                             case AMOMINU: fn = exec_AMOMINU_W; valid = true; break;
                             case AMOMAXU: fn = exec_AMOMAXU_W; valid = true; break;
-                        }; valid = true; break;
+                        }; break;
                     case AMO_D: 
                         switch(amo_funct5) {
                             case AMOADD: fn = exec_AMOADD_D; valid = true; break;
@@ -246,8 +246,12 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
                             case AMOMAX: fn = exec_AMOMAX_D; valid = true; break;
                             case AMOMINU: fn = exec_AMOMINU_D; valid = true; break;
                             case AMOMAXU: fn = exec_AMOMAXU_D; valid = true; break;
-                        }; valid = true; break;
-                }; valid = true; break;*/
+                        }; break;
+                };
+                rs1 = d_rs1(inst);
+                rs2 = d_rs2(inst);
+                rd = d_rd(inst);
+                break;
             case I_TYPE:
                 switch(funct3) {
                     case ADDI: fn = exec_ADDI; d_imm = imm_I(inst); valid = true; break;

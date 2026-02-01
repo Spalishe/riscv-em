@@ -22,9 +22,12 @@ Copyright 2026 Spalishe
 #define DRAM_SIZE 1024*1024*512 //512 MiB
 #define DRAM_BASE 0x80000000
 
+struct Machine;
+
 struct DRAM {
 	uint64_t size = DRAM_SIZE;
 	MemoryMap* mmap;
+    Machine* cpu;
 };
 
 uint64_t dram_load(DRAM* dram, uint64_t addr, uint64_t size);

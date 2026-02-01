@@ -19,6 +19,7 @@ Copyright 2026 Spalishe
 #pragma once
 
 struct HART;
+struct Machine;
 
 struct inst_data {
     bool valid;
@@ -222,6 +223,33 @@ bool exec_CSRRC(HART *hart, inst_data& inst);
 bool exec_CSRRWI(HART *hart, inst_data& inst);
 bool exec_CSRRSI(HART *hart, inst_data& inst);
 bool exec_CSRRCI(HART *hart, inst_data& inst);
+
+// RV64A
+
+void amo_check_reservation(Machine& cpu, uint64_t va);
+bool exec_LR_D(HART *hart, inst_data& inst);
+bool exec_SC_D(HART *hart, inst_data& inst);
+bool exec_AMOSWAP_D(HART *hart, inst_data& inst);
+bool exec_AMOADD_D(HART *hart, inst_data& inst);
+bool exec_AMOXOR_D(HART *hart, inst_data& inst);
+bool exec_AMOAND_D(HART *hart, inst_data& inst);
+bool exec_AMOOR_D(HART *hart, inst_data& inst);
+bool exec_AMOMIN_D(HART *hart, inst_data& inst);
+bool exec_AMOMAX_D(HART *hart, inst_data& inst);
+bool exec_AMOMINU_D(HART *hart, inst_data& inst);
+bool exec_AMOMAXU_D(HART *hart, inst_data& inst);
+
+bool exec_LR_W(HART *hart, inst_data& inst);
+bool exec_SC_W(HART *hart, inst_data& inst);
+bool exec_AMOSWAP_W(HART *hart, inst_data& inst);
+bool exec_AMOADD_W(HART *hart, inst_data& inst);
+bool exec_AMOXOR_W(HART *hart, inst_data& inst);
+bool exec_AMOAND_W(HART *hart, inst_data& inst);
+bool exec_AMOOR_W(HART *hart, inst_data& inst);
+bool exec_AMOMIN_W(HART *hart, inst_data& inst);
+bool exec_AMOMAX_W(HART *hart, inst_data& inst);
+bool exec_AMOMINU_W(HART *hart, inst_data& inst);
+bool exec_AMOMAXU_W(HART *hart, inst_data& inst);
 
 //// SYSTEM
 

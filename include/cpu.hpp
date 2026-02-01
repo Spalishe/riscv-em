@@ -41,6 +41,12 @@ enum class PrivilegeMode {
     Machine = 3
 };
 
+struct Reservation {
+    bool valid = false;
+    uint64_t vaddr = 0;
+    uint8_t size = 0;
+};
+
 struct HART {
     uint64_t GPR[32];
     uint64_t pc = DRAM_BASE;
@@ -60,6 +66,7 @@ struct HART {
     uint8_t fetch_buffer_i;
     
     PMP pmp;
+    Reservation reservation;
 };
 
 void hart_reset(HART&, uint64_t dtb_path);

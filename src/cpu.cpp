@@ -54,7 +54,7 @@ uint32_t hart_fetch(HART& h, uint64_t _pc) {
     uint64_t fetch_buffer_end = h.fetch_pc + 28;
 	if(_pc < h.fetch_pc || _pc > fetch_buffer_end) {
 		// Refetch
-		bool out = h.mmio->ram.mmap->copy_mem_safe(_pc,32,&h.fetch_buffer);
+		bool out = h.mmio->ram->mmap->copy_mem_safe(_pc,32,&h.fetch_buffer);
 		if(out == false) return 0; 
 		h.fetch_pc = _pc;
 	}

@@ -25,6 +25,7 @@ Copyright 2026 Spalishe
 #include <iostream>
 
 std::optional<uint64_t> MMIO::load(HART* hart, uint64_t addr, uint64_t size) {
+    uint64_t o = addr;
     auto phys = mmu_translate(*mmu, hart, addr, AccessType::LOAD);
     if (!phys.has_value()) return std::nullopt;
     addr = phys.value();
@@ -36,7 +37,7 @@ std::optional<uint64_t> MMIO::load(HART* hart, uint64_t addr, uint64_t size) {
 
     // DRAM
     if (addr >= DRAM_BASE && addr < DRAM_BASE + DRAM_SIZE) {
-        return dram_load(&ram,addr,size);
+        return dram_load(ram,addr,size);
     }
 
     // Devices
@@ -63,7 +64,7 @@ bool MMIO::store(HART* hart, uint64_t addr, uint64_t size, uint64_t value) {
 
     // DRAM
     if (addr >= DRAM_BASE && addr < DRAM_BASE + DRAM_SIZE) {
-        dram_store(&ram,addr,size,value);
+        dram_store(ram,addr,size,value);
         return true;
     }
 
@@ -83,7 +84,7 @@ bool MMIO::store(HART* hart, uint64_t addr, uint64_t size, uint64_t value) {
 std::optional<uint64_t> MMIO::load_GDB(HART* hart, uint64_t addr, uint64_t size) {
     // DRAM
     if (addr >= DRAM_BASE && addr < DRAM_BASE + DRAM_SIZE) {
-        return dram_load(&ram,addr,size);
+        return dram_load(ram,addr,size);
     }
 
     // Devices
@@ -98,7 +99,7 @@ std::optional<uint64_t> MMIO::load_GDB(HART* hart, uint64_t addr, uint64_t size)
 void MMIO::store_GDB(HART* hart, uint64_t addr, uint64_t size, uint64_t value) {
     // DRAM
     if (addr >= DRAM_BASE && addr < DRAM_BASE + DRAM_SIZE) {
-        dram_store(&ram,addr,size,value);
+        dram_store(ram,addr,size,value);
         return;
     }
 

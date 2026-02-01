@@ -57,12 +57,13 @@ void machine_run(Machine& cpu) {
 
 void machine_create_memory(Machine& cpu) {
     cpu.memmap.add_region(DRAM_BASE,cpu.memsize);
-    cpu.mmio = new MMIO(cpu.dram);
+    cpu.mmio = new MMIO();
 	cpu.mmu = new MMU();
 	cpu.mmu->cpu = &cpu;
 	cpu.mmu->dram = &cpu.dram;
     cpu.dram.mmap = &cpu.memmap;
-    cpu.mmio->ram = cpu.dram;
+	cpu.dram.cpu = &cpu;
+    cpu.mmio->ram = &cpu.dram;
 	cpu.mmio->mmu = cpu.mmu;
 }
 

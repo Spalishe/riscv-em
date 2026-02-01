@@ -16,6 +16,8 @@ Copyright 2026 Spalishe
 */
 
 #include "../include/dram.h"
+#include "../include/decode.h"
+#include <format>
 
 uint64_t dram_load(DRAM* dram, uint64_t addr, uint64_t size) {
 	return dram->mmap->load(addr,size);
@@ -23,6 +25,7 @@ uint64_t dram_load(DRAM* dram, uint64_t addr, uint64_t size) {
 
 void dram_store(DRAM* dram, uint64_t addr, uint64_t size, uint64_t value) {
 	dram->mmap->store(addr,size,value);
+    amo_check_reservation(*dram->cpu, addr);
 }
 
 void dram_cache_clear(DRAM* dram) {

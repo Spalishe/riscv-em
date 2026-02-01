@@ -48,11 +48,8 @@ struct Device {
 
 struct MMIO {
     std::vector<Device*> devices;
-    DRAM& ram;
+    DRAM* ram;
     MMU* mmu;
-
-    MMIO(DRAM& ram)
-        : ram(ram) {}
 
     void add(Device* dev) {
         devices.push_back(dev);
