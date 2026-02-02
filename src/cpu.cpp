@@ -39,7 +39,7 @@ void hart_reset(HART& h, uint64_t dtb_path) {
 
 	h.GPR[11] = dtb_path;
 
-	h.csrs[MISA] = riscv_mkmisa("i");
+	h.csrs[MISA] = riscv_mkmisa("imasu");
 	h.csrs[MVENDORID] = 0; 
 	h.csrs[MARCHID] = 0; 
 	h.csrs[MIMPID] = 0;
@@ -85,67 +85,42 @@ void hart_execute(HART& h, inst_data inst) {
 }
 
 void hart_check_interrupts(HART& h) {
-    uint64_t mip     = h.csrs[MIP];
-    uint64_t mie     = h.csrs[MIE];
-    uint64_t mstatus = h.csrs[MSTATUS];
-    uint64_t sstatus = csr_read(&h,SSTATUS);
+    uint64_t mip = h.csrs[MIP];
+    uint64_t mie = h.csrs[MIE];
+    uint64_t sip = csr_read(&h,SIP);
+    uint64_t sie = csr_read(&h,SIE);
     uint64_t mideleg = h.csrs[MIDELEG];
 
-    bool m_ie = (mstatus >> MSTATUS_MIE) & 1;
-    bool s_ie = (sstatus >> SSTATUS_SIE_BIT) & 1;
+    bool m_global = csr_read_mstatus(&h,MSTATUS_MIE,MSTATUS_MIE);
+    bool s_global = csr_read_mstatus(&h,MSTATUS_SIE,MSTATUS_SIE);
 
-    uint64_t pending = mip & mie;
-    if (!pending)
-        return;
+    if (m_global) {
+        uint64_t pending = mip & mie & ~mideleg;
 
-    if (h.mode == PrivilegeMode::Machine) {
-        if (!m_ie)
-            return;
-
-        if (pending & (1ULL << MIP_MEIP)) {
-            hart_trap(h, IRQ_MEXT, 0, true);
-            return;
+        if (pending) {
+            for (int irq : irq_priority) {
+                if (pending & (1ULL << irq)) {
+                    hart_trap(h, irq, 0, true);
+                    return;
+                }
+            }
         }
-        if (pending & (1ULL << MIP_MSIP)) {
-            hart_trap(h, IRQ_MSW, 0, true);
-            return;
-        }
-        if (pending & (1ULL << MIP_MTIP)) {
-            hart_trap(h, IRQ_MTIMER, 0, true);
-            return;
-        }
-        return;
     }
 
-    /* ---- external ---- */
-    if (pending & (1ULL << MIP_SEIP)) {
-        if ((mideleg & (1ULL << IRQ_SEXT)) && s_ie) {
-            hart_trap(h, IRQ_SEXT, 0, true);
-        } else if (m_ie) {
-            hart_trap(h, IRQ_SEXT, 0, true);
+    if (h.mode <= PrivilegeMode::Supervisor && s_global) {
+        uint64_t pending = sip & sie & mideleg;
+
+        if (pending) {
+            for (int irq : irq_priority) {
+                if (pending & (1ULL << irq)) {
+                    hart_trap(h, irq, 0, true);
+                    return;
+                }
+            }
         }
-        return;
     }
 
-    /* ---- software ---- */
-    if (pending & (1ULL << MIP_SSIP)) {
-        if ((mideleg & (1ULL << IRQ_SSW)) && s_ie) {
-            hart_trap(h, IRQ_SSW, 0, true);
-        } else if (m_ie) {
-            hart_trap(h, IRQ_SSW, 0, true);
-        }
-        return;
-    }
-
-    /* ---- timer ---- */
-    if (pending & (1ULL << MIP_STIP)) {
-        if ((mideleg & (1ULL << IRQ_STIMER)) && s_ie) {
-            hart_trap(h, IRQ_STIMER, 0, true);
-        } else if (m_ie) {
-            hart_trap(h, IRQ_STIMER, 0, true);
-        }
-        return;
-    }
+    return;
 }
 
 void hart_trap(HART& h, uint64_t cause, uint64_t tval, bool is_interrupt) {
@@ -192,6 +167,10 @@ uint64_t csr_read(HART *hart, uint16_t csr) {
     switch(csr) {
         case SSTATUS:
             return hart->csrs[MSTATUS] & SSTATUS_MASK;
+        case SIE:
+            return hart->csrs[MIE] & SE_MASK;
+        case SIP:
+            return hart->csrs[MIP] & SE_MASK;
         default:
             return hart->csrs[csr];
     }
@@ -200,6 +179,12 @@ void csr_write(HART *hart, uint16_t csr, uint64_t val) {
     if(csr == SSTATUS) {
         uint64_t mst = hart->csrs[MSTATUS] & ~SSTATUS_MASK;
         hart->csrs[MSTATUS] = mst | (val & SSTATUS_MASK);
+    } else if(csr == SIP) {
+        uint64_t mst = hart->csrs[MIP] & ~SE_MASK;
+        hart->csrs[MIP] = mst | (val & SE_MASK);
+    } else if(csr == SIE) {
+        uint64_t mst = hart->csrs[MIE] & ~SE_MASK;
+        hart->csrs[MIE] = mst | (val & SE_MASK);
     } else if(csr >= PMPCFG0 && csr <= PMPCFG15) {
         auto vals = pmp_get_num_cfgs(val);
         std::vector<uint8_t> update;
@@ -221,6 +206,13 @@ void csr_write(HART *hart, uint16_t csr, uint64_t val) {
     } else if(csr >= PMPADDR0 && csr <= PMPADDR63) {
         uint8_t i = csr - PMPADDR0;
         if(!pmp_check_locked_addr(hart,i)) hart->csrs[csr] = val;
+    } else if(csr == MSTATUS) {
+        uint64_t mask = 1ULL << 32 | 1ULL << 33 | 1ULL << 34 | 1ULL << 35;
+        val &= ~mask;
+        val |= hart->csrs[MSTATUS] & mask;
+        hart->csrs[MSTATUS] = val;
+    } else if(csr == MISA || csr == MARCHID || csr == MVENDORID || csr == MIMPID || csr == MHARTID) {
+        // RO: nop
     } else {
         hart->csrs[csr] = val;
     }

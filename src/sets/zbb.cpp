@@ -160,7 +160,7 @@ bool exec_ORC_B(HART *hart, inst_data& inst) {
     uint64_t out = 0;
     for(int i = 0; i < 64; i+=8) {
         uint8_t b = (in >> i) & 0xFF;
-        uint8_t val = (b == 0) ? 0x00 : 0xFF;
+        uint64_t val = (b == 0) ? 0x00 : 0xFF;
         out |= (val << i);
     }
     hart->GPR[inst.rd] = out;

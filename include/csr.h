@@ -313,3 +313,13 @@ Copyright 2026 Spalishe
 #define MSTATUS_SPIE 5
 
 #define SSTATUS_MASK 0x80000003000DE762ULL
+#define SE_MASK 0x222
+
+static const int irq_priority[] = {
+    11, // MEI
+    9,  // SEI
+    3,  // MSI
+    1,  // SSI
+    7,  // MTI
+    5   // STI
+};

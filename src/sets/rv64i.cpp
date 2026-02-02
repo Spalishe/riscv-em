@@ -295,11 +295,12 @@ bool exec_JAL(HART *hart, inst_data& inst) {
 }
 bool exec_JALR(HART *hart, inst_data& inst) {
 	uint64_t tmp = hart->pc;
-    if((hart->GPR[inst.rs1] + (int64_t) inst.imm) % 4 != 0) {
-        hart_trap(*hart,EXC_INST_ADDR_MISALIGNED,hart->GPR[inst.rs1] + (int64_t) inst.imm,false);
+    uint64_t target = (hart->GPR[inst.rs1] + (int64_t) inst.imm) & ~1;
+    if(target % 4 != 0) {
+        hart_trap(*hart,EXC_INST_ADDR_MISALIGNED,target,false);
         return false;
     } else {
-        hart->pc = hart->GPR[inst.rs1] + (int64_t) inst.imm - 4;
+        hart->pc = target - 4;
 	    hart->GPR[inst.rd] = tmp+4;
     }
     return true;

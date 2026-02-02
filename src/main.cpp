@@ -79,8 +79,9 @@ int main(int argc, char* argv[]) {
 		VM.memmap.load_file(DRAM_BASE,file);
 	}
 	
+	if(!dtb_has) machine_create_fdt(VM,cmdline_append);
 	machine_create_devices(VM,(image_has ? parser.getString(2) : ""));
-	machine_create_fdt(VM,(dtb_has ? parser.getString(3) : ""),cmdline_append,(dtb_dump_has ? parser.getString(4) : ""));
+	machine_load_fdt(VM, (dtb_has ? parser.getString(3) : ""), (dtb_dump_has ? parser.getString(4) : ""));
 
 	if (kernel_has) {
 		std::string kernel_path = parser.getString(1);

@@ -123,6 +123,7 @@ vector<tuple<string,uint32_t,char,optional<vector<tuple<string,uint8_t,uint8_t>>
     {"mtvec", MTVEC, 'c', nullopt},
     {"mcounteren", MCOUNTEREN, 'c', nullopt},
     {"mscratch", MSCRATCH, 'c', nullopt},
+    {"mhartid", MHARTID, 'c', nullopt},
     {"mepc", MEPC, 'c', nullopt},
     {"mcause", MCAUSE, 'c', nullopt},
     {"mtval", MTVAL, 'c', nullopt},
@@ -418,7 +419,7 @@ void GDB_parsePacket(const char* buffer) {
                 }
             } else if(idx >= 64) {
                 //csr
-                GDB_sendPacket(to_little_endian_hex(gdb_hart->csrs[idx]));
+                GDB_sendPacket(to_little_endian_hex(csr_read(gdb_hart,idx)));
             }
             return;
         }
@@ -443,7 +444,7 @@ void GDB_parsePacket(const char* buffer) {
                 }
             } else if(idx >= 64) {
                 //csr
-                gdb_hart->csrs[idx] = num;
+                csr_write(gdb_hart,idx,num);
             }
             GDB_sendPacket("OK");
             return;

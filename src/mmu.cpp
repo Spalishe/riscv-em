@@ -33,14 +33,13 @@ uint64_t PTE_PPN(uint64_t pte, uint64_t VA, int level) {
     return 0;
 }
 
+// TODO: Rewrite
 std::optional<uint64_t> mmu_translate(MMU& mmu, HART *hart, uint64_t VA, AccessType access_type) {
     uint64_t satp = hart->csrs[SATP];
     PagingMode pmode = (PagingMode)number_read_bits(satp, SATP_MODE_LOW, SATP_MODE_HIGH);
     uint64_t root_table = number_read_bits(satp, SATP_PPN_LOW, SATP_PPN_HIGH) << 12; // page table base
+    uint16_t asid = number_read_bits(satp, SATP_ASID_LOW, SATP_ASID_HIGH);
     PrivilegeMode priv_mode = hart->mode;
-
-    if (auto pa = tlb_lookup(mmu.tlb, VA, access_type, priv_mode))
-        return *pa;
 
     uint64_t exc_cause = EXC_INST_PAGE_FAULT;
     if(access_type == AccessType::LOAD) exc_cause = EXC_LOAD_PAGE_FAULT;
@@ -49,6 +48,9 @@ std::optional<uint64_t> mmu_translate(MMU& mmu, HART *hart, uint64_t VA, AccessT
     if(pmode == PagingMode::Bare || priv_mode == PrivilegeMode::Machine) {
         return VA;
     }
+
+    if (auto pa = tlb_lookup(mmu.tlb, VA, asid, access_type, priv_mode, csr_read_mstatus(hart,18,18)))
+        return *pa;
 
     uint64_t va_sign = (VA >> 38) & 1;
     uint64_t va_upper = VA >> 39;
@@ -86,17 +88,17 @@ std::optional<uint64_t> mmu_translate(MMU& mmu, HART *hart, uint64_t VA, AccessT
             if(priv_mode == PrivilegeMode::User && U==0) {
                 hart_trap(*hart, exc_cause, VA, false);
                 return std::nullopt;
-            } else if(priv_mode == PrivilegeMode::Supervisor && U==1) {
-                if( csr_read_mstatus(hart,18,18) != 1 ) { // SUM bit
+            } else if (priv_mode == PrivilegeMode::Supervisor && U == 1 &&
+                access_type != AccessType::EXECUTE &&
+                csr_read_mstatus(hart, 18, 18) == 0) { // SUM bit
                     hart_trap(*hart, exc_cause, VA, false);
                     return std::nullopt;
                 }
-            }
 
             if(access_type == AccessType::EXECUTE && X==0) {
                 hart_trap(*hart, exc_cause, VA, false);
                 return std::nullopt;
-            } else if(access_type == AccessType::LOAD && R==0) {
+            } else if(access_type == AccessType::LOAD && !(R || (csr_read_mstatus(hart,19,19) && X))) {
                 hart_trap(*hart, exc_cause, VA, false);
                 return std::nullopt;
             } else if(access_type == AccessType::STORE && W==0) {
@@ -104,10 +106,6 @@ std::optional<uint64_t> mmu_translate(MMU& mmu, HART *hart, uint64_t VA, AccessT
                 return std::nullopt;
             }
 
-            if(!A || (access_type == AccessType::STORE && !D)) { 
-                hart_trap(*hart, exc_cause, VA, false);
-                return std::nullopt;
-            }
             uint64_t PPN_2 = number_read_bits(pte,28,53);
             uint64_t PPN_1 = number_read_bits(pte,19,27);
             uint64_t PPN_0 = number_read_bits(pte,10,18);
@@ -128,7 +126,16 @@ std::optional<uint64_t> mmu_translate(MMU& mmu, HART *hart, uint64_t VA, AccessT
                 if (access_type == AccessType::LOAD)    cause = EXC_LOAD_ACCESS_FAULT;
                 if (access_type == AccessType::STORE)   cause = EXC_STORE_ACCESS_FAULT;
 
-                hart_trap(*hart, cause, pa, false);
+                hart_trap(*hart, cause, VA, false);
+                return std::nullopt;
+            }
+            if(!A || (access_type == AccessType::STORE && !D)) { 
+                hart_trap(*hart, exc_cause, VA, false);
+
+                number_write_bits(pte,6,6,1);
+                number_write_bits(pte,7,7,1);
+                dram_store(mmu.dram, pte_addr, 64,pte);
+
                 return std::nullopt;
             }
 
@@ -136,6 +143,7 @@ std::optional<uint64_t> mmu_translate(MMU& mmu, HART *hart, uint64_t VA, AccessT
                 mmu.tlb,
                 VA,
                 pa,
+                asid,
                 level,
                 R, W, X, U
             );
@@ -154,20 +162,25 @@ std::optional<uint64_t> mmu_translate(MMU& mmu, HART *hart, uint64_t VA, AccessT
 void tlb_flush(TLB& tlb) {
     for(auto& entry : tlb.entries) {
         entry.valid = false;
+        entry.asid = 0;
+        entry.vpn = 0;
+        entry.ppn = 0;
     }
 }
 uint64_t make_tlb_vpn(uint64_t va, int level) {
-    if (level == 0)
-        return va >> 12;        // VPN[2:0]
-    if (level == 1)
-        return va >> 21;        // VPN[2:1]
-    return va >> 30;            // VPN[2]
+    switch(level) {
+        case 0: return va >> 12;                    // VPN[2:0]
+        case 1: return (va >> 12) & 0x1FF;          // VPN[2:1] mask lower VPN0
+        case 2: return (va >> 30) & 0x1FF;          // VPN[2] mask VPN1/0
+    }
+    return 0;
 }
-std::optional<uint64_t> tlb_lookup(TLB& tlb, uint64_t va, AccessType type, PrivilegeMode priv) {
+std::optional<uint64_t> tlb_lookup(TLB& tlb, uint64_t va, uint16_t asid, AccessType type, PrivilegeMode priv, uint64_t sum_bit = 0) {
     for (auto& e : tlb.entries) {
         if (!e.valid) continue;
 
         uint64_t vpn = make_tlb_vpn(va, e.level);
+        if (priv != PrivilegeMode::Machine && e.asid != 0 && (e.asid != asid)) continue;
         if (vpn != e.vpn) continue;
 
         if (type == AccessType::EXECUTE && !e.X) return std::nullopt;
@@ -176,18 +189,21 @@ std::optional<uint64_t> tlb_lookup(TLB& tlb, uint64_t va, AccessType type, Privi
 
         if (priv == PrivilegeMode::User && !e.U)
             return std::nullopt;
+        if (priv == PrivilegeMode::Supervisor && e.U) {
+            if(!sum_bit) return std::nullopt;
+        }
 
         uint64_t offset_mask =
             (e.level == 0) ? 0xFFF :
             (e.level == 1) ? 0x1FFFFF :
                              0x3FFFFFFF;
 
-        return (e.ppn << 12) | (va & offset_mask);
+        return e.ppn << 12 | (va & ((1 << (12 + 9*e.level)) - 1));
     }
 
     return std::nullopt;
 }
-void tlb_insert(TLB& tlb, uint64_t va, uint64_t pa, int level,bool R, bool W, bool X, bool U) {
+void tlb_insert(TLB& tlb, uint64_t va, uint64_t pa, uint16_t asid, int level,bool R, bool W, bool X, bool U) {
     static int victim = 0;
 
     TLBEntry& e = tlb.entries[victim];
@@ -196,6 +212,7 @@ void tlb_insert(TLB& tlb, uint64_t va, uint64_t pa, int level,bool R, bool W, bo
     e.vpn   = make_tlb_vpn(va, level);
     e.ppn   = pa >> 12;
     e.level = level;
+    e.asid = asid;
     e.R = R; e.W = W; e.X = X; e.U = U;
     e.valid = true;
 }

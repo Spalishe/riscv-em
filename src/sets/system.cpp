@@ -45,7 +45,7 @@ bool exec_MRET(HART *hart, inst_data& inst) {
 }
 bool exec_SRET(HART *hart, inst_data& inst) {
     if (hart->mode == PrivilegeMode::User ||
-        (hart->mode == PrivilegeMode::Supervisor && (csr_read_mstatus(hart,MSTATUS_TSR,MSTATUS_TSR) & (1ULL << 22)))) {
+        (hart->mode == PrivilegeMode::Supervisor && (csr_read_mstatus(hart,MSTATUS_TSR,MSTATUS_TSR) & 1))) {
         hart_trap(*hart,EXC_ILLEGAL_INSTRUCTION, inst.inst, false);
         return false;
     }
@@ -90,6 +90,6 @@ bool exec_WFI(HART *hart, inst_data& inst) {
         hart_trap(*hart,EXC_ILLEGAL_INSTRUCTION, inst.inst, false);
         return false;
     }
-    hart->WFI = true;
+    if((hart->csrs[MIP] & hart->csrs[MIE]) == 0) hart->WFI = true;
     return true;
 }
