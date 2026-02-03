@@ -311,6 +311,8 @@ Copyright 2026 Spalishe
 #define MSTATUS_SPP 8
 #define MSTATUS_SIE 1
 #define MSTATUS_SPIE 5
+#define MSTATUS_MXR 19
+#define MSTATUS_SUM 18
 
 #define SSTATUS_MASK 0x80000003000DE762ULL
 #define SE_MASK 0x222

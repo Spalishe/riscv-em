@@ -34,8 +34,70 @@ Copyright 2026 Spalishe
 #define SV39_VPN1_LOW 21
 #define SV39_VPN0_HIGH 20
 #define SV39_VPN0_LOW 12
+#define SV39_PAGE_SIZE 4096
+#define SV39_LEVELS 3
+#define SV39_PTESIZE 8
 
-enum class PagingMode {
+struct SV39_PTE {
+    uint8_t V;
+    uint8_t R;
+    uint8_t W;
+    uint8_t X;
+    uint8_t U;
+    uint8_t G;
+    uint8_t A;
+    uint8_t D;
+    
+    uint8_t RSW;
+    uint64_t PPN;
+    uint16_t PPN_0;
+    uint16_t PPN_1;
+    uint32_t PPN_2;
+    uint8_t Reserved;
+    uint8_t PBMT;
+    uint8_t N;
+
+    SV39_PTE(uint64_t val) {
+        V = val & 0x1;
+        R = (val >> 1) & 0x1;
+        W = (val >> 2) & 0x1;
+        X = (val >> 3) & 0x1;
+        U = (val >> 4) & 0x1;
+        G = (val >> 5) & 0x1;
+        A = (val >> 6) & 0x1;
+        D = (val >> 7) & 0x1;
+        RSW = (val >> 8) & 0x3;
+        PPN = (val >> 10) & 0x7FFFFFFFFFF;
+        PPN_0 = (val >> 10) & 0x1FF;
+        PPN_1 = (val >> 19) & 0x1FF;
+        PPN_2 = (val >> 28) & 0x3FFFFFF;
+        Reserved = (val >> 54) & 0x7F;
+        PBMT = (val >> 61) & 0x3;
+        N = (val >> 63) & 0x1;
+    }
+
+    operator uint64_t() const {
+        uint64_t val = 0;
+        val |= V;
+        val |= R << 1;
+        val |= W << 2;
+        val |= X << 3;
+        val |= U << 4;
+        val |= G << 5;
+        val |= A << 6;
+        val |= D << 7;
+        val |= RSW << 8;
+        val |= (uint64_t)PPN_0 << 10;
+        val |= (uint64_t)PPN_1 << 19;
+        val |= (uint64_t)PPN_2 << 28;
+        val |= (uint64_t)Reserved << 54;
+        val |= (uint64_t)PBMT << 61;
+        val |= (uint64_t)N << 63;
+        return val;
+    }
+};
+
+enum class PagingMode : uint8_t {
     Bare = 0,
     Sv39 = 8,
     Sv48 = 9,

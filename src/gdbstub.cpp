@@ -108,6 +108,8 @@ vector<tuple<string,uint32_t,char,optional<vector<tuple<string,uint8_t,uint8_t>>
         {"FS", 13, 14},
         {"XS", 15, 16},
         {"MPRV", 17, 17},
+        {"SUM",MSTATUS_SUM,MSTATUS_SUM},
+        {"MXR",MSTATUS_MXR,MSTATUS_MXR},
         {"TVM", 20, 20},
         {"TW", 21, 21},
         {"TSR", 22, 22},
