@@ -51,7 +51,7 @@ void hart_reset(HART& h, uint64_t dtb_path) {
 }
 
 uint32_t hart_fetch(HART& h, uint64_t _pc) {
-    /*uint64_t fetch_buffer_end = h.fetch_pc + 28;
+    uint64_t fetch_buffer_end = h.fetch_pc + 28;
 	if(_pc < h.fetch_pc || _pc > fetch_buffer_end) {
         // Refetch
         auto pa_opt = mmu_translate(*h.mmio->mmu, &h, _pc, AccessType::EXECUTE);
@@ -66,11 +66,11 @@ uint32_t hart_fetch(HART& h, uint64_t _pc) {
         h.fetch_pc = _pc;
     }
 	uint8_t fetch_indx = (_pc - h.fetch_pc) / 4;
-	return h.fetch_buffer[fetch_indx];*/
-    auto phys = mmu_translate(*h.mmio->mmu, &h, _pc, AccessType::EXECUTE);
+	return h.fetch_buffer[fetch_indx];
+    /*auto phys = mmu_translate(*h.mmio->mmu, &h, _pc, AccessType::EXECUTE);
     if (!phys.has_value()) return 0;
     uint64_t addr = phys.value();
-    return (uint32_t)dram_load(h.mmio->mmu->dram,addr,32);
+    return (uint32_t)dram_load(h.mmio->mmu->dram,addr,32);*/
 }
 
 void hart_step(HART& h) {
