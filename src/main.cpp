@@ -21,6 +21,7 @@ Copyright 2026 Spalishe
 
 #include "../include/main.hpp"
 #include "../include/machine.hpp"
+#include "../include/termios.hpp"
 
 /*
 	TODO:
@@ -89,6 +90,8 @@ int main(int argc, char* argv[]) {
 	}
 	machine_create_harts(VM);
 
+	termios_start();
+	
 	std::thread VM_thread(machine_run,std::ref(VM));
 	if(gdb_stub) {
 		std::thread GDB_thread(GDB_Create,VM.harts[0],&VM);

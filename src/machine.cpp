@@ -20,6 +20,7 @@ Copyright 2026 Spalishe
 #include <cstring>
 #include <random>
 #include "../include/machine.hpp"
+#include "../include/termios.hpp"
 
 void machine_run(Machine& cpu) {
     cpu.state = cpu.gdb ? MachineState::Halted : MachineState::Running;
@@ -36,6 +37,7 @@ void machine_run(Machine& cpu) {
             std::this_thread::yield();
             continue;
         }
+		termios_loop(cpu.uart,cpu);
         for (auto& h : cpu.harts) {
 			cpu.plic->plic_service(h);
 			h->GPR[0] = 0;
