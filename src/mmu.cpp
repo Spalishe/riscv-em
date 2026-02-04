@@ -60,9 +60,10 @@ std::optional<uint64_t> mmu_translate(MMU& mmu, HART *hart, uint64_t VA, AccessT
         uint16_t ASID = number_read_bits(satp,SATP_ASID_LOW,SATP_ASID_HIGH);
         uint64_t PPN = number_read_bits(satp,SATP_PPN_LOW,SATP_PPN_HIGH);
 
-        PrivilegeMode mode = hart->mode;
+        PrivilegeMode mode = ((csr_read_mstatus(hart,MSTATUS_MPRV,MSTATUS_MPRV) && access_type != AccessType::EXECUTE) ? (PrivilegeMode)csr_read_mstatus(hart,MSTATUS_MPP_LOW,MSTATUS_MPP_HIGH) : hart->mode);
+        //mode = (hart->mode != PrivilegeMode::Machine) ? hart->mode : mode;
 
-        if(MODE == PagingMode::Bare) {
+        if(MODE == PagingMode::Bare || mode == PrivilegeMode::Machine) {
             // When MODE=Bare, supervisor virtual addresses are equal to supervisor physical addresses,
             // and there is no additional memory protection beyond the physical memory protection scheme described in Section 3.7.
             return VA;
@@ -167,7 +168,6 @@ std::optional<uint64_t> mmu_translate(MMU& mmu, HART *hart, uint64_t VA, AccessT
 
                     pa = SV39_SET_PA_PPN(pa, j, val);
                 }
-                std::cout << "pa: " << pa << std::endl;
 
                 tlb_insert(
                     mmu.tlb,

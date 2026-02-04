@@ -29,5 +29,5 @@ void dram_store(DRAM* dram, uint64_t addr, uint64_t size, uint64_t value) {
 }
 
 void dram_cache_clear(DRAM* dram) {
-	dram->mmap->cache.clear();
+	//dram->mmap->cache.clear();
 }

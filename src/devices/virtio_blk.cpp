@@ -22,7 +22,7 @@ Copyright 2026 Spalishe
 #include <unistd.h>
 
 VirtIO_BLK::VirtIO_BLK(uint64_t base, uint64_t size, Machine& cpu, PLIC* plic, fdt_node* fdt, uint8_t irq_num, std::string image_path)
-    : Device(base, size, cpu), plic(plic), irq_num(irq_num), image_path(std::move(image_path))
+    : Device(base, size, cpu), plic(plic), irq_num(irq_num), image_path(image_path)
 {
     fdt_node* virtio_blk_node = fdt_node_create_reg("virtio_mmio",base);
     fdt_node_add_prop(virtio_blk_node,"compatible","virtio,mmio\0",12);
@@ -259,7 +259,7 @@ uint64_t VirtIO_BLK::read(HART* hart, uint64_t addr, uint64_t size) {
         case VIRT_REG_VERSION:
         case VIRT_REG_DEVICEID:
             return 0x2;
-        case VIRT_REG_VENDORID: return 0x554d4551; // 0x554d4551 for xv6 idk why
+        case VIRT_REG_VENDORID: return 0x4d455652; // 0x554d4551 for xv6 idk why
         case VIRT_REG_DEVICEFEATURES: {
             if (device_features_sel == 0) return (uint32_t)(device_features & 0xFFFFFFFF);
             else return (uint32_t)(device_features >> 32);

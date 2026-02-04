@@ -5,3 +5,7 @@
 /tests/*
 /tests
 inf_loop.bin
+Image
+kernel.bin
+fs.img
+heaptrack.*

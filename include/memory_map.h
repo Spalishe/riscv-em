@@ -54,7 +54,7 @@ struct MemoryRegion {
 
 struct MemoryMap {
     std::vector<MemoryRegion*> regions;
-    std::unordered_map<uint64_t,MemoryRegion*> cache;
+    //std::unordered_map<uint64_t,MemoryRegion*> cache;
 
     ~MemoryMap() {
         for(auto* r : regions) delete r;
@@ -162,20 +162,20 @@ struct MemoryMap {
     }
 
     MemoryRegion* find_region(uint64_t addr) {
-        if(cache.find(addr) != cache.end()) {return cache[addr];}
+        //if(cache.find(addr) != cache.end()) {return cache[addr];}
         for(auto* r : regions) {
             if(addr >= r->base_addr && addr < r->base_addr + r->size) {
-                cache[addr] = r;
+                //cache[addr] = r;
                 return r;
             }
         }
         throw std::out_of_range(std::format("Address not mapped in MemoryMap: 0x{:08x}",addr));
     }
     std::optional<MemoryRegion*> find_region_safe(uint64_t addr) {
-        if(cache.find(addr) != cache.end()) {return cache[addr];}
+        //if(cache.find(addr) != cache.end()) {return cache[addr];}
         for(auto* r : regions) {
             if(addr >= r->base_addr && addr < r->base_addr + r->size) {
-                cache[addr] = r;
+                //cache[addr] = r;
                 return r;
             }
         }

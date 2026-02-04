@@ -25,19 +25,15 @@ Copyright 2026 Spalishe
 
 /*
 	TODO:
-		- RVA
-		- Counter CSRs
-
+		
 		-RTC GoldFish
 
 		-RV32F
 		-RV64F
-		-RV32F for RV32C
-		-RV64F for RV64C
 		-RV32D
 		-RV64D
-		-RV32D for RV32C
-		-RV64D for RV64C
+		
+		-RVC    <- this is required to run MMU-Linux
 */
 
 int main(int argc, char* argv[]) {
