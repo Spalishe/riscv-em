@@ -21,8 +21,17 @@ Copyright 2026 Spalishe
 struct HART;
 struct Machine;
 
+struct inst_ret {
+    bool increasePC;
+    bool isCompressed = false; // RVC
+    inst_ret(bool increase) {
+        increasePC = increase;
+    }
+};
+
 struct inst_data {
     bool valid;
+    bool canChangePC = false;
     uint64_t pc;
     uint32_t inst;
 
@@ -30,7 +39,7 @@ struct inst_data {
     uint8_t rs1;
     uint8_t rs2;
     uint64_t imm;
-    bool (*fn)(HART*, inst_data&);
+    inst_ret (*fn)(HART*, inst_data&);
 };
 
 uint64_t d_rd(uint32_t inst);
@@ -130,189 +139,189 @@ extern inst_data parse_instruction(HART* hart, uint32_t inst, uint64_t pc);
 
 //// RV64I
 // R-Type
-bool exec_ADD(HART *hart, inst_data& inst);
-bool exec_SUB(HART *hart, inst_data& inst);
-bool exec_XOR(HART *hart, inst_data& inst);
-bool exec_OR(HART *hart, inst_data& inst);
-bool exec_AND(HART *hart, inst_data& inst);
-bool exec_SLL(HART *hart, inst_data& inst);
-bool exec_SRL(HART *hart, inst_data& inst);
-bool exec_SRA(HART *hart, inst_data& inst);
-bool exec_SLT(HART *hart, inst_data& inst);
-bool exec_SLTU(HART *hart, inst_data& inst);
+inst_ret exec_ADD(HART *hart, inst_data& inst);
+inst_ret exec_SUB(HART *hart, inst_data& inst);
+inst_ret exec_XOR(HART *hart, inst_data& inst);
+inst_ret exec_OR(HART *hart, inst_data& inst);
+inst_ret exec_AND(HART *hart, inst_data& inst);
+inst_ret exec_SLL(HART *hart, inst_data& inst);
+inst_ret exec_SRL(HART *hart, inst_data& inst);
+inst_ret exec_SRA(HART *hart, inst_data& inst);
+inst_ret exec_SLT(HART *hart, inst_data& inst);
+inst_ret exec_SLTU(HART *hart, inst_data& inst);
 
-bool exec_ADDW(HART *hart, inst_data& inst);
-bool exec_SUBW(HART *hart, inst_data& inst);
-bool exec_SLLW(HART *hart, inst_data& inst);
-bool exec_SRLW(HART *hart, inst_data& inst);
-bool exec_SRAW(HART *hart, inst_data& inst);
+inst_ret exec_ADDW(HART *hart, inst_data& inst);
+inst_ret exec_SUBW(HART *hart, inst_data& inst);
+inst_ret exec_SLLW(HART *hart, inst_data& inst);
+inst_ret exec_SRLW(HART *hart, inst_data& inst);
+inst_ret exec_SRAW(HART *hart, inst_data& inst);
 
 // I-Type
-bool exec_ADDI(HART *hart, inst_data& inst);
-bool exec_XORI(HART *hart, inst_data& inst);
-bool exec_ORI(HART *hart, inst_data& inst);
-bool exec_ANDI(HART *hart, inst_data& inst);
-bool exec_SLLI(HART *hart, inst_data& inst);
-bool exec_SRLI(HART *hart, inst_data& inst);
-bool exec_SRAI(HART *hart, inst_data& inst);
-bool exec_SLTI(HART *hart, inst_data& inst);
-bool exec_SLTIU(HART *hart, inst_data& inst);
-bool exec_LB(HART *hart, inst_data& inst);
-bool exec_LH(HART *hart, inst_data& inst);
-bool exec_LW(HART *hart, inst_data& inst);
-bool exec_LBU(HART *hart, inst_data& inst);
-bool exec_LHU(HART *hart, inst_data& inst);
+inst_ret exec_ADDI(HART *hart, inst_data& inst);
+inst_ret exec_XORI(HART *hart, inst_data& inst);
+inst_ret exec_ORI(HART *hart, inst_data& inst);
+inst_ret exec_ANDI(HART *hart, inst_data& inst);
+inst_ret exec_SLLI(HART *hart, inst_data& inst);
+inst_ret exec_SRLI(HART *hart, inst_data& inst);
+inst_ret exec_SRAI(HART *hart, inst_data& inst);
+inst_ret exec_SLTI(HART *hart, inst_data& inst);
+inst_ret exec_SLTIU(HART *hart, inst_data& inst);
+inst_ret exec_LB(HART *hart, inst_data& inst);
+inst_ret exec_LH(HART *hart, inst_data& inst);
+inst_ret exec_LW(HART *hart, inst_data& inst);
+inst_ret exec_LBU(HART *hart, inst_data& inst);
+inst_ret exec_LHU(HART *hart, inst_data& inst);
 
-bool exec_ADDIW(HART *hart, inst_data& inst);
-bool exec_SLLIW(HART *hart, inst_data& inst);
-bool exec_SRLIW(HART *hart, inst_data& inst);
-bool exec_SRAIW(HART *hart, inst_data& inst);
+inst_ret exec_ADDIW(HART *hart, inst_data& inst);
+inst_ret exec_SLLIW(HART *hart, inst_data& inst);
+inst_ret exec_SRLIW(HART *hart, inst_data& inst);
+inst_ret exec_SRAIW(HART *hart, inst_data& inst);
 
-bool exec_LWU(HART *hart, inst_data& inst);
-bool exec_LD(HART *hart, inst_data& inst);
+inst_ret exec_LWU(HART *hart, inst_data& inst);
+inst_ret exec_LD(HART *hart, inst_data& inst);
 
 // S-Type
-bool exec_SB(HART *hart, inst_data& inst);
-bool exec_SH(HART *hart, inst_data& inst);
-bool exec_SW(HART *hart, inst_data& inst);
-bool exec_SD(HART *hart, inst_data& inst);
+inst_ret exec_SB(HART *hart, inst_data& inst);
+inst_ret exec_SH(HART *hart, inst_data& inst);
+inst_ret exec_SW(HART *hart, inst_data& inst);
+inst_ret exec_SD(HART *hart, inst_data& inst);
 
 // B-Type
-bool exec_BEQ(HART *hart, inst_data& inst);
-bool exec_BNE(HART *hart, inst_data& inst);
-bool exec_BLT(HART *hart, inst_data& inst);
-bool exec_BGE(HART *hart, inst_data& inst);
-bool exec_BLTU(HART *hart, inst_data& inst);
-bool exec_BGEU(HART *hart, inst_data& inst);
+inst_ret exec_BEQ(HART *hart, inst_data& inst);
+inst_ret exec_BNE(HART *hart, inst_data& inst);
+inst_ret exec_BLT(HART *hart, inst_data& inst);
+inst_ret exec_BGE(HART *hart, inst_data& inst);
+inst_ret exec_BLTU(HART *hart, inst_data& inst);
+inst_ret exec_BGEU(HART *hart, inst_data& inst);
 
 // JUMP
-bool exec_JAL(HART *hart, inst_data& inst);
-bool exec_JALR(HART *hart, inst_data& inst);
+inst_ret exec_JAL(HART *hart, inst_data& inst);
+inst_ret exec_JALR(HART *hart, inst_data& inst);
 
 // what
-bool exec_LUI(HART *hart, inst_data& inst);
-bool exec_AUIPC(HART *hart, inst_data& inst);
+inst_ret exec_LUI(HART *hart, inst_data& inst);
+inst_ret exec_AUIPC(HART *hart, inst_data& inst);
 
-bool exec_FENCE(HART *hart, inst_data& inst);
+inst_ret exec_FENCE(HART *hart, inst_data& inst);
 
-bool exec_ECALL(HART *hart, inst_data& inst);
-bool exec_EBREAK(HART *hart, inst_data& inst);
+inst_ret exec_ECALL(HART *hart, inst_data& inst);
+inst_ret exec_EBREAK(HART *hart, inst_data& inst);
 
 //// RV64M
 // R-Type
-bool exec_MUL(HART *hart, inst_data& inst);
-bool exec_MULH(HART *hart, inst_data& inst);
-bool exec_MULHSU(HART *hart, inst_data& inst);
-bool exec_MULHU(HART *hart, inst_data& inst);
-bool exec_DIV(HART *hart, inst_data& inst);
-bool exec_DIVU(HART *hart, inst_data& inst);
-bool exec_REM(HART *hart, inst_data& inst);
-bool exec_REMU(HART *hart, inst_data& inst);
+inst_ret exec_MUL(HART *hart, inst_data& inst);
+inst_ret exec_MULH(HART *hart, inst_data& inst);
+inst_ret exec_MULHSU(HART *hart, inst_data& inst);
+inst_ret exec_MULHU(HART *hart, inst_data& inst);
+inst_ret exec_DIV(HART *hart, inst_data& inst);
+inst_ret exec_DIVU(HART *hart, inst_data& inst);
+inst_ret exec_REM(HART *hart, inst_data& inst);
+inst_ret exec_REMU(HART *hart, inst_data& inst);
 
-bool exec_MULW(HART *hart, inst_data& inst);
-bool exec_DIVW(HART *hart, inst_data& inst);
-bool exec_DIVUW(HART *hart, inst_data& inst);
-bool exec_REMW(HART *hart, inst_data& inst);
-bool exec_REMUW(HART *hart, inst_data& inst);
+inst_ret exec_MULW(HART *hart, inst_data& inst);
+inst_ret exec_DIVW(HART *hart, inst_data& inst);
+inst_ret exec_DIVUW(HART *hart, inst_data& inst);
+inst_ret exec_REMW(HART *hart, inst_data& inst);
+inst_ret exec_REMUW(HART *hart, inst_data& inst);
 
 //// ZiCSR
 
-bool exec_CSRRW(HART *hart, inst_data& inst);
-bool exec_CSRRS(HART *hart, inst_data& inst);
-bool exec_CSRRC(HART *hart, inst_data& inst);
-bool exec_CSRRWI(HART *hart, inst_data& inst);
-bool exec_CSRRSI(HART *hart, inst_data& inst);
-bool exec_CSRRCI(HART *hart, inst_data& inst);
+inst_ret exec_CSRRW(HART *hart, inst_data& inst);
+inst_ret exec_CSRRS(HART *hart, inst_data& inst);
+inst_ret exec_CSRRC(HART *hart, inst_data& inst);
+inst_ret exec_CSRRWI(HART *hart, inst_data& inst);
+inst_ret exec_CSRRSI(HART *hart, inst_data& inst);
+inst_ret exec_CSRRCI(HART *hart, inst_data& inst);
 
 // RV64A
 
 void amo_check_reservation(Machine& cpu, uint64_t va);
-bool exec_LR_D(HART *hart, inst_data& inst);
-bool exec_SC_D(HART *hart, inst_data& inst);
-bool exec_AMOSWAP_D(HART *hart, inst_data& inst);
-bool exec_AMOADD_D(HART *hart, inst_data& inst);
-bool exec_AMOXOR_D(HART *hart, inst_data& inst);
-bool exec_AMOAND_D(HART *hart, inst_data& inst);
-bool exec_AMOOR_D(HART *hart, inst_data& inst);
-bool exec_AMOMIN_D(HART *hart, inst_data& inst);
-bool exec_AMOMAX_D(HART *hart, inst_data& inst);
-bool exec_AMOMINU_D(HART *hart, inst_data& inst);
-bool exec_AMOMAXU_D(HART *hart, inst_data& inst);
+inst_ret exec_LR_D(HART *hart, inst_data& inst);
+inst_ret exec_SC_D(HART *hart, inst_data& inst);
+inst_ret exec_AMOSWAP_D(HART *hart, inst_data& inst);
+inst_ret exec_AMOADD_D(HART *hart, inst_data& inst);
+inst_ret exec_AMOXOR_D(HART *hart, inst_data& inst);
+inst_ret exec_AMOAND_D(HART *hart, inst_data& inst);
+inst_ret exec_AMOOR_D(HART *hart, inst_data& inst);
+inst_ret exec_AMOMIN_D(HART *hart, inst_data& inst);
+inst_ret exec_AMOMAX_D(HART *hart, inst_data& inst);
+inst_ret exec_AMOMINU_D(HART *hart, inst_data& inst);
+inst_ret exec_AMOMAXU_D(HART *hart, inst_data& inst);
 
-bool exec_LR_W(HART *hart, inst_data& inst);
-bool exec_SC_W(HART *hart, inst_data& inst);
-bool exec_AMOSWAP_W(HART *hart, inst_data& inst);
-bool exec_AMOADD_W(HART *hart, inst_data& inst);
-bool exec_AMOXOR_W(HART *hart, inst_data& inst);
-bool exec_AMOAND_W(HART *hart, inst_data& inst);
-bool exec_AMOOR_W(HART *hart, inst_data& inst);
-bool exec_AMOMIN_W(HART *hart, inst_data& inst);
-bool exec_AMOMAX_W(HART *hart, inst_data& inst);
-bool exec_AMOMINU_W(HART *hart, inst_data& inst);
-bool exec_AMOMAXU_W(HART *hart, inst_data& inst);
+inst_ret exec_LR_W(HART *hart, inst_data& inst);
+inst_ret exec_SC_W(HART *hart, inst_data& inst);
+inst_ret exec_AMOSWAP_W(HART *hart, inst_data& inst);
+inst_ret exec_AMOADD_W(HART *hart, inst_data& inst);
+inst_ret exec_AMOXOR_W(HART *hart, inst_data& inst);
+inst_ret exec_AMOAND_W(HART *hart, inst_data& inst);
+inst_ret exec_AMOOR_W(HART *hart, inst_data& inst);
+inst_ret exec_AMOMIN_W(HART *hart, inst_data& inst);
+inst_ret exec_AMOMAX_W(HART *hart, inst_data& inst);
+inst_ret exec_AMOMINU_W(HART *hart, inst_data& inst);
+inst_ret exec_AMOMAXU_W(HART *hart, inst_data& inst);
 
 //// SYSTEM
 
-bool exec_MRET(HART *hart, inst_data& inst);
-bool exec_SRET(HART *hart, inst_data& inst);
-bool exec_SFENCE_VMA(HART *hart, inst_data& inst);
-bool exec_WFI(HART *hart, inst_data& inst);
+inst_ret exec_MRET(HART *hart, inst_data& inst);
+inst_ret exec_SRET(HART *hart, inst_data& inst);
+inst_ret exec_SFENCE_VMA(HART *hart, inst_data& inst);
+inst_ret exec_WFI(HART *hart, inst_data& inst);
 
 // Zbb
 
-bool exec_ANDN(HART *hart, inst_data& inst);
-bool exec_ORN(HART *hart, inst_data& inst);
-bool exec_XNOR(HART *hart, inst_data& inst);
-bool exec_CLZ(HART *hart, inst_data& inst);
-bool exec_CLZW(HART *hart, inst_data& inst);
-bool exec_CTZ(HART *hart, inst_data& inst);
-bool exec_CTZW(HART *hart, inst_data& inst);
-bool exec_CPOP(HART *hart, inst_data& inst);
-bool exec_CPOPW(HART *hart, inst_data& inst);
-bool exec_MAX(HART *hart, inst_data& inst);
-bool exec_MAXU(HART *hart, inst_data& inst);
-bool exec_MIN(HART *hart, inst_data& inst);
-bool exec_MINU(HART *hart, inst_data& inst);
-bool exec_SEXT_B(HART *hart, inst_data& inst);
-bool exec_SEXT_H(HART *hart, inst_data& inst);
-bool exec_ZEXT_H(HART *hart, inst_data& inst);
-bool exec_ROL(HART *hart, inst_data& inst);
-bool exec_ROLW(HART *hart, inst_data& inst);
-bool exec_ROR(HART *hart, inst_data& inst);
-bool exec_RORI(HART *hart, inst_data& inst);
-bool exec_RORIW(HART *hart, inst_data& inst);
-bool exec_RORW(HART *hart, inst_data& inst);
-bool exec_ORC_B(HART *hart, inst_data& inst);
-bool exec_REV8(HART *hart, inst_data& inst);
+inst_ret exec_ANDN(HART *hart, inst_data& inst);
+inst_ret exec_ORN(HART *hart, inst_data& inst);
+inst_ret exec_XNOR(HART *hart, inst_data& inst);
+inst_ret exec_CLZ(HART *hart, inst_data& inst);
+inst_ret exec_CLZW(HART *hart, inst_data& inst);
+inst_ret exec_CTZ(HART *hart, inst_data& inst);
+inst_ret exec_CTZW(HART *hart, inst_data& inst);
+inst_ret exec_CPOP(HART *hart, inst_data& inst);
+inst_ret exec_CPOPW(HART *hart, inst_data& inst);
+inst_ret exec_MAX(HART *hart, inst_data& inst);
+inst_ret exec_MAXU(HART *hart, inst_data& inst);
+inst_ret exec_MIN(HART *hart, inst_data& inst);
+inst_ret exec_MINU(HART *hart, inst_data& inst);
+inst_ret exec_SEXT_B(HART *hart, inst_data& inst);
+inst_ret exec_SEXT_H(HART *hart, inst_data& inst);
+inst_ret exec_ZEXT_H(HART *hart, inst_data& inst);
+inst_ret exec_ROL(HART *hart, inst_data& inst);
+inst_ret exec_ROLW(HART *hart, inst_data& inst);
+inst_ret exec_ROR(HART *hart, inst_data& inst);
+inst_ret exec_RORI(HART *hart, inst_data& inst);
+inst_ret exec_RORIW(HART *hart, inst_data& inst);
+inst_ret exec_RORW(HART *hart, inst_data& inst);
+inst_ret exec_ORC_B(HART *hart, inst_data& inst);
+inst_ret exec_REV8(HART *hart, inst_data& inst);
 
 // Zba
 
-bool exec_ADD_UW(HART *hart, inst_data& inst);
-bool exec_SH1ADD(HART *hart, inst_data& inst);
-bool exec_SH1ADD_UW(HART *hart, inst_data& inst);
-bool exec_SH2ADD(HART *hart, inst_data& inst);
-bool exec_SH2ADD_UW(HART *hart, inst_data& inst);
-bool exec_SH3ADD(HART *hart, inst_data& inst);
-bool exec_SH3ADD_UW(HART *hart, inst_data& inst);
-bool exec_SLLI_UW(HART *hart, inst_data& inst);
+inst_ret exec_ADD_UW(HART *hart, inst_data& inst);
+inst_ret exec_SH1ADD(HART *hart, inst_data& inst);
+inst_ret exec_SH1ADD_UW(HART *hart, inst_data& inst);
+inst_ret exec_SH2ADD(HART *hart, inst_data& inst);
+inst_ret exec_SH2ADD_UW(HART *hart, inst_data& inst);
+inst_ret exec_SH3ADD(HART *hart, inst_data& inst);
+inst_ret exec_SH3ADD_UW(HART *hart, inst_data& inst);
+inst_ret exec_SLLI_UW(HART *hart, inst_data& inst);
 
 // Zbc
 
-bool exec_CLMUL(HART *hart, inst_data& inst);
-bool exec_CLMULH(HART *hart, inst_data& inst);
-bool exec_CLMULR(HART *hart, inst_data& inst);
+inst_ret exec_CLMUL(HART *hart, inst_data& inst);
+inst_ret exec_CLMULH(HART *hart, inst_data& inst);
+inst_ret exec_CLMULR(HART *hart, inst_data& inst);
 
 // Zbs
 
-bool exec_BCLR(HART *hart, inst_data& inst);
-bool exec_BCLRI(HART *hart, inst_data& inst);
-bool exec_BEXT(HART *hart, inst_data& inst);
-bool exec_BEXTI(HART *hart, inst_data& inst);
-bool exec_BINV(HART *hart, inst_data& inst);
-bool exec_BINVI(HART *hart, inst_data& inst);
-bool exec_BSET(HART *hart, inst_data& inst);
-bool exec_BSETI(HART *hart, inst_data& inst);
+inst_ret exec_BCLR(HART *hart, inst_data& inst);
+inst_ret exec_BCLRI(HART *hart, inst_data& inst);
+inst_ret exec_BEXT(HART *hart, inst_data& inst);
+inst_ret exec_BEXTI(HART *hart, inst_data& inst);
+inst_ret exec_BINV(HART *hart, inst_data& inst);
+inst_ret exec_BINVI(HART *hart, inst_data& inst);
+inst_ret exec_BSET(HART *hart, inst_data& inst);
+inst_ret exec_BSETI(HART *hart, inst_data& inst);
 
 // ZifenceI
 
-bool exec_FENCE_I(HART *hart, inst_data& inst);
+inst_ret exec_FENCE_I(HART *hart, inst_data& inst);

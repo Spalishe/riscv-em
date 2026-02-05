@@ -22,12 +22,12 @@ Copyright 2026 Spalishe
 
 // R-Type
 
-bool exec_MULW(HART *hart, inst_data& inst) {
+inst_ret exec_MULW(HART *hart, inst_data& inst) {
 	hart->GPR[inst.rd] = (uint64_t)((int32_t)hart->GPR[inst.rs1] * (int32_t)hart->GPR[inst.rs2]);
     return true;
 }
 
-bool exec_DIVW(HART *hart, inst_data& inst) {
+inst_ret exec_DIVW(HART *hart, inst_data& inst) {
     if((int32_t)hart->GPR[inst.rs2] == 0) {
         hart->GPR[inst.rd] = (uint64_t)-1;
     } else if((int32_t)hart->GPR[inst.rs1] == 0) {
@@ -39,7 +39,7 @@ bool exec_DIVW(HART *hart, inst_data& inst) {
     }
     return true;
 }
-bool exec_DIVUW(HART *hart, inst_data& inst) {
+inst_ret exec_DIVUW(HART *hart, inst_data& inst) {
     if((uint32_t)hart->GPR[inst.rs2] == 0) {
         hart->GPR[inst.rd] = (uint64_t)-1;
     } else if((uint32_t)hart->GPR[inst.rs1] == 0) {
@@ -49,7 +49,7 @@ bool exec_DIVUW(HART *hart, inst_data& inst) {
     }
     return true;
 }
-bool exec_REMW(HART *hart, inst_data& inst) {
+inst_ret exec_REMW(HART *hart, inst_data& inst) {
     if((int32_t)hart->GPR[inst.rs2] == 0) {
         hart->GPR[inst.rd] = (uint64_t)(int32_t)hart->GPR[inst.rs1];
     } else if((int32_t)hart->GPR[inst.rs1] == std::numeric_limits<int32_t>::min() && (int32_t)hart->GPR[inst.rs2] == -1) {
@@ -59,7 +59,7 @@ bool exec_REMW(HART *hart, inst_data& inst) {
     }
     return true;
 }
-bool exec_REMUW(HART *hart, inst_data& inst) {
+inst_ret exec_REMUW(HART *hart, inst_data& inst) {
     if((uint32_t)hart->GPR[inst.rs2] == 0) {
         hart->GPR[inst.rd] = hart->GPR[inst.rs1];
     } else {
@@ -69,27 +69,27 @@ bool exec_REMUW(HART *hart, inst_data& inst) {
 }
 
 
-bool exec_MUL(HART *hart, inst_data& inst) {
+inst_ret exec_MUL(HART *hart, inst_data& inst) {
     hart->GPR[inst.rd] = hart->GPR[inst.rs1] * hart->GPR[inst.rs2];
     return true;
 }
-bool exec_MULH(HART *hart, inst_data& inst) {
+inst_ret exec_MULH(HART *hart, inst_data& inst) {
     __int128_t res = (__int128_t)(int64_t)hart->GPR[inst.rs1] * (__int128_t)(int64_t)hart->GPR[inst.rs2];
     hart->GPR[inst.rd] = (uint64_t)(res>>64);
     return true;
 }
-bool exec_MULHSU(HART *hart, inst_data& inst) {
+inst_ret exec_MULHSU(HART *hart, inst_data& inst) {
     __uint128_t res = (__uint128_t)(__int128_t)(int64_t)hart->GPR[inst.rs1] * (__uint128_t)hart->GPR[inst.rs2];
     hart->GPR[inst.rd] = (uint64_t)(res>>64);
     return true;
 }
-bool exec_MULHU(HART *hart, inst_data& inst) {
+inst_ret exec_MULHU(HART *hart, inst_data& inst) {
     __uint128_t res = (__uint128_t)hart->GPR[inst.rs1] * (__uint128_t)hart->GPR[inst.rs2];
     hart->GPR[inst.rd] = (uint64_t)(res>>64);
     return true;
 }
 
-bool exec_DIV(HART *hart, inst_data& inst) {
+inst_ret exec_DIV(HART *hart, inst_data& inst) {
     if(hart->GPR[inst.rs2] == 0) {
         hart->GPR[inst.rd] = (uint64_t)-1;
     } else if(hart->GPR[inst.rs1] == 0) {
@@ -101,7 +101,7 @@ bool exec_DIV(HART *hart, inst_data& inst) {
     }
     return true;
 }
-bool exec_DIVU(HART *hart, inst_data& inst) {
+inst_ret exec_DIVU(HART *hart, inst_data& inst) {
     if(hart->GPR[inst.rs2] == 0) {
         hart->GPR[inst.rd] = (uint64_t)-1;
     } else if(hart->GPR[inst.rs1] == 0) {
@@ -111,7 +111,7 @@ bool exec_DIVU(HART *hart, inst_data& inst) {
     }
     return true;
 }
-bool exec_REM(HART *hart, inst_data& inst) {
+inst_ret exec_REM(HART *hart, inst_data& inst) {
     if(hart->GPR[inst.rs2] == 0) {
         hart->GPR[inst.rd] = hart->GPR[inst.rs1];
     } else if(hart->GPR[inst.rs1] == std::numeric_limits<int64_t>::min() && hart->GPR[inst.rs2] == -1) {
@@ -121,7 +121,7 @@ bool exec_REM(HART *hart, inst_data& inst) {
     }
     return true;
 }
-bool exec_REMU(HART *hart, inst_data& inst) {
+inst_ret exec_REMU(HART *hart, inst_data& inst) {
     if(hart->GPR[inst.rs2] == 0) {
         hart->GPR[inst.rd] = hart->GPR[inst.rs1];
     } else {

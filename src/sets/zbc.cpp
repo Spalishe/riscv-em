@@ -18,7 +18,7 @@ Copyright 2026 Spalishe
 #include "../../include/cpu.hpp"
 #include "../../include/decode.h"
 
-bool exec_CLMUL(HART *hart, inst_data& inst) {
+inst_ret exec_CLMUL(HART *hart, inst_data& inst) {
     uint64_t rs1 = hart->GPR[inst.rs1];
     uint64_t rs2 = hart->GPR[inst.rs2];
     uint64_t out = 0;
@@ -30,7 +30,7 @@ bool exec_CLMUL(HART *hart, inst_data& inst) {
     hart->GPR[inst.rd] = out;
     return true;
 }
-bool exec_CLMULH(HART *hart, inst_data& inst) {
+inst_ret exec_CLMULH(HART *hart, inst_data& inst) {
     uint64_t rs1 = hart->GPR[inst.rs1];
     uint64_t rs2 = hart->GPR[inst.rs2];
     uint64_t out = 0;
@@ -42,7 +42,7 @@ bool exec_CLMULH(HART *hart, inst_data& inst) {
     hart->GPR[inst.rd] = out;
     return true;
 }
-bool exec_CLMULR(HART *hart, inst_data& inst) {
+inst_ret exec_CLMULR(HART *hart, inst_data& inst) {
     uint64_t rs1 = hart->GPR[inst.rs1];
     uint64_t rs2 = hart->GPR[inst.rs2];
     uint64_t out = 0;

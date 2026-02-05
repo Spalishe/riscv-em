@@ -28,6 +28,8 @@ Copyright 2026 Spalishe
 #include <tuple>
 #include "pmp.hpp"
 
+#define HART_INST_EXECUTION_COUNT_CAP 50 // After that number block will be created
+
 struct MMIO;
 
 struct HART;
@@ -47,6 +49,12 @@ struct Reservation {
     uint8_t size = 0;
 };
 
+struct InstructionBlock {
+    bool valid = false;
+    uint64_t start_pc;
+    std::vector<inst_data> instrs;
+};
+
 struct HART {
     uint64_t GPR[32];
     uint64_t pc = DRAM_BASE;
@@ -64,6 +72,11 @@ struct HART {
     uint32_t fetch_buffer[8];
     uint64_t fetch_pc; 
     uint8_t fetch_buffer_i;
+
+    bool is_creating_block = false;
+    uint64_t block_creation_start_pc = 0;
+    InstructionBlock blocks[1024];
+    std::unordered_map<uint64_t, uint32_t> pc_hits;
     
     PMP pmp;
     Reservation reservation;
@@ -76,7 +89,7 @@ void hart_execute(HART&, inst_data inst);
 void hart_check_interrupts(HART&);
 void hart_trap(HART&, uint64_t cause, uint64_t tval, bool is_interrupt);
 
-static uint64_t riscv_mkmisa(const char* str)
+inline uint64_t riscv_mkmisa(const char* str)
 {
     uint64_t ret = 0;
     ret |= 0x8000000000000000ULL;

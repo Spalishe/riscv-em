@@ -21,7 +21,7 @@ Copyright 2026 Spalishe
 
 // SYSTEM
 
-bool exec_MRET(HART *hart, inst_data& inst) {
+inst_ret exec_MRET(HART *hart, inst_data& inst) {
     hart->pc = hart->csrs[MEPC] - 4;
     switch(csr_read_mstatus(hart,MSTATUS_MPP_LOW,MSTATUS_MPP_HIGH)) {
         case 0b00:
@@ -43,7 +43,7 @@ bool exec_MRET(HART *hart, inst_data& inst) {
     csr_write_mstatus(hart,MSTATUS_MPP_LOW,MSTATUS_MPP_HIGH,(char)PrivilegeMode::User);
     return true;
 }
-bool exec_SRET(HART *hart, inst_data& inst) {
+inst_ret exec_SRET(HART *hart, inst_data& inst) {
     if (hart->mode == PrivilegeMode::User ||
         (hart->mode == PrivilegeMode::Supervisor && (csr_read_mstatus(hart,MSTATUS_TSR,MSTATUS_TSR) & 1))) {
         hart_trap(*hart,EXC_ILLEGAL_INSTRUCTION, inst.inst, false);
@@ -66,7 +66,7 @@ bool exec_SRET(HART *hart, inst_data& inst) {
     csr_write_mstatus(hart,MSTATUS_SPP,MSTATUS_SPP,(char)PrivilegeMode::User);
     return true;
 }
-bool exec_SFENCE_VMA(HART *hart, inst_data& inst) {
+inst_ret exec_SFENCE_VMA(HART *hart, inst_data& inst) {
     // Clear TLB Cache
 
     bool tvm = csr_read_mstatus(hart,20,20);
@@ -83,7 +83,7 @@ bool exec_SFENCE_VMA(HART *hart, inst_data& inst) {
     tlb_flush(hart->mmio->mmu->tlb);
     return true;
 }
-bool exec_WFI(HART *hart, inst_data& inst) {
+inst_ret exec_WFI(HART *hart, inst_data& inst) {
     bool tw = csr_read_mstatus(hart,21,21);
 
     if (tw) {

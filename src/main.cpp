@@ -25,7 +25,12 @@ Copyright 2026 Spalishe
 
 /*
 	TODO:
-		
+		- OPTIMIZATION:
+			- Expand decode cache
+			- Improve fetch cache
+			- Block execution & caching
+			Those things maybe eat ~25 MB of memory for caching things.
+ 
 		-RTC GoldFish
 
 		-RV32F
@@ -33,6 +38,7 @@ Copyright 2026 Spalishe
 		-RV32D
 		-RV64D
 		
+		-MMU Fixes(if required)
 		-RVC    <- this is required to run MMU-Linux
 */
 

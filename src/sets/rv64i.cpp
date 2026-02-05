@@ -20,46 +20,46 @@ Copyright 2026 Spalishe
 
 // R-Type
 
-bool exec_ADDW(HART *hart, inst_data& inst) {
+inst_ret exec_ADDW(HART *hart, inst_data& inst) {
 	hart->GPR[inst.rd] = (int32_t) ((uint32_t)hart->GPR[inst.rs1] + (uint32_t)hart->GPR[inst.rs2]);
     return true;
 }
-bool exec_SUBW(HART *hart, inst_data& inst) {
+inst_ret exec_SUBW(HART *hart, inst_data& inst) {
 	hart->GPR[inst.rd] = (int32_t) ((uint32_t)hart->GPR[inst.rs1] - (uint32_t)hart->GPR[inst.rs2]);
     return true;
 }
-bool exec_SLLW(HART *hart, inst_data& inst) {
+inst_ret exec_SLLW(HART *hart, inst_data& inst) {
 	hart->GPR[inst.rd] = (int32_t) ((uint32_t)hart->GPR[inst.rs1] << ((uint32_t)hart->GPR[inst.rs2] & 0x1F));
     return true;
 }
-bool exec_SRLW(HART *hart, inst_data& inst) {
+inst_ret exec_SRLW(HART *hart, inst_data& inst) {
     hart->GPR[inst.rd] = (int32_t) ((uint32_t)hart->GPR[inst.rs1] >> ((uint32_t)hart->GPR[inst.rs2] & 0x1F));
     return true;
 }
-bool exec_SRAW(HART *hart, inst_data& inst) {
+inst_ret exec_SRAW(HART *hart, inst_data& inst) {
     hart->GPR[inst.rd] = (int32_t) (((int32_t) hart->GPR[inst.rs1]) >> ((uint32_t)hart->GPR[inst.rs2] & 0x1F));
     return true;
 }
 
 // I-Type
-bool exec_ADDIW(HART *hart, inst_data& inst) {
+inst_ret exec_ADDIW(HART *hart, inst_data& inst) {
     hart->GPR[inst.rd] = (int32_t) ((uint32_t)hart->GPR[inst.rs1] + inst.imm);
     return true;
 }
-bool exec_SLLIW(HART *hart, inst_data& inst) {
+inst_ret exec_SLLIW(HART *hart, inst_data& inst) {
     hart->GPR[inst.rd] = (int32_t) ((uint32_t)hart->GPR[inst.rs1] << inst.imm);
     return true;
 }
-bool exec_SRLIW(HART *hart, inst_data& inst) {
+inst_ret exec_SRLIW(HART *hart, inst_data& inst) {
     hart->GPR[inst.rd] = (int32_t) ((uint32_t)hart->GPR[inst.rs1] >> inst.imm);
     return true;
 }
-bool exec_SRAIW(HART *hart, inst_data& inst) {
+inst_ret exec_SRAIW(HART *hart, inst_data& inst) {
     hart->GPR[inst.rd] = ((int32_t)hart->GPR[inst.rs1]) >> inst.imm;
     return true;
 }
 
-bool exec_LD(HART *hart, inst_data& inst) {
+inst_ret exec_LD(HART *hart, inst_data& inst) {
     uint64_t addr = hart->GPR[inst.rs1] + (int64_t) inst.imm;
     std::optional<uint64_t> val = hart->mmio->load(hart,addr,64);
     if(val.has_value()) {
@@ -67,7 +67,7 @@ bool exec_LD(HART *hart, inst_data& inst) {
     }
     return val.has_value();
 }
-bool exec_LWU(HART *hart, inst_data& inst) {
+inst_ret exec_LWU(HART *hart, inst_data& inst) {
     uint64_t addr = hart->GPR[inst.rs1] + (int64_t) inst.imm;
     std::optional<uint64_t> val = hart->mmio->load(hart,addr,32);
     if(val.has_value()) {
@@ -77,7 +77,7 @@ bool exec_LWU(HART *hart, inst_data& inst) {
 }
 
 // S-Type
-bool exec_SD(HART *hart, inst_data& inst) {
+inst_ret exec_SD(HART *hart, inst_data& inst) {
     uint64_t addr = hart->GPR[inst.rs1] + (int64_t) inst.imm;
     return hart->mmio->store(hart,addr,64,hart->GPR[inst.rs2]);
 }
@@ -86,85 +86,85 @@ bool exec_SD(HART *hart, inst_data& inst) {
 
 // R-Type
 
-bool exec_ADD(HART *hart, inst_data& inst) {
+inst_ret exec_ADD(HART *hart, inst_data& inst) {
 	hart->GPR[inst.rd] = hart->GPR[inst.rs1] + hart->GPR[inst.rs2];
     return true;
 }
-bool exec_SUB(HART *hart, inst_data& inst) {
+inst_ret exec_SUB(HART *hart, inst_data& inst) {
 	hart->GPR[inst.rd] = hart->GPR[inst.rs1] - hart->GPR[inst.rs2];
     return true;
 }
-bool exec_XOR(HART *hart, inst_data& inst) {
+inst_ret exec_XOR(HART *hart, inst_data& inst) {
 	hart->GPR[inst.rd] = hart->GPR[inst.rs1] ^ hart->GPR[inst.rs2];
     return true;
 }
-bool exec_OR(HART *hart, inst_data& inst) {
+inst_ret exec_OR(HART *hart, inst_data& inst) {
 	hart->GPR[inst.rd] = hart->GPR[inst.rs1] | hart->GPR[inst.rs2];
     return true;
 }
-bool exec_AND(HART *hart, inst_data& inst) {
+inst_ret exec_AND(HART *hart, inst_data& inst) {
 	hart->GPR[inst.rd] = hart->GPR[inst.rs1] & hart->GPR[inst.rs2];
     return true;
 }
-bool exec_SLL(HART *hart, inst_data& inst) {
+inst_ret exec_SLL(HART *hart, inst_data& inst) {
 	hart->GPR[inst.rd] = hart->GPR[inst.rs1] << (hart->GPR[inst.rs2] & 0x3f);
     return true;
 }
-bool exec_SRL(HART *hart, inst_data& inst) {
+inst_ret exec_SRL(HART *hart, inst_data& inst) {
 	hart->GPR[inst.rd] = hart->GPR[inst.rs1] >> (hart->GPR[inst.rs2] & 0x3f);
     return true;
 }
-bool exec_SRA(HART *hart, inst_data& inst) {
+inst_ret exec_SRA(HART *hart, inst_data& inst) {
 	hart->GPR[inst.rd] = ((int64_t) hart->GPR[inst.rs1]) >> (hart->GPR[inst.rs2] & 0x3f);
     return true;
 }
-bool exec_SLT(HART *hart, inst_data& inst) {
+inst_ret exec_SLT(HART *hart, inst_data& inst) {
 	hart->GPR[inst.rd] = ((int64_t) hart->GPR[inst.rs1] < (int64_t) hart->GPR[inst.rs2]) ? 1 : 0;
     return true;
 }
-bool exec_SLTU(HART *hart, inst_data& inst) {
+inst_ret exec_SLTU(HART *hart, inst_data& inst) {
 	hart->GPR[inst.rd] = (hart->GPR[inst.rs1] < hart->GPR[inst.rs2]) ? 1 : 0;
     return true;
 }
 
 // I-Type
-bool exec_ADDI(HART *hart, inst_data& inst) {
+inst_ret exec_ADDI(HART *hart, inst_data& inst) {
     hart->GPR[inst.rd] = hart->GPR[inst.rs1] + (int64_t) inst.imm;
     return true;
 }
-bool exec_XORI(HART *hart, inst_data& inst) {
+inst_ret exec_XORI(HART *hart, inst_data& inst) {
     hart->GPR[inst.rd] = hart->GPR[inst.rs1] ^ inst.imm;
     return true;
 }
-bool exec_ORI(HART *hart, inst_data& inst) {
+inst_ret exec_ORI(HART *hart, inst_data& inst) {
     hart->GPR[inst.rd] = hart->GPR[inst.rs1] | inst.imm;
     return true;
 }
-bool exec_ANDI(HART *hart, inst_data& inst) {
+inst_ret exec_ANDI(HART *hart, inst_data& inst) {
     hart->GPR[inst.rd] = hart->GPR[inst.rs1] & inst.imm;
     return true;
 }
-bool exec_SLLI(HART *hart, inst_data& inst) {
+inst_ret exec_SLLI(HART *hart, inst_data& inst) {
     hart->GPR[inst.rd] = hart->GPR[inst.rs1] << inst.imm;
     return true;
 }
-bool exec_SRLI(HART *hart, inst_data& inst) {
+inst_ret exec_SRLI(HART *hart, inst_data& inst) {
     hart->GPR[inst.rd] = hart->GPR[inst.rs1] >> inst.imm;
     return true;
 }
-bool exec_SRAI(HART *hart, inst_data& inst) {
+inst_ret exec_SRAI(HART *hart, inst_data& inst) {
     hart->GPR[inst.rd] = ((int64_t)hart->GPR[inst.rs1]) >> inst.imm;
     return true;
 }
-bool exec_SLTI(HART *hart, inst_data& inst) {
+inst_ret exec_SLTI(HART *hart, inst_data& inst) {
     hart->GPR[inst.rd] = ((int64_t) hart->GPR[inst.rs1] < (int64_t) inst.imm) ? 1 : 0;
     return true;
 }
-bool exec_SLTIU(HART *hart, inst_data& inst) {
+inst_ret exec_SLTIU(HART *hart, inst_data& inst) {
     hart->GPR[inst.rd] = (hart->GPR[inst.rs1] < inst.imm) ? 1 : 0;
     return true;
 }
-bool exec_LB(HART *hart, inst_data& inst) {	
+inst_ret exec_LB(HART *hart, inst_data& inst) {	
     uint64_t addr = hart->GPR[inst.rs1] + (int64_t) inst.imm;
     std::optional<uint64_t> val = hart->mmio->load(hart,addr,8);
     if(val.has_value()) {
@@ -172,7 +172,7 @@ bool exec_LB(HART *hart, inst_data& inst) {
     }
     return val.has_value();
 }
-bool exec_LH(HART *hart, inst_data& inst) {
+inst_ret exec_LH(HART *hart, inst_data& inst) {
     uint64_t addr = hart->GPR[inst.rs1] + (int64_t) inst.imm;
     std::optional<uint64_t> val = hart->mmio->load(hart,addr,16);
     if(val.has_value()) {
@@ -180,7 +180,7 @@ bool exec_LH(HART *hart, inst_data& inst) {
     }
     return val.has_value();
 }
-bool exec_LW(HART *hart, inst_data& inst) {
+inst_ret exec_LW(HART *hart, inst_data& inst) {
     uint64_t addr = hart->GPR[inst.rs1] + (int64_t) inst.imm;
     std::optional<uint64_t> val = hart->mmio->load(hart,addr,32);
     if(val.has_value()) {
@@ -188,7 +188,7 @@ bool exec_LW(HART *hart, inst_data& inst) {
     }
     return val.has_value();
 }
-bool exec_LBU(HART *hart, inst_data& inst) {
+inst_ret exec_LBU(HART *hart, inst_data& inst) {
     uint64_t addr = hart->GPR[inst.rs1] + (int64_t) inst.imm;
     std::optional<uint64_t> val = hart->mmio->load(hart,addr,8);
     if(val.has_value()) {
@@ -196,7 +196,7 @@ bool exec_LBU(HART *hart, inst_data& inst) {
     }
     return val.has_value();
 }
-bool exec_LHU(HART *hart, inst_data& inst) {
+inst_ret exec_LHU(HART *hart, inst_data& inst) {
     uint64_t addr = hart->GPR[inst.rs1] + (int64_t) inst.imm;
     std::optional<uint64_t> val = hart->mmio->load(hart,addr,16);
     if(val.has_value()) {
@@ -206,21 +206,21 @@ bool exec_LHU(HART *hart, inst_data& inst) {
 }
 
 // S-Type
-bool exec_SB(HART *hart, inst_data& inst) {
+inst_ret exec_SB(HART *hart, inst_data& inst) {
     uint64_t addr = hart->GPR[inst.rs1] + (int64_t) inst.imm;
     return hart->mmio->store(hart,addr,8,hart->GPR[inst.rs2]);
 }
-bool exec_SH(HART *hart, inst_data& inst) {
+inst_ret exec_SH(HART *hart, inst_data& inst) {
     uint64_t addr = hart->GPR[inst.rs1] + (int64_t) inst.imm;
     return hart->mmio->store(hart,addr,16,hart->GPR[inst.rs2]);
 }
-bool exec_SW(HART *hart, inst_data& inst) {
+inst_ret exec_SW(HART *hart, inst_data& inst) {
     uint64_t addr = hart->GPR[inst.rs1] + (int64_t) inst.imm;
     return hart->mmio->store(hart,addr,32,hart->GPR[inst.rs2]);
 }
 
 // B-Type
-bool exec_BEQ(HART *hart, inst_data& inst) {
+inst_ret exec_BEQ(HART *hart, inst_data& inst) {
     if ((int64_t) hart->GPR[inst.rs1] == (int64_t) hart->GPR[inst.rs2]) {
         if((hart->pc + (int64_t) inst.imm) % 4 != 0) {
             hart_trap(*hart,EXC_INST_ADDR_MISALIGNED,hart->pc + (int64_t) inst.imm,false);
@@ -230,7 +230,7 @@ bool exec_BEQ(HART *hart, inst_data& inst) {
     }
     return true;
 }
-bool exec_BNE(HART *hart, inst_data& inst) {
+inst_ret exec_BNE(HART *hart, inst_data& inst) {
     if ((int64_t) hart->GPR[inst.rs1] != (int64_t) hart->GPR[inst.rs2]) {
         if((hart->pc + (int64_t) inst.imm) % 4 != 0) {
             hart_trap(*hart,EXC_INST_ADDR_MISALIGNED,hart->pc + (int64_t) inst.imm,false);
@@ -240,7 +240,7 @@ bool exec_BNE(HART *hart, inst_data& inst) {
     }
     return true;
 }
-bool exec_BLT(HART *hart, inst_data& inst) {
+inst_ret exec_BLT(HART *hart, inst_data& inst) {
     if ((int64_t) hart->GPR[inst.rs1] < (int64_t) hart->GPR[inst.rs2]) {
         if((hart->pc + (int64_t) inst.imm) % 4 != 0) {
             hart_trap(*hart,EXC_INST_ADDR_MISALIGNED,hart->pc + (int64_t) inst.imm,false);
@@ -250,7 +250,7 @@ bool exec_BLT(HART *hart, inst_data& inst) {
     }
     return true;
 }
-bool exec_BGE(HART *hart, inst_data& inst) {
+inst_ret exec_BGE(HART *hart, inst_data& inst) {
     if ((int64_t) hart->GPR[inst.rs1] >= (int64_t) hart->GPR[inst.rs2]) {
         if((hart->pc + (int64_t) inst.imm) % 4 != 0) {
             hart_trap(*hart,EXC_INST_ADDR_MISALIGNED,hart->pc + (int64_t) inst.imm,false);
@@ -260,7 +260,7 @@ bool exec_BGE(HART *hart, inst_data& inst) {
     }
     return true;
 }
-bool exec_BLTU(HART *hart, inst_data& inst) {
+inst_ret exec_BLTU(HART *hart, inst_data& inst) {
     if (hart->GPR[inst.rs1] < hart->GPR[inst.rs2]) {
         if((hart->pc + (int64_t) inst.imm) % 4 != 0) {
             hart_trap(*hart,EXC_INST_ADDR_MISALIGNED,hart->pc + (int64_t) inst.imm,false);
@@ -270,7 +270,7 @@ bool exec_BLTU(HART *hart, inst_data& inst) {
     }
     return true;
 }
-bool exec_BGEU(HART *hart, inst_data& inst) {
+inst_ret exec_BGEU(HART *hart, inst_data& inst) {
     if (hart->GPR[inst.rs1] >= hart->GPR[inst.rs2]) {
         if((hart->pc + (int64_t) inst.imm) % 4 != 0) {
             hart_trap(*hart,EXC_INST_ADDR_MISALIGNED,hart->pc + (int64_t) inst.imm,false);
@@ -282,7 +282,7 @@ bool exec_BGEU(HART *hart, inst_data& inst) {
 }
 
 // JUMP
-bool exec_JAL(HART *hart, inst_data& inst) {
+inst_ret exec_JAL(HART *hart, inst_data& inst) {
 	uint64_t tmp = hart->pc;
     if((hart->pc + (int64_t) inst.imm) % 4 != 0) {
         hart_trap(*hart,EXC_INST_ADDR_MISALIGNED,hart->pc + (int64_t) inst.imm,false);
@@ -293,7 +293,7 @@ bool exec_JAL(HART *hart, inst_data& inst) {
     }
     return true;
 }
-bool exec_JALR(HART *hart, inst_data& inst) {
+inst_ret exec_JALR(HART *hart, inst_data& inst) {
 	uint64_t tmp = hart->pc;
     uint64_t target = (hart->GPR[inst.rs1] + (int64_t) inst.imm) & ~1;
     if(target % 4 != 0) {
@@ -308,16 +308,16 @@ bool exec_JALR(HART *hart, inst_data& inst) {
 
 // what
 
-bool exec_LUI(HART *hart, inst_data& inst) {
+inst_ret exec_LUI(HART *hart, inst_data& inst) {
 	hart->GPR[inst.rd] = (((int64_t) (int32_t) inst.imm) << 12);
     return true;
 }
-bool exec_AUIPC(HART *hart, inst_data& inst) {
+inst_ret exec_AUIPC(HART *hart, inst_data& inst) {
     hart->GPR[inst.rd] = hart->pc + ((((int64_t) (int32_t) inst.imm) << 12));
     return true;
 }
 
-bool exec_ECALL(HART *hart, inst_data& inst) {
+inst_ret exec_ECALL(HART *hart, inst_data& inst) {
 	switch(hart->mode) {
 		case PrivilegeMode::Machine: hart_trap(*hart,EXC_ENV_CALL_FROM_M,0,false); break;
 		case PrivilegeMode::Supervisor: hart_trap(*hart,EXC_ENV_CALL_FROM_S,0,false); break;
@@ -325,13 +325,13 @@ bool exec_ECALL(HART *hart, inst_data& inst) {
 	}
     return false;
 }
-bool exec_EBREAK(HART *hart, inst_data& inst) {
+inst_ret exec_EBREAK(HART *hart, inst_data& inst) {
 	hart_trap(*hart,EXC_BREAKPOINT,hart->pc,false);
     return false;
 }
 
 
-bool exec_FENCE(HART *hart, inst_data& inst) {
+inst_ret exec_FENCE(HART *hart, inst_data& inst) {
     // nop
     // If you planning adding some memory write/read buffer, you have to implement this instruction then
     // FENCE guaranties that all cores will see all changes that have done by 1 specific core before FENCE instruction

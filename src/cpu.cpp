@@ -81,9 +81,40 @@ void hart_step(HART& h) {
         hart_trap(h,EXC_ILLEGAL_INSTRUCTION, inst, false);
         return;
     }
-    hart_execute(h,d);
-}
+    h.pc_hits[h.pc]++;
 
+    if(h.pc_hits[h.pc] >= HART_INST_EXECUTION_COUNT_CAP && !h.is_creating_block) {
+        h.is_creating_block = true;
+        h.block_creation_start_pc = h.pc;
+        InstructionBlock* block = &h.blocks[h.block_creation_start_pc % 1024];
+        block->valid = true;
+        block->start_pc = h.block_creation_start_pc;
+        block->instrs.clear();
+    }
+    if(h.is_creating_block) {
+        InstructionBlock* block = &h.blocks[h.block_creation_start_pc % 1024];
+        if(block->valid == false || block->start_pc != h.block_creation_start_pc) {
+            // Someone changed blocks in runtime!!
+            // Invalidate ALL blocks, just in case
+            for(int i = 0; i < 1024; i++) {
+                InstructionBlock* block = &h.blocks[i];
+                block->valid = false;
+            }
+            h.pc_hits.clear();
+            h.is_creating_block = false;
+            return;
+        } else if(d.canChangePC) {
+            // We got a branch maybe
+            // Compile then ts up in 1 thing
+            // TODO
+            h.is_creating_block = false;
+        } else {
+            // Normal case
+            
+        }
+
+    } else hart_execute(h,d);
+}
 void hart_execute(HART& h, inst_data inst) {
     bool success = inst.fn(&h,inst);
     if(success) {

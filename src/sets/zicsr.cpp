@@ -67,7 +67,7 @@ bool csr_accessible(uint16_t csr_addr, PrivilegeMode current_priv, bool write) {
 
     return true;
 }
-bool exec_CSRRW(HART *hart, inst_data& inst) {
+inst_ret exec_CSRRW(HART *hart, inst_data& inst) {
     uint64_t mstatus = hart->csrs[MSTATUS];
     bool tvm = (mstatus >> 20) & 1; // TVM bit
     if(hart->mode == PrivilegeMode::Supervisor && tvm && inst.imm == SATP) {
@@ -88,7 +88,7 @@ bool exec_CSRRW(HART *hart, inst_data& inst) {
     }
     return true;
 }
-bool exec_CSRRS(HART *hart, inst_data& inst) {
+inst_ret exec_CSRRS(HART *hart, inst_data& inst) {
     uint64_t mstatus = hart->csrs[MSTATUS];
     bool tvm = (mstatus >> 20) & 1; // TVM bit
     if(hart->mode == PrivilegeMode::Supervisor && tvm && inst.imm == SATP) {
@@ -108,7 +108,7 @@ bool exec_CSRRS(HART *hart, inst_data& inst) {
     hart->GPR[inst.rd] = init_val;
     return true;
 }
-bool exec_CSRRC(HART *hart, inst_data& inst) {
+inst_ret exec_CSRRC(HART *hart, inst_data& inst) {
     uint64_t mstatus = hart->csrs[MSTATUS];
     bool tvm = (mstatus >> 20) & 1; // TVM bit
     if(hart->mode == PrivilegeMode::Supervisor && tvm && inst.imm == SATP) {
@@ -129,7 +129,7 @@ bool exec_CSRRC(HART *hart, inst_data& inst) {
     return true;
 }
 
-bool exec_CSRRWI(HART *hart, inst_data& inst) {
+inst_ret exec_CSRRWI(HART *hart, inst_data& inst) {
     uint64_t mstatus = hart->csrs[MSTATUS];
     bool tvm = (mstatus >> 20) & 1; // TVM bit
     if(hart->mode == PrivilegeMode::Supervisor && tvm && inst.imm == SATP) {
@@ -147,7 +147,7 @@ bool exec_CSRRWI(HART *hart, inst_data& inst) {
 	csr_write(hart,inst.imm,inst.rs1);
     return true;
 }
-bool exec_CSRRSI(HART *hart, inst_data& inst) {
+inst_ret exec_CSRRSI(HART *hart, inst_data& inst) {
     uint64_t mstatus = hart->csrs[MSTATUS];
     bool tvm = (mstatus >> 20) & 1; // TVM bit
     if(hart->mode == PrivilegeMode::Supervisor && tvm && inst.imm == SATP) {
@@ -167,7 +167,7 @@ bool exec_CSRRSI(HART *hart, inst_data& inst) {
     hart->GPR[inst.rd] = init_val;
     return true;
 }
-bool exec_CSRRCI(HART *hart, inst_data& inst) {
+inst_ret exec_CSRRCI(HART *hart, inst_data& inst) {
     uint64_t mstatus = hart->csrs[MSTATUS];
     bool tvm = (mstatus >> 20) & 1; // TVM bit
     if(hart->mode == PrivilegeMode::Supervisor && tvm && inst.imm == SATP) {

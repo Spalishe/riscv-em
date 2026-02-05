@@ -92,7 +92,8 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
     uint64_t d_imm = 0;
 
     bool valid = false;
-	bool (*fn)(HART*, inst_data&);
+    bool canChangePC = false;
+	inst_ret (*fn)(HART*, inst_data&);
 
     inst_data cache = hart->instr_cache[(pc >> 2) & 0x1FFF];
     if(cache.valid && cache.pc == pc) {
@@ -107,8 +108,8 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
         switch(opcode) {
             case FENCE:
                 switch(funct3) {
-                    case 1: fn = exec_FENCE_I; valid = true; break;
-                    case 0: fn = exec_FENCE; valid = true; break;
+                    case 1: fn = exec_FENCE_I; valid = true; canChangePC = true; break;
+                    case 0: fn = exec_FENCE; valid = true; canChangePC = true; break;
                 };
                 break;
             case R_TYPE:
@@ -361,16 +362,19 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
                 rs1 = d_rs1(inst);
                 rs2 = d_rs2(inst);
                 d_imm = imm_B(inst);
+                canChangePC = true;
                 break;
             case JAL: 
                 fn = exec_JAL;
                 valid = true;
+                canChangePC = true;
                 rd = d_rd(inst);
                 d_imm = imm_J(inst);
                 break;
             case JALR:
                 fn = exec_JALR; 
                 valid = true;
+                canChangePC = true;
                 rd = d_rd(inst);
                 rs1 = d_rs1(inst);
                 d_imm = imm_I(inst);
@@ -403,14 +407,16 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
                             case 258: fn = exec_SRET; valid = true; break;
                             case 288: fn = exec_SFENCE_VMA; valid = true; break;
                             case 770: fn = exec_MRET; valid = true; break;
-                        }; break;
+                        };
+                        canChangePC = true;
+                        break;
                 }; break;
 
             //default: hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false); std::cout << "[WARNING] Unknown instruction: " << inst << std::endl; valid = true; break;
         }
         //if(increase) pc += 4;
         
-        inst_data dec = inst_data{valid, pc, inst,rd,rs1,rs2,d_imm,fn};
+        inst_data dec = inst_data{valid, canChangePC, pc, inst,rd,rs1,rs2,d_imm,fn};
         hart->instr_cache[(pc >> 2) & 0x1FFF] = dec;
         return dec;
     }

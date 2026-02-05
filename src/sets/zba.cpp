@@ -18,35 +18,35 @@ Copyright 2026 Spalishe
 #include "../../include/cpu.hpp"
 #include "../../include/decode.h"
 
-bool exec_ADD_UW(HART *hart, inst_data& inst) {
+inst_ret exec_ADD_UW(HART *hart, inst_data& inst) {
 	hart->GPR[inst.rd] = hart->GPR[inst.rs2] + (uint32_t)hart->GPR[inst.rs1];
     return true;
 }
-bool exec_SH1ADD(HART *hart, inst_data& inst) {
+inst_ret exec_SH1ADD(HART *hart, inst_data& inst) {
 	hart->GPR[inst.rd] = hart->GPR[inst.rs2] + (hart->GPR[inst.rs1] << 1);
     return true;
 }
-bool exec_SH1ADD_UW(HART *hart, inst_data& inst) {
+inst_ret exec_SH1ADD_UW(HART *hart, inst_data& inst) {
 	hart->GPR[inst.rd] = hart->GPR[inst.rs2] + ((uint64_t)(uint32_t)hart->GPR[inst.rs1] << 1);
     return true;
 }
-bool exec_SH2ADD(HART *hart, inst_data& inst) {
+inst_ret exec_SH2ADD(HART *hart, inst_data& inst) {
 	hart->GPR[inst.rd] = hart->GPR[inst.rs2] + (hart->GPR[inst.rs1] << 2);
     return true;
 }
-bool exec_SH2ADD_UW(HART *hart, inst_data& inst) {
+inst_ret exec_SH2ADD_UW(HART *hart, inst_data& inst) {
 	hart->GPR[inst.rd] = hart->GPR[inst.rs2] + ((uint64_t)(uint32_t)hart->GPR[inst.rs1] << 2);
     return true;
 }
-bool exec_SH3ADD(HART *hart, inst_data& inst) {
+inst_ret exec_SH3ADD(HART *hart, inst_data& inst) {
 	hart->GPR[inst.rd] = hart->GPR[inst.rs2] + (hart->GPR[inst.rs1] << 3);
     return true;
 }
-bool exec_SH3ADD_UW(HART *hart, inst_data& inst) {
+inst_ret exec_SH3ADD_UW(HART *hart, inst_data& inst) {
 	hart->GPR[inst.rd] = hart->GPR[inst.rs2] + ((uint64_t)(uint32_t)hart->GPR[inst.rs1] << 3);
     return true;
 }
-bool exec_SLLI_UW(HART *hart, inst_data& inst) {
+inst_ret exec_SLLI_UW(HART *hart, inst_data& inst) {
 	hart->GPR[inst.rd] = ((uint64_t)(uint32_t)hart->GPR[inst.rs1]) << inst.imm;
     return true;
 }

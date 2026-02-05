@@ -18,45 +18,45 @@ Copyright 2026 Spalishe
 #include "../../include/cpu.hpp"
 #include "../../include/decode.h"
 
-bool exec_BCLR(HART *hart, inst_data& inst) {
+inst_ret exec_BCLR(HART *hart, inst_data& inst) {
     uint64_t index = hart->GPR[inst.rs2] & 0x3f;
     hart->GPR[inst.rd] = hart->GPR[inst.rs1] & ~((uint64_t)1 << index);
     return true;
 }
-bool exec_BCLRI(HART *hart, inst_data& inst) {
+inst_ret exec_BCLRI(HART *hart, inst_data& inst) {
     uint64_t index = inst.imm & 0x3f;
     hart->GPR[inst.rd] = hart->GPR[inst.rs1] & ~((uint64_t)1 << index);
     return true;
 }
 
-bool exec_BEXT(HART *hart, inst_data& inst) {
+inst_ret exec_BEXT(HART *hart, inst_data& inst) {
     uint64_t index = hart->GPR[inst.rs2] & 0x3f;
     hart->GPR[inst.rd] = (hart->GPR[inst.rs1] >> index) & 1;
     return true;
 }
-bool exec_BEXTI(HART *hart, inst_data& inst) {
+inst_ret exec_BEXTI(HART *hart, inst_data& inst) {
     uint64_t index = inst.imm & 0x3f;
     hart->GPR[inst.rd] = (hart->GPR[inst.rs1] >> index) & 1;
     return true;
 }
 
-bool exec_BINV(HART *hart, inst_data& inst) {
+inst_ret exec_BINV(HART *hart, inst_data& inst) {
     uint64_t index = hart->GPR[inst.rs2] & 0x3f;
     hart->GPR[inst.rd] = hart->GPR[inst.rs1] ^ ((uint64_t)1 << index);
     return true;
 }
-bool exec_BINVI(HART *hart, inst_data& inst) {
+inst_ret exec_BINVI(HART *hart, inst_data& inst) {
     uint64_t index = inst.imm & 0x3f;
     hart->GPR[inst.rd] = hart->GPR[inst.rs1] ^ ((uint64_t)1 << index);
     return true;
 }
 
-bool exec_BSET(HART *hart, inst_data& inst) {
+inst_ret exec_BSET(HART *hart, inst_data& inst) {
     uint64_t index = hart->GPR[inst.rs2] & 0x3f;
     hart->GPR[inst.rd] = hart->GPR[inst.rs1] | ((uint64_t)1 << index);
     return true;
 }
-bool exec_BSETI(HART *hart, inst_data& inst) {
+inst_ret exec_BSETI(HART *hart, inst_data& inst) {
     uint64_t index = inst.imm & 0x3f;
     hart->GPR[inst.rd] = hart->GPR[inst.rs1] | ((uint64_t)1 << index);
     return true;

@@ -48,13 +48,13 @@ std::optional<uint64_t> AMO_LR(HART* hart, uint64_t va, uint64_t size) {
     return *p;
 }
 
-bool exec_LR_D(HART *hart, inst_data& inst) {
+inst_ret exec_LR_D(HART *hart, inst_data& inst) {
     std::optional<uint64_t> val = AMO_LR(hart, hart->GPR[inst.rs1],64);
     if(!val.has_value()) return false;
     hart->GPR[inst.rd] = *val;
     return true;
 }
-bool exec_SC_D(HART *hart, inst_data& inst) {
+inst_ret exec_SC_D(HART *hart, inst_data& inst) {
     std::optional<int> val = AMO_SC(hart, hart->GPR[inst.rs1],64,hart->GPR[inst.rs2]);
     if(!val.has_value()) return false;
     hart->GPR[inst.rd] = *val;
@@ -72,47 +72,47 @@ std::optional<uint64_t> AMO64(HART *hart, uint64_t va, uint64_t rs2, uint64_t (*
     return t;
 }
 
-bool exec_AMOSWAP_D(HART *hart, inst_data& inst) {
+inst_ret exec_AMOSWAP_D(HART *hart, inst_data& inst) {
     auto val = AMO64(hart,hart->GPR[inst.rs1],hart->GPR[inst.rs2],[](uint64_t a, uint64_t b) {return b;});
     if(val.has_value()) hart->GPR[inst.rd] = *val;
     return val.has_value();
 }
-bool exec_AMOADD_D(HART *hart, inst_data& inst) {
+inst_ret exec_AMOADD_D(HART *hart, inst_data& inst) {
     auto val = AMO64(hart,hart->GPR[inst.rs1],hart->GPR[inst.rs2],[](uint64_t a, uint64_t b) {return a+b;});
     if(val.has_value()) hart->GPR[inst.rd] = *val;
     return val.has_value();
 }
-bool exec_AMOXOR_D(HART *hart, inst_data& inst) {
+inst_ret exec_AMOXOR_D(HART *hart, inst_data& inst) {
     auto val = AMO64(hart,hart->GPR[inst.rs1],hart->GPR[inst.rs2],[](uint64_t a, uint64_t b) {return a^b;});
     if(val.has_value()) hart->GPR[inst.rd] = *val;
     return val.has_value();
 }
-bool exec_AMOAND_D(HART *hart, inst_data& inst) {
+inst_ret exec_AMOAND_D(HART *hart, inst_data& inst) {
     auto val = AMO64(hart,hart->GPR[inst.rs1],hart->GPR[inst.rs2],[](uint64_t a, uint64_t b) {return a&b;});
     if(val.has_value()) hart->GPR[inst.rd] = *val;
     return val.has_value();
 }
-bool exec_AMOOR_D(HART *hart, inst_data& inst) {
+inst_ret exec_AMOOR_D(HART *hart, inst_data& inst) {
     auto val = AMO64(hart,hart->GPR[inst.rs1],hart->GPR[inst.rs2],[](uint64_t a, uint64_t b) {return a|b;});
     if(val.has_value()) hart->GPR[inst.rd] = *val;
     return val.has_value();
 }
-bool exec_AMOMIN_D(HART *hart, inst_data& inst) {
+inst_ret exec_AMOMIN_D(HART *hart, inst_data& inst) {
     auto val = AMO64(hart,hart->GPR[inst.rs1],hart->GPR[inst.rs2],[](uint64_t a, uint64_t b) {return (uint64_t)std::min((int64_t)a,(int64_t)b);});
     if(val.has_value()) hart->GPR[inst.rd] = *val;
     return val.has_value();
 }
-bool exec_AMOMAX_D(HART *hart, inst_data& inst) {
+inst_ret exec_AMOMAX_D(HART *hart, inst_data& inst) {
     auto val = AMO64(hart,hart->GPR[inst.rs1],hart->GPR[inst.rs2],[](uint64_t a, uint64_t b) {return (uint64_t)std::max((int64_t)a,(int64_t)b);});
     if(val.has_value()) hart->GPR[inst.rd] = *val;
     return val.has_value();
 }
-bool exec_AMOMINU_D(HART *hart, inst_data& inst) {
+inst_ret exec_AMOMINU_D(HART *hart, inst_data& inst) {
     auto val = AMO64(hart,hart->GPR[inst.rs1],hart->GPR[inst.rs2],[](uint64_t a, uint64_t b) {return std::min(a,b);});
     if(val.has_value()) hart->GPR[inst.rd] = *val;
     return val.has_value();
 }
-bool exec_AMOMAXU_D(HART *hart, inst_data& inst) {
+inst_ret exec_AMOMAXU_D(HART *hart, inst_data& inst) {
     auto val = AMO64(hart,hart->GPR[inst.rs1],hart->GPR[inst.rs2],[](uint64_t a, uint64_t b) {return std::max(a,b);});
     if(val.has_value()) hart->GPR[inst.rd] = *val;
     return val.has_value();
@@ -120,13 +120,13 @@ bool exec_AMOMAXU_D(HART *hart, inst_data& inst) {
 
 // RV32A
 
-bool exec_LR_W(HART *hart, inst_data& inst) {
+inst_ret exec_LR_W(HART *hart, inst_data& inst) {
     std::optional<uint64_t> val = AMO_LR(hart, hart->GPR[inst.rs1],32);
     if(!val.has_value()) return false;
     hart->GPR[inst.rd] = *val;
     return true;
 }
-bool exec_SC_W(HART *hart, inst_data& inst) {
+inst_ret exec_SC_W(HART *hart, inst_data& inst) {
     std::optional<int> val = AMO_SC(hart, hart->GPR[inst.rs1],32,(uint32_t)hart->GPR[inst.rs2]);
     if(!val.has_value()) return false;
     hart->GPR[inst.rd] = *val;
@@ -144,47 +144,47 @@ std::optional<uint32_t> AMO32(HART *hart, uint64_t va, uint32_t rs2, uint32_t (*
     return t;
 }
 
-bool exec_AMOSWAP_W(HART *hart, inst_data& inst) {
+inst_ret exec_AMOSWAP_W(HART *hart, inst_data& inst) {
     auto val = AMO32(hart,hart->GPR[inst.rs1],(uint32_t)hart->GPR[inst.rs2],[](uint32_t a, uint32_t b) {return b;});
     if(val.has_value()) hart->GPR[inst.rd] = (int64_t)(int32_t)*val;
     return val.has_value();
 }
-bool exec_AMOADD_W(HART *hart, inst_data& inst) {
+inst_ret exec_AMOADD_W(HART *hart, inst_data& inst) {
     auto val = AMO32(hart,hart->GPR[inst.rs1],(uint32_t)hart->GPR[inst.rs2],[](uint32_t a, uint32_t b) {return a+b;});
     if(val.has_value()) hart->GPR[inst.rd] = (int64_t)(int32_t)*val;
     return val.has_value();
 }
-bool exec_AMOXOR_W(HART *hart, inst_data& inst) {
+inst_ret exec_AMOXOR_W(HART *hart, inst_data& inst) {
     auto val = AMO32(hart,hart->GPR[inst.rs1],(uint32_t)hart->GPR[inst.rs2],[](uint32_t a, uint32_t b) {return a^b;});
     if(val.has_value()) hart->GPR[inst.rd] = (int64_t)(int32_t)*val;
     return val.has_value();
 }
-bool exec_AMOAND_W(HART *hart, inst_data& inst) {
+inst_ret exec_AMOAND_W(HART *hart, inst_data& inst) {
     auto val = AMO32(hart,hart->GPR[inst.rs1],(uint32_t)hart->GPR[inst.rs2],[](uint32_t a, uint32_t b) {return a&b;});
     if(val.has_value()) hart->GPR[inst.rd] = (int64_t)(int32_t)*val;
     return val.has_value();
 }
-bool exec_AMOOR_W(HART *hart, inst_data& inst) {
+inst_ret exec_AMOOR_W(HART *hart, inst_data& inst) {
     auto val = AMO32(hart,hart->GPR[inst.rs1],(uint32_t)hart->GPR[inst.rs2],[](uint32_t a, uint32_t b) {return a|b;});
     if(val.has_value()) hart->GPR[inst.rd] = (int64_t)(int32_t)*val;
     return val.has_value();
 }
-bool exec_AMOMIN_W(HART *hart, inst_data& inst) {
+inst_ret exec_AMOMIN_W(HART *hart, inst_data& inst) {
     auto val = AMO32(hart,hart->GPR[inst.rs1],(uint32_t)hart->GPR[inst.rs2],[](uint32_t a, uint32_t b) {return (uint32_t)std::min((int32_t)a,(int32_t)b);});
     if(val.has_value()) hart->GPR[inst.rd] = (int64_t)(int32_t)*val;
     return val.has_value();
 }
-bool exec_AMOMAX_W(HART *hart, inst_data& inst) {
+inst_ret exec_AMOMAX_W(HART *hart, inst_data& inst) {
     auto val = AMO32(hart,hart->GPR[inst.rs1],(uint32_t)hart->GPR[inst.rs2],[](uint32_t a, uint32_t b) {return (uint32_t)std::max((int32_t)a,(int32_t)b);});
     if(val.has_value()) hart->GPR[inst.rd] = (int64_t)(int32_t)*val;
     return val.has_value();
 }
-bool exec_AMOMINU_W(HART *hart, inst_data& inst) {
+inst_ret exec_AMOMINU_W(HART *hart, inst_data& inst) {
     auto val = AMO32(hart,hart->GPR[inst.rs1],(uint32_t)hart->GPR[inst.rs2],[](uint32_t a, uint32_t b) {return std::min(a,b);});
     if(val.has_value()) hart->GPR[inst.rd] = (int64_t)(int32_t)*val;
     return val.has_value();
 }
-bool exec_AMOMAXU_W(HART *hart, inst_data& inst) {
+inst_ret exec_AMOMAXU_W(HART *hart, inst_data& inst) {
     auto val = AMO32(hart,hart->GPR[inst.rs1],(uint32_t)hart->GPR[inst.rs2],[](uint32_t a, uint32_t b) {return std::max(a,b);});
     if(val.has_value()) hart->GPR[inst.rd] = (int64_t)(int32_t)*val;
     return val.has_value();

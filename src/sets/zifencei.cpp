@@ -18,7 +18,7 @@ Copyright 2026 Spalishe
 #include "../../include/cpu.hpp"
 #include "../../include/decode.h"
 
-bool exec_FENCE_I(HART *hart, inst_data& inst) {
+inst_ret exec_FENCE_I(HART *hart, inst_data& inst) {
     for(int i=0; i< 8192; i++) {
         hart->instr_cache[i].valid = false;
     }
