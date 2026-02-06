@@ -85,7 +85,7 @@ struct HART {
 void hart_reset(HART&, uint64_t dtb_path);
 uint32_t hart_fetch(HART&, uint64_t _pc);
 void hart_step(HART&);
-void hart_execute(HART&, inst_data inst);
+inst_ret hart_execute(HART&, inst_data inst);
 void hart_check_interrupts(HART&);
 void hart_trap(HART&, uint64_t cause, uint64_t tval, bool is_interrupt);
 

@@ -83,13 +83,16 @@ void hart_step(HART& h) {
     }
     h.pc_hits[h.pc]++;
 
-    if(h.pc_hits[h.pc] >= HART_INST_EXECUTION_COUNT_CAP && !h.is_creating_block) {
-        h.is_creating_block = true;
-        h.block_creation_start_pc = h.pc;
-        InstructionBlock* block = &h.blocks[h.block_creation_start_pc % 1024];
-        block->valid = true;
-        block->start_pc = h.block_creation_start_pc;
-        block->instrs.clear();
+    if(h.pc_hits[h.pc] >= HART_INST_EXECUTION_COUNT_CAP && !h.is_creating_block && !d.canChangePC) {
+        InstructionBlock* block = &h.blocks[h.pc % 1024];
+        if(block->valid == false || block->start_pc != h.pc) {
+            h.is_creating_block = true;
+            h.block_creation_start_pc = h.pc;
+            InstructionBlock* block = &h.blocks[h.block_creation_start_pc % 1024];
+            block->valid = true;
+            block->start_pc = h.block_creation_start_pc;
+            block->instrs.clear();
+        }
     }
     if(h.is_creating_block) {
         InstructionBlock* block = &h.blocks[h.block_creation_start_pc % 1024];
@@ -105,22 +108,43 @@ void hart_step(HART& h) {
             return;
         } else if(d.canChangePC) {
             // We got a branch maybe
-            // Compile then ts up in 1 thing
-            // TODO
             h.is_creating_block = false;
+            return;
         } else {
             // Normal case
-            
+            if(d.valid) {
+                block->instrs.push_back(d);
+                inst_ret ret = hart_execute(h,d);
+                if(ret.increasePC == false) {
+                    // Probably branch case / TRAP
+                    // Stop compiling, invalidate this block
+                    h.is_creating_block = false;
+                    block->valid = false;
+                }
+            }
         }
 
-    } else hart_execute(h,d);
-}
-void hart_execute(HART& h, inst_data inst) {
-    bool success = inst.fn(&h,inst);
-    if(success) {
-        h.csrs[INSTRET]++;
-        h.pc += 4;
+    } else {
+        InstructionBlock* block = &h.blocks[h.pc % 1024];
+        if(block->valid == true && block->start_pc == h.pc) {
+            // Execute block
+            for(inst_data dat : block->instrs) {
+                inst_ret ret = hart_execute(h,dat);
+                if(ret.increasePC == false) {
+                    // Probably branch case / TRAP
+                    return;
+                }
+            }
+        } else hart_execute(h,d);
     }
+}
+inst_ret hart_execute(HART& h, inst_data inst) {
+    inst_ret success = inst.fn(&h,inst);
+    if(success.increasePC) {
+        h.csrs[INSTRET]++;
+        h.pc += success.isCompressed ? 2 : 4;
+    }
+    return success;
 }
 
 void hart_check_interrupts(HART& h) {
