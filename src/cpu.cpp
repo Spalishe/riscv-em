@@ -31,7 +31,7 @@ Copyright 2026 Spalishe
 #include <functional>
 
 void hart_reset(HART& h, uint64_t dtb_path) {
-    for(int i = 0; i < 32; i++) {h.GPR[i] = 0;}
+    for(int i = 0; i < 32; i++) {h.GPR[i] = 0; h.FPR[i] = 0.0;}
     for(int i = 0; i < 4069; i++) {h.csrs[i] = 0;}
 
 	h.pc = DRAM_BASE;

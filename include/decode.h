@@ -29,6 +29,27 @@ struct inst_ret {
     }
 };
 
+#define F_QNAN 0x7fc00000
+#define F_SNAN 0x7fa00000
+#define F_QNAN64 0x7ff8000000000000
+#define F_SNAN64 0x7ffc000000000000
+
+enum class RoundingMode {
+    RNE = 0b000, // Round to Nearest, ties to Even
+    RTZ = 0b001, // Round towards Zero
+    RDN = 0b010, // Round Down (towards -inf)
+    RUP = 0b011, // Round Up (towards +inf)
+    RMM = 0b100, // Round to Nearest, ties to Max Magnitude
+    DYN = 0b111, // In instruction's rm field, selects dynamic rounding mode; In Rounding Mode register;
+};
+
+enum class FMT {
+    S = 0b00, // 32-bit single-precision
+    D = 0b01, // 64-bit double-precision
+    H = 0b10, // 16-bit half-precision
+    Q = 0b11, // 128-bit quad-precision
+};
+
 struct inst_data {
     bool valid;
     bool canChangePC = false;
@@ -40,11 +61,17 @@ struct inst_data {
     uint8_t rs2;
     uint64_t imm;
     inst_ret (*fn)(HART*, inst_data&);
+
+    // RVF
+    RoundingMode rm;
+    FMT fmt;
+    uint8_t rs3;
 };
 
 uint64_t d_rd(uint32_t inst);
 uint64_t d_rs1(uint32_t inst);
 uint64_t d_rs2(uint32_t inst);
+uint64_t d_rs3(uint32_t inst);
 uint64_t imm_Zicsr(uint32_t inst);
 uint64_t imm_I(uint32_t inst);
 uint64_t imm_S(uint32_t inst);
@@ -136,6 +163,36 @@ extern inst_data parse_instruction(HART* hart, uint32_t inst, uint64_t pc);
     #define AMOMAXU   0x1C
 
 #define FENCE     0xF
+
+#define R_F       0x53
+    #define FADD 0x0
+    #define FSUB 0x1
+    #define FMUL 0x2
+    #define FDIV 0x3
+    #define FMIN_MAX 0x5
+        #define FMIN 0
+        #define FMAX 1
+    #define FSQRT 0xB
+    #define FCVT_X_T 0x18
+    #define FCVT_T_X 0x1A
+    #define FSGN 0x4
+        #define FSGNJ 0x0
+        #define FSGNJN 0x1
+        #define FSGNJX 0x2
+    #define FMV_X_T 0x1C
+        #define FCLASS 0x1
+    #define FMV_T_X 0x1E
+    #define FBR     0x14
+        #define FLE 0x0
+        #define FLT 0x1
+        #define FEQ 0x2
+    
+#define FMADD     0x43
+#define FMSUB     0x47
+#define FNMADD    0x4F
+#define FNMSUB    0x4B
+#define FLOAD     0x7
+#define FSTORE    0x27
 
 //// RV64I
 // R-Type
@@ -259,6 +316,38 @@ inst_ret exec_AMOMIN_W(HART *hart, inst_data& inst);
 inst_ret exec_AMOMAX_W(HART *hart, inst_data& inst);
 inst_ret exec_AMOMINU_W(HART *hart, inst_data& inst);
 inst_ret exec_AMOMAXU_W(HART *hart, inst_data& inst);
+
+// RV64F
+inst_ret exec_FLW(HART *hart, inst_data& inst);
+inst_ret exec_FSW(HART *hart, inst_data& inst);
+inst_ret exec_FADD_S(HART *hart, inst_data& inst);
+inst_ret exec_FSUB_S(HART *hart, inst_data& inst);
+inst_ret exec_FMUL_S(HART *hart, inst_data& inst);
+inst_ret exec_FDIV_S(HART *hart, inst_data& inst);
+inst_ret exec_FSQRT_S(HART *hart, inst_data& inst);
+inst_ret exec_FMIN_S(HART *hart, inst_data& inst);
+inst_ret exec_FMAX_S(HART *hart, inst_data& inst);
+inst_ret exec_FMADD_S(HART *hart, inst_data& inst);
+inst_ret exec_FMSUB_S(HART *hart, inst_data& inst);
+inst_ret exec_FNMADD_S(HART *hart, inst_data& inst);
+inst_ret exec_FNMSUB_S(HART *hart, inst_data& inst);
+inst_ret exec_FCVT_W_S(HART *hart, inst_data& inst);
+inst_ret exec_FCVT_WU_S(HART *hart, inst_data& inst);
+inst_ret exec_FCVT_L_S(HART *hart, inst_data& inst);
+inst_ret exec_FCVT_LU_S(HART *hart, inst_data& inst);
+inst_ret exec_FCVT_S_W(HART *hart, inst_data& inst);
+inst_ret exec_FCVT_S_WU(HART *hart, inst_data& inst);
+inst_ret exec_FCVT_S_L(HART *hart, inst_data& inst);
+inst_ret exec_FCVT_S_LU(HART *hart, inst_data& inst);
+inst_ret exec_FSGNJ_S(HART *hart, inst_data& inst);
+inst_ret exec_FSGNJN_S(HART *hart, inst_data& inst);
+inst_ret exec_FSGNJX_S(HART *hart, inst_data& inst);
+inst_ret exec_FMV_X_W(HART *hart, inst_data& inst);
+inst_ret exec_FMV_W_X(HART *hart, inst_data& inst);
+inst_ret exec_FLE_S(HART *hart, inst_data& inst);
+inst_ret exec_FLT_S(HART *hart, inst_data& inst);
+inst_ret exec_FEQ_S(HART *hart, inst_data& inst);
+inst_ret exec_FCLASS_S(HART *hart, inst_data& inst);
 
 //// SYSTEM
 

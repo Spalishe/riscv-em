@@ -96,6 +96,40 @@ vector<tuple<string,uint32_t,char,optional<vector<tuple<string,uint8_t,uint8_t>>
     {"t5", 30, 'g', nullopt},
     {"t6", 31, 'g', nullopt},
     {"pc", 32, 'g', nullopt},
+
+    {"f0", 33, 'f', nullopt},
+    {"f1", 34, 'f', nullopt},
+    {"f2", 35, 'f', nullopt},
+    {"f3", 36, 'f', nullopt},
+    {"f4", 37, 'f', nullopt},
+    {"f5", 38, 'f', nullopt},
+    {"f6", 39, 'f', nullopt},
+    {"f7", 40, 'f', nullopt},
+    {"f8", 41, 'f', nullopt},
+    {"f9", 42, 'f', nullopt},
+    {"f10", 43, 'f', nullopt},
+    {"f11", 44, 'f', nullopt},
+    {"f12", 45, 'f', nullopt},
+    {"f13", 46, 'f', nullopt},
+    {"f14", 47, 'f', nullopt},
+    {"f15", 48, 'f', nullopt},
+    {"f16", 49, 'f', nullopt},
+    {"f17", 50, 'f', nullopt},
+    {"f18", 51, 'f', nullopt},
+    {"f19", 52, 'f', nullopt},
+    {"f20", 53, 'f', nullopt},
+    {"f21", 54, 'f', nullopt},
+    {"f22", 55, 'f', nullopt},
+    {"f23", 56, 'f', nullopt},
+    {"f24", 57, 'f', nullopt},
+    {"f25", 58, 'f', nullopt},
+    {"f26", 59, 'f', nullopt},
+    {"f27", 60, 'f', nullopt},
+    {"f28", 61, 'f', nullopt},
+    {"f29", 62, 'f', nullopt},
+    {"f30", 63, 'f', nullopt},
+    {"f31", 64, 'f', nullopt},
+
     {"mstatus", MSTATUS, 'c', vector<tuple<string,uint8_t,uint8_t>>{
         {"SIE", 1, 1},
         {"MIE", 3, 3},
@@ -154,7 +188,7 @@ vector<tuple<string,uint32_t,char,optional<vector<tuple<string,uint8_t,uint8_t>>
         {"ASID",SATP_ASID_LOW,SATP_ASID_HIGH},
         {"PPN",SATP_PPN_LOW,SATP_PPN_HIGH},
     }},
-    {"priv", 0, 'v', nullopt},
+    {"priv", 65, 'v', nullopt},
 };
 
 string GDB_CreateXML() {
@@ -182,6 +216,17 @@ string GDB_CreateXML() {
             } else {
                 output << "/>" << endl;
             }
+        }
+    }
+    output << "  </feature>" << endl;
+    output << R"(  <feature name="org.gnu.gdb.riscv.fpu">)" << endl;
+    for(uint64_t i = 0; i < xml_data.size(); i++)
+    {
+        auto cur_reg = xml_data.at(i);
+        if(get<2>(cur_reg) == 'f')
+        {
+            output << format(R"(    <reg name="{}" bitsize="{}")", get<0>(cur_reg), 64);
+            output << "/>" << endl;
         }
     }
     output << "  </feature>" << endl;
@@ -415,12 +460,14 @@ void GDB_parsePacket(const char* buffer) {
                 //pc
                 GDB_sendPacket(to_little_endian_hex(gdb_hart->pc));
             } else if(idx > 32 && idx < 64) {
-                if(idx == 33) {
+                //fpu
+                GDB_sendPacket(to_little_endian_hex(gdb_hart->FPR[idx-33]));
+            } else if(idx >= 64) {
+                //csr
+                if(idx == 65) {
                     //priv
                     GDB_sendPacket(to_little_endian_hex((uint8_t)gdb_hart->mode));
                 }
-            } else if(idx >= 64) {
-                //csr
                 GDB_sendPacket(to_little_endian_hex(csr_read(gdb_hart,idx)));
             }
             return;
@@ -440,13 +487,15 @@ void GDB_parsePacket(const char* buffer) {
                 //pc
                 gdb_hart->pc = num;
             } else if(idx > 32 && idx < 64) {
+                gdb_hart->FPR[idx-33] = num;
+            } else if(idx >= 64) {
                 if(idx == 33) {
                     //priv
                     gdb_hart->mode = (PrivilegeMode)num;
+                } else {
+                    //csr
+                    csr_write(gdb_hart,idx,num);
                 }
-            } else if(idx >= 64) {
-                //csr
-                csr_write(gdb_hart,idx,num);
             }
             GDB_sendPacket("OK");
             return;

@@ -28,6 +28,9 @@ uint64_t d_rs1(uint32_t inst) {
 uint64_t d_rs2(uint32_t inst) {
     return (inst >> 20) & 0x1f;   // rs2 in bits 24..20
 }
+uint64_t d_rs3(uint32_t inst) {
+    return (inst >> 27) & 0x1f;   // rs3 in bits 31..27
+}
 uint64_t imm_Zicsr(uint32_t inst) {
     return (inst >> 20);
 }
@@ -89,6 +92,7 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
     uint8_t rd = 0;
     uint8_t rs1 = 0;
     uint8_t rs2 = 0;
+    uint8_t rs3 = 0;
     uint64_t d_imm = 0;
 
     bool valid = false;
@@ -105,6 +109,7 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
         int funct7 = (inst >> 25) & 0x7f;
         int funct6 = (inst >> 26);
         int imm = (inst >> 20);
+        FMT fmt = (FMT)((inst >> 25) & 0x3);
         switch(opcode) {
             case FENCE:
                 switch(funct3) {
@@ -411,12 +416,177 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
                         canChangePC = true;
                         break;
                 }; break;
+            case FLOAD:
+                switch(funct3) {
+                    case 0x2: fn = exec_FLW; rd = d_rd(inst); rs1 = d_rs1(inst); d_imm = imm_I(inst); valid = true; break;
+                }; break;
+            case FSTORE:
+                switch(funct3) {
+                    case 0x2: fn = exec_FSW; rs1 = d_rs1(inst); rs2 = d_rs2(inst); d_imm = imm_S(inst); valid = true; break;
+                }; break;
+            case R_F:
+                rs2 = d_rs2(inst);
+                rd = d_rd(inst);
+                rs1 = d_rs1(inst);
+                switch(amo_funct5) {
+                    case FADD:
+                        switch(fmt) {
+                            case FMT::S: fn = exec_FADD_S; valid = true; break;
+                        }; break;
+                    case FSUB:
+                        switch(fmt) {
+                            case FMT::S: fn = exec_FSUB_S; valid = true; break;
+                        }; break;
+                    case FMUL:
+                        switch(fmt) {
+                            case FMT::S: fn = exec_FMUL_S; valid = true; break;
+                        }; break;
+                    case FDIV:
+                        switch(fmt) {
+                            case FMT::S: fn = exec_FDIV_S; valid = true; break;
+                        }; break;
+                    case FSQRT:
+                        switch(fmt) {
+                            case FMT::S: fn = exec_FSQRT_S; valid = true; break;
+                        }; break;
+                    case FMIN_MAX:
+                        switch(funct3) {
+                            case FMIN:
+                                switch(fmt) {
+                                    case FMT::S: fn = exec_FMIN_S; valid = true; break;
+                                }; break;
+                            case FMAX:
+                                switch(fmt) {
+                                    case FMT::S: fn = exec_FMAX_S; valid = true; break;
+                                }; break;
+                        }; break;
+                    case FCVT_X_T:
+                        switch(rs2) {
+                            case 0:
+                                switch(fmt) {
+                                    case FMT::S: fn = exec_FCVT_W_S; valid = true; break;
+                                }; break;
+                            case 1:
+                                switch(fmt) {
+                                    case FMT::S: fn = exec_FCVT_WU_S; valid = true; break;
+                                }; break;
+                            case 2:
+                                switch(fmt) {
+                                    case FMT::S: fn = exec_FCVT_L_S; valid = true; break;
+                                }; break;
+                            case 3:
+                                switch(fmt) {
+                                    case FMT::S: fn = exec_FCVT_LU_S; valid = true; break;
+                                }; break;
+                        }; break;
+                    case FCVT_T_X:
+                        switch(rs2) {
+                            case 0:
+                                switch(fmt) {
+                                    case FMT::S: fn = exec_FCVT_S_W; valid = true; break;
+                                }; break;
+                            case 1:
+                                switch(fmt) {
+                                    case FMT::S: fn = exec_FCVT_S_WU; valid = true; break;
+                                }; break;
+                            case 2:
+                                switch(fmt) {
+                                    case FMT::S: fn = exec_FCVT_S_L; valid = true; break;
+                                }; break;
+                            case 3:
+                                switch(fmt) {
+                                    case FMT::S: fn = exec_FCVT_S_LU; valid = true; break;
+                                }; break;
+                        }; break;
+                    case FSGN:
+                        switch(funct3) {
+                            case FSGNJ:
+                                switch(fmt) {
+                                    case FMT::S: fn = exec_FSGNJ_S; valid = true; break;
+                                }; break;
+                            case FSGNJN:
+                                switch(fmt) {
+                                    case FMT::S: fn = exec_FSGNJN_S; valid = true; break;
+                                }; break;
+                            case FSGNJX:
+                                switch(fmt) {
+                                    case FMT::S: fn = exec_FSGNJX_S; valid = true; break;
+                                }; break;
+                        }; break;
+                    case FMV_X_T:
+                        switch(funct3) {
+                            case 0: 
+                                switch(fmt) {
+                                    case FMT::S: fn = exec_FMV_X_W; valid = true; break;
+                                }; break;
+                            case 1:
+                                switch(fmt) {
+                                    case FMT::S: fn = exec_FCLASS_S; valid = true; break;
+                                }; break;
+                        }; break;
+                    case FMV_T_X:
+                        switch(fmt) {
+                            case FMT::S: fn = exec_FMV_W_X; valid = true; break;
+                        }; break;
+                    case FBR:
+                        switch(funct3) {
+                            case FLE:
+                                switch(fmt) {
+                                    case FMT::S: fn = exec_FLE_S; valid = true; break;
+                                }; break;
+                            case FLT:
+                                switch(fmt) {
+                                    case FMT::S: fn = exec_FLT_S; valid = true; break;
+                                }; break;
+                            case FEQ:
+                                switch(fmt) {
+                                    case FMT::S: fn = exec_FEQ_S; valid = true; break;
+                                }; break;
+                        }; break;
+                };
+                break;
+            case FMADD:
+                switch(fmt) {
+                    case FMT::S: fn = exec_FMADD_S; valid = true; break;
+                };
+                rd = d_rd(inst);
+                rs1 = d_rs1(inst);
+                rs2 = d_rs2(inst);
+                rs3 = d_rs3(inst);
+                break;
+            case FMSUB:
+                switch(fmt) {
+                    case FMT::S: fn = exec_FMSUB_S; valid = true; break;
+                };
+                rd = d_rd(inst);
+                rs1 = d_rs1(inst);
+                rs2 = d_rs2(inst);
+                rs3 = d_rs3(inst);
+                break;
+            case FNMADD:
+                switch(fmt) {
+                    case FMT::S: fn = exec_FNMADD_S; valid = true; break;
+                };
+                rd = d_rd(inst);
+                rs1 = d_rs1(inst);
+                rs2 = d_rs2(inst);
+                rs3 = d_rs3(inst);
+                break;
+            case FNMSUB:
+                switch(fmt) {
+                    case FMT::S: fn = exec_FNMSUB_S; valid = true; break;
+                };
+                rd = d_rd(inst);
+                rs1 = d_rs1(inst);
+                rs2 = d_rs2(inst);
+                rs3 = d_rs3(inst);
+                break;
 
             //default: hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false); std::cout << "[WARNING] Unknown instruction: " << inst << std::endl; valid = true; break;
         }
         //if(increase) pc += 4;
         
-        inst_data dec = inst_data{valid, canChangePC, pc, inst,rd,rs1,rs2,d_imm,fn};
+        inst_data dec = inst_data{valid, canChangePC, pc, inst,rd,rs1,rs2,d_imm,fn,RoundingMode::DYN,fmt,rs3};
         hart->instr_cache[(pc >> 2) & 0x1FFF] = dec;
         return dec;
     }

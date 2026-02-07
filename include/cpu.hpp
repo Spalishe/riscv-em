@@ -57,6 +57,7 @@ struct InstructionBlock {
 
 struct HART {
     uint64_t GPR[32];
+    double FPR[32];
     uint64_t pc = DRAM_BASE;
     uint64_t csrs[4069];
     PrivilegeMode mode = PrivilegeMode::Machine;
