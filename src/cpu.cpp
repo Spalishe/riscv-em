@@ -172,7 +172,6 @@ void hart_check_interrupts(HART& h) {
 
     if (h.mode <= PrivilegeMode::Supervisor && s_global) {
         uint64_t pending = sip & sie & mideleg;
-
         if (pending) {
             for (int irq : irq_priority) {
                 if (pending & (1ULL << irq)) {

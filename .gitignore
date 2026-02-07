@@ -6,6 +6,11 @@
 /tests
 inf_loop.bin
 Image
+Image_machine
 kernel.bin
 fs.img
 heaptrack.*
+dtb.dtb
+dtb.dts
+qemu.dtb
+qemu.dts

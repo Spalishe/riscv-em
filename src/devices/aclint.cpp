@@ -53,20 +53,7 @@ ACLINT::ACLINT(uint64_t base, Machine& cpu, fdt_node* fdt)
 }
 
 void ACLINT::tick() {
-    auto now = std::chrono::steady_clock::now();
-
-    std::chrono::duration<double> elapsed_ns = now - last;
-    last = now;
-    
-    double ticks_to_add = elapsed_ns.count() * ACLINT_FREQ_HZ;
-        
-    ns_accum += ticks_to_add;
-
-    if (ns_accum >= 1.0) {
-        uint64_t whole_ticks = static_cast<uint64_t>(ns_accum);
-        mtime += whole_ticks;
-        ns_accum -= whole_ticks;
-    }
+    mtime += 1;
 
     for(HART* hrt : cpu.harts) {
         hrt->csrs[TIME] = mtime;
@@ -133,12 +120,12 @@ void ACLINT::update_mip(HART* hart) {
     else
         mip &= ~(1ULL << MIP_MSIP);
 
-    if (mtime >= mtimecmp[hart_id])
+    if (mtime >= mtimecmp[hart_id] && mtimecmp[hart_id] != 0)
         mip |= (1ULL << MIP_MTIP);
     else
         mip &= ~(1ULL << MIP_MTIP);
 
-    if (mtime >= hart->csrs[STIMECMP])
+    if (mtime >= hart->csrs[STIMECMP] && hart->csrs[STIMECMP] != 0)
         mip |= (1ULL << MIP_STIP);
     else
         mip &= ~(1ULL << MIP_STIP);

@@ -21,7 +21,7 @@ Copyright 2026 Spalishe
 
 #define ACLINT_MSWI_SIZE   0x4000
 #define ACLINT_MTIMER_SIZE 0x8000
-#define ACLINT_FREQ_HZ     100000
+#define ACLINT_FREQ_HZ     0x989680 // 100000
 
 struct ACLINT : public Device {
     ACLINT(uint64_t base, Machine& cpu, fdt_node* fdt);
