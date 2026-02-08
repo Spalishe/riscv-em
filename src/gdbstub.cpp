@@ -24,6 +24,7 @@ Copyright 2026 Spalishe
 #include <format>
 #include <sstream>
 #include <algorithm>
+#include <bit>
 
 using namespace std;
 #pragma error disable 
@@ -220,13 +221,17 @@ string GDB_CreateXML() {
     }
     output << "  </feature>" << endl;
     output << R"(  <feature name="org.gnu.gdb.riscv.fpu">)" << endl;
+    //<union id="riscv_double">\n    <field name="float" type="ieee_single"/>\n    <field name="double" type="ieee_double"/>\n  </union>
+    output << R"(    <union id="riscv_double">)" << endl;
+    output << R"(      <field name="float" type="ieee_single"/>)" << endl;
+    output << R"(      <field name="double" type="ieee_double"/>)" << endl;
+    output << R"(    </union>)" << endl;
     for(uint64_t i = 0; i < xml_data.size(); i++)
     {
         auto cur_reg = xml_data.at(i);
         if(get<2>(cur_reg) == 'f')
         {
-            output << format(R"(    <reg name="{}" bitsize="{}")", get<0>(cur_reg), 64);
-            output << "/>" << endl;
+            output << format(R"(    <reg name="{}" bitsize="{}" type="riscv_double"/>)", get<0>(cur_reg), 64);
         }
     }
     output << "  </feature>" << endl;
@@ -461,7 +466,7 @@ void GDB_parsePacket(const char* buffer) {
                 GDB_sendPacket(to_little_endian_hex(gdb_hart->pc));
             } else if(idx > 32 && idx < 64) {
                 //fpu
-                GDB_sendPacket(to_little_endian_hex(gdb_hart->FPR[idx-33]));
+                GDB_sendPacket(to_little_endian_hex(std::bit_cast<uint64_t>(gdb_hart->FPR[idx-33].val)));
             } else if(idx >= 64) {
                 //csr
                 if(idx == 65) {
@@ -487,7 +492,7 @@ void GDB_parsePacket(const char* buffer) {
                 //pc
                 gdb_hart->pc = num;
             } else if(idx > 32 && idx < 64) {
-                gdb_hart->FPR[idx-33] = num;
+                gdb_hart->FPR[idx-33] = (double)num;
             } else if(idx >= 64) {
                 if(idx == 33) {
                     //priv

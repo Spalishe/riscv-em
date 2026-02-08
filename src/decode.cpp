@@ -110,6 +110,7 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
         int funct6 = (inst >> 26);
         int imm = (inst >> 20);
         FMT fmt = (FMT)((inst >> 25) & 0x3);
+        RoundingMode rm = (RoundingMode)funct3;
         switch(opcode) {
             case FENCE:
                 switch(funct3) {
@@ -586,7 +587,7 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
         }
         //if(increase) pc += 4;
         
-        inst_data dec = inst_data{valid, canChangePC, pc, inst,rd,rs1,rs2,d_imm,fn,RoundingMode::DYN,fmt,rs3};
+        inst_data dec = inst_data{valid, canChangePC, pc, inst,rd,rs1,rs2,d_imm,fn,rm,fmt,rs3};
         hart->instr_cache[(pc >> 2) & 0x1FFF] = dec;
         return dec;
     }

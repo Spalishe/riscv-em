@@ -27,8 +27,21 @@ Copyright 2026 Spalishe
 #include <unordered_map>
 #include <tuple>
 #include "pmp.hpp"
+#include <cmath>
 
 #define HART_INST_EXECUTION_COUNT_CAP 50 // After that number block will be created
+
+inline bool is_qnan(float d) {
+    if(!std::isnan(d)) return false;
+    uint32_t bits = std::bit_cast<uint32_t>(d);
+    return (bits >= 0x7FC00000 && bits <= 0x7FFFFFFF) || (bits >= 0xFFC00000 && bits <= 0xFFFFFFFF);
+}
+
+inline bool is_snan(float d) {
+    if(!std::isnan(d)) return false;
+    uint32_t bits = std::bit_cast<uint32_t>(d);
+    return (bits >= 0x7F800001 && bits <= 0x7FBFFFFF) || (bits >= 0xFF800001 && bits <= 0xFFBFFFFF);
+}
 
 struct MMIO;
 
@@ -55,9 +68,48 @@ struct InstructionBlock {
     std::vector<inst_data> instrs;
 };
 
+struct FPRValue {
+    double val;
+    bool is_signaling_nan;
+    bool is_quiet_nan;
+
+    operator double() const {
+        return val;
+    }
+
+    operator float() const {
+        return (float)val;
+    }
+
+    operator uint64_t() const {
+        return (uint64_t)val;
+    }
+
+    operator uint32_t() const {
+        return (uint32_t)val;
+    }
+    
+    FPRValue(double x) {
+        is_signaling_nan = is_snan(x);
+        is_quiet_nan = is_qnan(x);
+        val = x;
+    }
+    
+    FPRValue(float x) {
+        is_signaling_nan = is_snan(x);
+        is_quiet_nan = is_qnan(x);
+        val = (double)x;
+    }
+    FPRValue() {
+        val = 0;
+        is_signaling_nan = false;
+        is_quiet_nan = false;
+    }
+};
+
 struct HART {
     uint64_t GPR[32];
-    double FPR[32];
+    FPRValue FPR[32];
     uint64_t pc = DRAM_BASE;
     uint64_t csrs[4069];
     PrivilegeMode mode = PrivilegeMode::Machine;
