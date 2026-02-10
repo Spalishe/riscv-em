@@ -25,6 +25,7 @@ Copyright 2026 Spalishe
 void machine_run(Machine& cpu) {
     cpu.state = cpu.gdb ? MachineState::Halted : MachineState::Running;
 
+
     while(cpu.state != MachineState::PoweredOff) {
 		if (cpu.state == MachineState::PoweringOff) {
 			cpu.state = MachineState::PoweredOff;

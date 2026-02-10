@@ -189,6 +189,14 @@ vector<tuple<string,uint32_t,char,optional<vector<tuple<string,uint8_t,uint8_t>>
         {"ASID",SATP_ASID_LOW,SATP_ASID_HIGH},
         {"PPN",SATP_PPN_LOW,SATP_PPN_HIGH},
     }},
+    {"fcsr", FCSR+5000, 'c', vector<tuple<string,uint8_t,uint8_t>>{
+        {"FRM",5,7},
+        {"NX",0,0},
+        {"UF",1,1},
+        {"OF",2,2},
+        {"DZ",3,3},
+        {"NV",4,4},
+    }},
     {"priv", 65, 'v', nullopt},
 };
 
@@ -472,8 +480,10 @@ void GDB_parsePacket(const char* buffer) {
                 if(idx == 65) {
                     //priv
                     GDB_sendPacket(to_little_endian_hex((uint8_t)gdb_hart->mode));
-                }
-                GDB_sendPacket(to_little_endian_hex(csr_read(gdb_hart,idx)));
+                } else if(idx >= 5000) {
+                    GDB_sendPacket(to_little_endian_hex(csr_read(gdb_hart,idx-5000)));
+                } else
+                    GDB_sendPacket(to_little_endian_hex(csr_read(gdb_hart,idx)));
             }
             return;
         }

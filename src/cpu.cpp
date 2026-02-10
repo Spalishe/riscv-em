@@ -142,6 +142,7 @@ inst_ret hart_execute(HART& h, inst_data inst) {
     inst_ret success = inst.fn(&h,inst);
     if(success.increasePC) {
         h.csrs[INSTRET]++;
+        h.DEBUG_prev_pcs.push_back( h.pc);
         h.pc += success.isCompressed ? 2 : 4;
     }
     return success;
@@ -191,6 +192,13 @@ void hart_trap(HART& h, uint64_t cause, uint64_t tval, bool is_interrupt) {
     uint64_t trap_pc = h.pc;
     PrivilegeMode prev_mode = h.mode;
 
+    if(!is_interrupt) {
+        std::cout << "cause: " << cause << " pcs: " << std::endl;
+        for(uint64_t i = h.DEBUG_prev_pcs.size(); i > h.DEBUG_prev_pcs.size()-10; i--) {
+            std::cout << std::format("0x{:08x}",h.DEBUG_prev_pcs[i]) << std::endl;
+        }
+    }
+
     uint64_t medeleg = h.csrs[MEDELEG];
     uint64_t mideleg = h.csrs[MIDELEG];
     bool delegate_to_s = false;
@@ -233,6 +241,10 @@ uint64_t csr_read(HART *hart, uint16_t csr) {
             return hart->csrs[MIE] & SE_MASK;
         case SIP:
             return hart->csrs[MIP] & SE_MASK;
+        case FFLAGS:
+            return hart->csrs[FCSR] & 0x1F;
+        case FRM:
+            return (hart->csrs[FCSR] >> 5) & 0x7;
         default:
             return hart->csrs[csr];
     }
@@ -273,6 +285,18 @@ void csr_write(HART *hart, uint16_t csr, uint64_t val) {
         val &= ~mask;
         val |= hart->csrs[MSTATUS] & mask;
         hart->csrs[MSTATUS] = val;
+    } else if(csr == FFLAGS) {
+        uint64_t cs = hart->csrs[FCSR];
+        cs &= ~31;
+        cs |= (val & 31);
+        hart->csrs[FCSR] = cs;
+    } else if(csr == FRM) {
+        uint64_t cs = hart->csrs[FCSR];
+        cs &= ~224;
+        cs |= ((val & 7)<<5);
+        hart->csrs[FCSR] = cs;
+    } else if(csr == FCSR) {
+        hart->csrs[FCSR] = val & 0xFF;
     } else if(csr == MISA || csr == MARCHID || csr == MVENDORID || csr == MIMPID || csr == MHARTID) {
         // RO: nop
     } else {

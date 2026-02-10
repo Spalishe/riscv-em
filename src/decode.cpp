@@ -420,10 +420,12 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
             case FLOAD:
                 switch(funct3) {
                     case 0x2: fn = exec_FLW; rd = d_rd(inst); rs1 = d_rs1(inst); d_imm = imm_I(inst); valid = true; break;
+                    case 0x3: fn = exec_FLD; rd = d_rd(inst); rs1 = d_rs1(inst); d_imm = imm_I(inst); valid = true; break;
                 }; break;
             case FSTORE:
                 switch(funct3) {
                     case 0x2: fn = exec_FSW; rs1 = d_rs1(inst); rs2 = d_rs2(inst); d_imm = imm_S(inst); valid = true; break;
+                    case 0x3: fn = exec_FSD; rs1 = d_rs1(inst); rs2 = d_rs2(inst); d_imm = imm_S(inst); valid = true; break;
                 }; break;
             case R_F:
                 rs2 = d_rs2(inst);
@@ -433,32 +435,39 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
                     case FADD:
                         switch(fmt) {
                             case FMT::S: fn = exec_FADD_S; valid = true; break;
+                            case FMT::D: fn = exec_FADD_D; valid = true; break;
                         }; break;
                     case FSUB:
                         switch(fmt) {
                             case FMT::S: fn = exec_FSUB_S; valid = true; break;
+                            case FMT::D: fn = exec_FSUB_D; valid = true; break;
                         }; break;
                     case FMUL:
                         switch(fmt) {
                             case FMT::S: fn = exec_FMUL_S; valid = true; break;
+                            case FMT::D: fn = exec_FMUL_D; valid = true; break;
                         }; break;
                     case FDIV:
                         switch(fmt) {
                             case FMT::S: fn = exec_FDIV_S; valid = true; break;
+                            case FMT::D: fn = exec_FDIV_D; valid = true; break;
                         }; break;
                     case FSQRT:
                         switch(fmt) {
                             case FMT::S: fn = exec_FSQRT_S; valid = true; break;
+                            case FMT::D: fn = exec_FSQRT_D; valid = true; break;
                         }; break;
                     case FMIN_MAX:
                         switch(funct3) {
                             case FMIN:
                                 switch(fmt) {
                                     case FMT::S: fn = exec_FMIN_S; valid = true; break;
+                                    case FMT::D: fn = exec_FMIN_D; valid = true; break;
                                 }; break;
                             case FMAX:
                                 switch(fmt) {
                                     case FMT::S: fn = exec_FMAX_S; valid = true; break;
+                                    case FMT::D: fn = exec_FMAX_D; valid = true; break;
                                 }; break;
                         }; break;
                     case FCVT_X_T:
@@ -466,18 +475,22 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
                             case 0:
                                 switch(fmt) {
                                     case FMT::S: fn = exec_FCVT_W_S; valid = true; break;
+                                    case FMT::D: fn = exec_FCVT_W_D; valid = true; break;
                                 }; break;
                             case 1:
                                 switch(fmt) {
                                     case FMT::S: fn = exec_FCVT_WU_S; valid = true; break;
+                                    case FMT::D: fn = exec_FCVT_WU_D; valid = true; break;
                                 }; break;
                             case 2:
                                 switch(fmt) {
                                     case FMT::S: fn = exec_FCVT_L_S; valid = true; break;
+                                    case FMT::D: fn = exec_FCVT_L_D; valid = true; break;
                                 }; break;
                             case 3:
                                 switch(fmt) {
                                     case FMT::S: fn = exec_FCVT_LU_S; valid = true; break;
+                                    case FMT::D: fn = exec_FCVT_LU_D; valid = true; break;
                                 }; break;
                         }; break;
                     case FCVT_T_X:
@@ -485,18 +498,22 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
                             case 0:
                                 switch(fmt) {
                                     case FMT::S: fn = exec_FCVT_S_W; valid = true; break;
+                                    case FMT::D: fn = exec_FCVT_D_W; valid = true; break;
                                 }; break;
                             case 1:
                                 switch(fmt) {
                                     case FMT::S: fn = exec_FCVT_S_WU; valid = true; break;
+                                    case FMT::D: fn = exec_FCVT_D_WU; valid = true; break;
                                 }; break;
                             case 2:
                                 switch(fmt) {
                                     case FMT::S: fn = exec_FCVT_S_L; valid = true; break;
+                                    case FMT::D: fn = exec_FCVT_D_L; valid = true; break;
                                 }; break;
                             case 3:
                                 switch(fmt) {
                                     case FMT::S: fn = exec_FCVT_S_LU; valid = true; break;
+                                    case FMT::D: fn = exec_FCVT_D_LU; valid = true; break;
                                 }; break;
                         }; break;
                     case FSGN:
@@ -504,14 +521,17 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
                             case FSGNJ:
                                 switch(fmt) {
                                     case FMT::S: fn = exec_FSGNJ_S; valid = true; break;
+                                    case FMT::D: fn = exec_FSGNJ_D; valid = true; break;
                                 }; break;
                             case FSGNJN:
                                 switch(fmt) {
                                     case FMT::S: fn = exec_FSGNJN_S; valid = true; break;
+                                    case FMT::D: fn = exec_FSGNJN_D; valid = true; break;
                                 }; break;
                             case FSGNJX:
                                 switch(fmt) {
                                     case FMT::S: fn = exec_FSGNJX_S; valid = true; break;
+                                    case FMT::D: fn = exec_FSGNJX_D; valid = true; break;
                                 }; break;
                         }; break;
                     case FMV_X_T:
@@ -519,29 +539,35 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
                             case 0: 
                                 switch(fmt) {
                                     case FMT::S: fn = exec_FMV_X_W; valid = true; break;
+                                    case FMT::D: fn = exec_FMV_X_D; valid = true; break;
                                 }; break;
                             case 1:
                                 switch(fmt) {
                                     case FMT::S: fn = exec_FCLASS_S; valid = true; break;
+                                    case FMT::D: fn = exec_FCLASS_D; valid = true; break;
                                 }; break;
                         }; break;
                     case FMV_T_X:
                         switch(fmt) {
                             case FMT::S: fn = exec_FMV_W_X; valid = true; break;
+                            case FMT::D: fn = exec_FMV_D_X; valid = true; break;
                         }; break;
                     case FBR:
                         switch(funct3) {
                             case FLE:
                                 switch(fmt) {
                                     case FMT::S: fn = exec_FLE_S; valid = true; break;
+                                    case FMT::D: fn = exec_FLE_D; valid = true; break;
                                 }; break;
                             case FLT:
                                 switch(fmt) {
                                     case FMT::S: fn = exec_FLT_S; valid = true; break;
+                                    case FMT::D: fn = exec_FLT_D; valid = true; break;
                                 }; break;
                             case FEQ:
                                 switch(fmt) {
                                     case FMT::S: fn = exec_FEQ_S; valid = true; break;
+                                    case FMT::D: fn = exec_FEQ_D; valid = true; break;
                                 }; break;
                         }; break;
                 };
@@ -549,6 +575,7 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
             case FMADD:
                 switch(fmt) {
                     case FMT::S: fn = exec_FMADD_S; valid = true; break;
+                    case FMT::D: fn = exec_FMADD_D; valid = true; break;
                 };
                 rd = d_rd(inst);
                 rs1 = d_rs1(inst);
@@ -558,6 +585,7 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
             case FMSUB:
                 switch(fmt) {
                     case FMT::S: fn = exec_FMSUB_S; valid = true; break;
+                    case FMT::D: fn = exec_FMSUB_D; valid = true; break;
                 };
                 rd = d_rd(inst);
                 rs1 = d_rs1(inst);
@@ -567,6 +595,7 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
             case FNMADD:
                 switch(fmt) {
                     case FMT::S: fn = exec_FNMADD_S; valid = true; break;
+                    case FMT::D: fn = exec_FNMADD_D; valid = true; break;
                 };
                 rd = d_rd(inst);
                 rs1 = d_rs1(inst);
@@ -576,6 +605,7 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
             case FNMSUB:
                 switch(fmt) {
                     case FMT::S: fn = exec_FNMSUB_S; valid = true; break;
+                    case FMT::D: fn = exec_FNMSUB_D; valid = true; break;
                 };
                 rd = d_rd(inst);
                 rs1 = d_rs1(inst);

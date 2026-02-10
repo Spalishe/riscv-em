@@ -349,6 +349,38 @@ inst_ret exec_FLT_S(HART *hart, inst_data& inst);
 inst_ret exec_FEQ_S(HART *hart, inst_data& inst);
 inst_ret exec_FCLASS_S(HART *hart, inst_data& inst);
 
+// RV64D
+inst_ret exec_FLD(HART *hart, inst_data& inst);
+inst_ret exec_FSD(HART *hart, inst_data& inst);
+inst_ret exec_FADD_D(HART *hart, inst_data& inst);
+inst_ret exec_FSUB_D(HART *hart, inst_data& inst);
+inst_ret exec_FMUL_D(HART *hart, inst_data& inst);
+inst_ret exec_FDIV_D(HART *hart, inst_data& inst);
+inst_ret exec_FSQRT_D(HART *hart, inst_data& inst);
+inst_ret exec_FMIN_D(HART *hart, inst_data& inst);
+inst_ret exec_FMAX_D(HART *hart, inst_data& inst);
+inst_ret exec_FMADD_D(HART *hart, inst_data& inst);
+inst_ret exec_FMSUB_D(HART *hart, inst_data& inst);
+inst_ret exec_FNMADD_D(HART *hart, inst_data& inst);
+inst_ret exec_FNMSUB_D(HART *hart, inst_data& inst);
+inst_ret exec_FCVT_W_D(HART *hart, inst_data& inst);
+inst_ret exec_FCVT_WU_D(HART *hart, inst_data& inst);
+inst_ret exec_FCVT_L_D(HART *hart, inst_data& inst);
+inst_ret exec_FCVT_LU_D(HART *hart, inst_data& inst);
+inst_ret exec_FCVT_D_W(HART *hart, inst_data& inst);
+inst_ret exec_FCVT_D_WU(HART *hart, inst_data& inst);
+inst_ret exec_FCVT_D_L(HART *hart, inst_data& inst);
+inst_ret exec_FCVT_D_LU(HART *hart, inst_data& inst);
+inst_ret exec_FSGNJ_D(HART *hart, inst_data& inst);
+inst_ret exec_FSGNJN_D(HART *hart, inst_data& inst);
+inst_ret exec_FSGNJX_D(HART *hart, inst_data& inst);
+inst_ret exec_FMV_X_D(HART *hart, inst_data& inst);
+inst_ret exec_FMV_D_X(HART *hart, inst_data& inst);
+inst_ret exec_FLE_D(HART *hart, inst_data& inst);
+inst_ret exec_FLT_D(HART *hart, inst_data& inst);
+inst_ret exec_FEQ_D(HART *hart, inst_data& inst);
+inst_ret exec_FCLASS_D(HART *hart, inst_data& inst);
+
 //// SYSTEM
 
 inst_ret exec_MRET(HART *hart, inst_data& inst);

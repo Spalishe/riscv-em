@@ -110,6 +110,7 @@ struct FPRValue {
 struct HART {
     uint64_t GPR[32];
     FPRValue FPR[32];
+    std::vector<uint64_t> DEBUG_prev_pcs;
     uint64_t pc = DRAM_BASE;
     uint64_t csrs[4069];
     PrivilegeMode mode = PrivilegeMode::Machine;

@@ -295,7 +295,7 @@ inst_ret exec_JAL(HART *hart, inst_data& inst) {
 }
 inst_ret exec_JALR(HART *hart, inst_data& inst) {
 	uint64_t tmp = hart->pc;
-    uint64_t target = (hart->GPR[inst.rs1] + (int64_t) inst.imm) & ~1;
+    uint64_t target = (hart->GPR[inst.rs1] + (int64_t) inst.imm) & ~3;
     if(target % 4 != 0) {
         hart_trap(*hart,EXC_INST_ADDR_MISALIGNED,target,false);
         return false;

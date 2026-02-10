@@ -21,16 +21,6 @@ Copyright 2026 Spalishe
 #include <cmath>
 #include <cfenv>
 
-/*bool isNegativeZero(double x) {
-    uint64_t val = std::bit_cast<uint64_t>(x);
-    return (val & 1 << 63) != 0;
-}*/
-bool isNegativeZero(float x) {
-    // I need that function because C++ cant disguise negative zero and positive zero
-    uint32_t val = std::bit_cast<uint32_t>(x);
-    return (val & 1 << 31) != 0;
-}
-
 FPRValue custom_min(FPRValue t1, FPRValue t2) {
     if(isnan((float)t1) && isnan((float)t2)) {
         return std::bit_cast<float>(F_QNAN);
@@ -44,9 +34,9 @@ FPRValue custom_min(FPRValue t1, FPRValue t2) {
         return t1;
     }
     else {
-        if(!isNegativeZero((float)t1.val) && isNegativeZero((float)t2.val)) {
+        if(!std::signbit((float)t1.val) && std::signbit((float)t2.val)) {
             return t2;
-        } else if(isNegativeZero((float)t1.val) && !isNegativeZero((float)t2.val)) {
+        } else if(std::signbit((float)t1.val) && !std::signbit((float)t2.val)) {
             return t1;
         } else {
             return ((float)t1.val > (float)t2.val) ? t2 : t1;
@@ -66,9 +56,9 @@ FPRValue custom_max(FPRValue t1, FPRValue t2) {
         return t1;
     }
     else {
-        if(!isNegativeZero((float)t1.val) && isNegativeZero((float)t2.val)) {
+        if(!std::signbit((float)t1.val) && std::signbit((float)t2.val)) {
             return t1;
-        } else if(isNegativeZero((float)t1.val) && !isNegativeZero((float)t2.val)) {
+        } else if(std::signbit((float)t1.val) && !std::signbit((float)t2.val)) {
             return t2;
         } else {
             return ((float)t1.val < (float)t2.val) ? t2 : t1;
@@ -164,22 +154,26 @@ inst_ret exec_FSW(HART *hart, inst_data& inst) {
 
 inst_ret exec_FADD_S(HART *hart, inst_data& inst) {
     std::feclearexcept(FE_ALL_EXCEPT);
-    hart->FPR[inst.rd] = update_fflags(hart,(double)((float)hart->FPR[inst.rs1] + (float)hart->FPR[inst.rs2]),inst);
+    hart->FPR[inst.rd] = update_fflags(hart,(double)((float)hart->FPR[inst.rs1] + (float)hart->FPR[inst.rs2]));
     return true;
 }
 inst_ret exec_FSUB_S(HART *hart, inst_data& inst) {
     std::feclearexcept(FE_ALL_EXCEPT);
-    hart->FPR[inst.rd] = update_fflags(hart,(double)((float)hart->FPR[inst.rs1] - (float)hart->FPR[inst.rs2]),inst);
+    float res = ((float)hart->FPR[inst.rs1].val - (float)hart->FPR[inst.rs2]);
+    if(isinff((float)hart->FPR[inst.rs1].val) && isinff((float)hart->FPR[inst.rs2].val)) {res = std::bit_cast<float>(F_QNAN); std::feraiseexcept(FE_INVALID);}
+    hart->FPR[inst.rd] = update_fflags(hart,(double)res);
     return true;
 }
 inst_ret exec_FMUL_S(HART *hart, inst_data& inst) {
     std::feclearexcept(FE_ALL_EXCEPT);
-    hart->FPR[inst.rd] = update_fflags(hart,(double)((float)hart->FPR[inst.rs1] * (float)hart->FPR[inst.rs2]),inst);
+    hart->FPR[inst.rd] = update_fflags(hart,(double)((float)hart->FPR[inst.rs1] * (float)hart->FPR[inst.rs2]));
     return true;
 }
 inst_ret exec_FDIV_S(HART *hart, inst_data& inst) {
     std::feclearexcept(FE_ALL_EXCEPT);
-    hart->FPR[inst.rd] = update_fflags(hart,(double)((float)hart->FPR[inst.rs1] / (float)hart->FPR[inst.rs2]),inst);
+    float res = ((float)hart->FPR[inst.rs1].val / (float)hart->FPR[inst.rs2]);
+    if(isinff((float)hart->FPR[inst.rs1].val) && isinff((float)hart->FPR[inst.rs2].val)) {res = std::bit_cast<float>(F_QNAN); std::feraiseexcept(FE_INVALID);}
+    hart->FPR[inst.rd] = update_fflags(hart,(double)res);
     return true;
 }
 
@@ -187,9 +181,9 @@ inst_ret exec_FSQRT_S(HART *hart, inst_data& inst) {
     std::feclearexcept(FE_ALL_EXCEPT);
     if(hart->FPR[inst.rs1].val < 0) {
         std::feraiseexcept(FE_INVALID);
-        hart->FPR[inst.rd] = update_fflags(hart,std::bit_cast<float>(F_QNAN),inst);
+        hart->FPR[inst.rd] = update_fflags(hart,std::bit_cast<float>(F_QNAN));
     }
-    else hart->FPR[inst.rd] = update_fflags(hart,sqrtf((float)hart->FPR[inst.rs1]),inst);
+    else hart->FPR[inst.rd] = update_fflags(hart,sqrtf((float)hart->FPR[inst.rs1]));
     return true;
 }
 
@@ -207,23 +201,23 @@ inst_ret exec_FMAX_S(HART *hart, inst_data& inst) {
 
 inst_ret exec_FMADD_S(HART *hart, inst_data& inst) {
     std::feclearexcept(FE_ALL_EXCEPT);
-    hart->FPR[inst.rd] = update_fflags(hart,(double)(((float)hart->FPR[inst.rs1] * (float)hart->FPR[inst.rs2]) + (float)hart->FPR[inst.rs3]),inst);
+    hart->FPR[inst.rd] = update_fflags(hart,(double)(((float)hart->FPR[inst.rs1] * (float)hart->FPR[inst.rs2]) + (float)hart->FPR[inst.rs3]));
     return true;
 }
 inst_ret exec_FMSUB_S(HART *hart, inst_data& inst) {
     std::feclearexcept(FE_ALL_EXCEPT);
-    hart->FPR[inst.rd] = update_fflags(hart,(double)(((float)hart->FPR[inst.rs1] * (float)hart->FPR[inst.rs2]) - (float)hart->FPR[inst.rs3]),inst);
+    hart->FPR[inst.rd] = update_fflags(hart,(double)(((float)hart->FPR[inst.rs1] * (float)hart->FPR[inst.rs2]) - (float)hart->FPR[inst.rs3]));
     return true;
 }
 
 inst_ret exec_FNMADD_S(HART *hart, inst_data& inst) {
     std::feclearexcept(FE_ALL_EXCEPT);
-    hart->FPR[inst.rd] = update_fflags(hart,(double)(-((float)hart->FPR[inst.rs1] * (float)hart->FPR[inst.rs2]) - (float)hart->FPR[inst.rs3]),inst);
+    hart->FPR[inst.rd] = update_fflags(hart,(double)(-((float)hart->FPR[inst.rs1] * (float)hart->FPR[inst.rs2]) - (float)hart->FPR[inst.rs3]));
     return true;
 }
 inst_ret exec_FNMSUB_S(HART *hart, inst_data& inst) {
     std::feclearexcept(FE_ALL_EXCEPT);
-    hart->FPR[inst.rd] = update_fflags(hart,(double)(-((float)hart->FPR[inst.rs1] * (float)hart->FPR[inst.rs2]) + (float)hart->FPR[inst.rs3]),inst);
+    hart->FPR[inst.rd] = update_fflags(hart,(double)(-((float)hart->FPR[inst.rs1] * (float)hart->FPR[inst.rs2]) + (float)hart->FPR[inst.rs3]));
     return true;
 }
 
@@ -321,7 +315,7 @@ inst_ret exec_FCVT_S_LU(HART *hart, inst_data& inst) {
 
 inst_ret exec_FSGNJ_S(HART *hart, inst_data& inst) {
     std::feclearexcept(FE_ALL_EXCEPT);
-    hart->FPR[inst.rd] = update_fflags(hart,(double)copysignf(hart->FPR[inst.rs1],hart->FPR[inst.rs2]));
+    hart->FPR[inst.rd] = update_fflags(hart,(double)copysignf((float)hart->FPR[inst.rs1],(float)hart->FPR[inst.rs2]));
     return true;
 }
 inst_ret exec_FSGNJN_S(HART *hart, inst_data& inst) {
