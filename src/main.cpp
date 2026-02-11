@@ -25,6 +25,8 @@ Copyright 2026 Spalishe
 
 /*
 	TODO:
+		- Fix the problem that kernel is stuck in arch_cpu_idle -> handle_exception -> arch_cpu_idle
+
 		-RV64F
 		-RV64D
 

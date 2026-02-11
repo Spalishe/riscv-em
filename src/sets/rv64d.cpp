@@ -21,6 +21,8 @@ Copyright 2026 Spalishe
 #include <cmath>
 #include <cfenv>
 
+//FIXME: TODO: Finish; Not all tests passed
+
 template <typename T>
 T saturate_round(double f) {
     double rounded = std::round(f);

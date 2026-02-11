@@ -92,6 +92,7 @@ void hart_step(HART& h) {
             block->valid = true;
             block->start_pc = h.block_creation_start_pc;
             block->instrs.clear();
+            block->size = 0;
         }
     }
     if(h.is_creating_block) {
@@ -120,6 +121,8 @@ void hart_step(HART& h) {
                     // Stop compiling, invalidate this block
                     h.is_creating_block = false;
                     block->valid = false;
+                } else {
+                    block->size += ret.isCompressed ? 2 : 4;
                 }
             }
         }
@@ -129,6 +132,10 @@ void hart_step(HART& h) {
         if(block->valid == true && block->start_pc == h.pc) {
             // Execute block
             for(inst_data dat : block->instrs) {
+                if(h.pc < block->start_pc || h.pc >= block->start_pc + block->size){
+                    // Interrupt
+                    break;
+                }
                 inst_ret ret = hart_execute(h,dat);
                 if(ret.increasePC == false) {
                     // Probably branch case / TRAP
@@ -142,7 +149,6 @@ inst_ret hart_execute(HART& h, inst_data inst) {
     inst_ret success = inst.fn(&h,inst);
     if(success.increasePC) {
         h.csrs[INSTRET]++;
-        h.DEBUG_prev_pcs.push_back( h.pc);
         h.pc += success.isCompressed ? 2 : 4;
     }
     return success;
@@ -186,18 +192,26 @@ void hart_check_interrupts(HART& h) {
     return;
 }
 
+bool hart_have_local_pending(HART& h) {
+    uint64_t mip = h.csrs[MIP];
+    uint64_t mie = h.csrs[MIE];
+    uint64_t sip = csr_read(&h,SIP);
+    uint64_t sie = csr_read(&h,SIE);
+    uint64_t mideleg = h.csrs[MIDELEG];
+
+    uint64_t pending = mip & mie & ~mideleg;
+    uint64_t pending_s = sip & sie & mideleg;
+
+    if (h.mode > PrivilegeMode::Supervisor) pending_s = 0;
+
+    return pending | pending_s;
+}
+
 void hart_trap(HART& h, uint64_t cause, uint64_t tval, bool is_interrupt) {
     h.WFI = false;
 
     uint64_t trap_pc = h.pc;
     PrivilegeMode prev_mode = h.mode;
-
-    if(!is_interrupt) {
-        std::cout << "cause: " << cause << " pcs: " << std::endl;
-        for(uint64_t i = h.DEBUG_prev_pcs.size(); i > h.DEBUG_prev_pcs.size()-10; i--) {
-            std::cout << std::format("0x{:08x}",h.DEBUG_prev_pcs[i]) << std::endl;
-        }
-    }
 
     uint64_t medeleg = h.csrs[MEDELEG];
     uint64_t mideleg = h.csrs[MIDELEG];

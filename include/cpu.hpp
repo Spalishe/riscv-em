@@ -66,6 +66,7 @@ struct InstructionBlock {
     bool valid = false;
     uint64_t start_pc;
     std::vector<inst_data> instrs;
+    uint64_t size;
 };
 
 struct FPRValue {
@@ -110,7 +111,6 @@ struct FPRValue {
 struct HART {
     uint64_t GPR[32];
     FPRValue FPR[32];
-    std::vector<uint64_t> DEBUG_prev_pcs;
     uint64_t pc = DRAM_BASE;
     uint64_t csrs[4069];
     PrivilegeMode mode = PrivilegeMode::Machine;
@@ -141,6 +141,7 @@ uint32_t hart_fetch(HART&, uint64_t _pc);
 void hart_step(HART&);
 inst_ret hart_execute(HART&, inst_data inst);
 void hart_check_interrupts(HART&);
+bool hart_have_local_pending(HART& h);
 void hart_trap(HART&, uint64_t cause, uint64_t tval, bool is_interrupt);
 
 inline uint64_t riscv_mkmisa(const char* str)

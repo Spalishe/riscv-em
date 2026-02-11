@@ -42,11 +42,16 @@ void machine_run(Machine& cpu) {
         for (auto& h : cpu.harts) {
 			cpu.plic->plic_service(h);
 			h->GPR[0] = 0;
-            hart_check_interrupts(*h);
             if(h->WFI) {
+            	hart_check_interrupts(*h);
+				if(hart_have_local_pending(*h)) {
+					// We must continue execution even if we has locally pending interruptions
+					h->WFI = false;
+				}
                 continue;
             }
             hart_step(*h);
+            hart_check_interrupts(*h);
         }
 
         cpu.clint->tick();
