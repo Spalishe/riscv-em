@@ -40,14 +40,16 @@ TRIPLET_4     := $(word 4,$(TRIPLET_WORDS))
 ifeq ($(shell which $(CXX) 2>/dev/null),)
     $(error [FATAL] Compiler '$(CXX)' not found.)
 endif
-CXX_MAJOR := $(shell $(CXX) --version | head -n 1)
+CXX_VERSION := $(shell $(CXX) --version | head -n 1)
+LD_VERSION := $(shell $(LD) --version | head -n 1)
 
 all:
 	@echo "$$banner"
 	@echo "Branch: $(GIT_BRANCH)-$(GIT_HASH)"
 	@echo "Target arch: $(TRIPLET_ARCH)"
 	@echo "Detected OS: $(shell uname -s)"
-	@echo "Detected CXX: $(CXX_MAJOR)"
+	@echo "Detected CXX: $(CXX_VERSION)"
+	@echo "Detected LD: $(LD_VERSION)"
 	@echo
 	mkdir -p build
 	cd build && cmake -DCMAKE_BUILD_TYPE=DEBUG .. && make
