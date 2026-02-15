@@ -18,10 +18,11 @@ Copyright 2026 Spalishe
 #pragma once
 
 #include "mmio.h"
+#include "../structs/timecmp_st.hpp"
 
 #define ACLINT_MSWI_SIZE   0x4000
 #define ACLINT_MTIMER_SIZE 0x8000
-#define ACLINT_FREQ_HZ     0xF989680 // 100000
+#define ACLINT_FREQ_HZ     10000000
 
 struct ACLINT : public Device {
     ACLINT(uint64_t base, Machine& cpu, fdt_node* fdt);
@@ -29,7 +30,7 @@ struct ACLINT : public Device {
     // Memory-mapped registers
     std::vector<uint32_t> msip;      // one per HART, 32-bit
     std::vector<uint64_t> mtimecmp;  // one per HART, 64-bit
-    uint64_t mtime = 0; // global timer
+    uint64_t mtime; // global timer
 
     void tick();
     uint64_t read(HART* hart, uint64_t addr, uint64_t size);
@@ -38,9 +39,5 @@ struct ACLINT : public Device {
     uint64_t read_mtimer(HART* hart, uint64_t offset);
     void write_mswi(HART* hart, uint64_t offset, uint64_t value);
     void write_mtimer(HART* hart, uint64_t offset, uint64_t value);
-
-private:
-    std::chrono::steady_clock::time_point last;
-    double ns_accum = 0;
     void update_mip(HART* hart);
 };

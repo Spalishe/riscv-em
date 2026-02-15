@@ -19,12 +19,28 @@ Copyright 2026 Spalishe
 #include "../../include/libfdt.hpp"
 #include "../../include/main.hpp"
 
+/*
+    FIXME:
+        ACLINT has a major problem: it inconsistent
+        Need to slow it down somehow.
+        Reject idea with chrono, i tried it. It consistent, but linux excepts something else??? 
+        
+        !! UPDATE !!:
+        It seems that i whatever i used host time or the consistent time, it still fails.
+        Seems like smth inside ACLINT is broken, rather than MTIME.
+        I just rn looked up through multiple repos on git, including spike, and they all use simple mtime++ 
+*/
+
 ACLINT::ACLINT(uint64_t base, Machine& cpu, fdt_node* fdt)
     : Device(base, 0x10000, cpu),
         msip(cpu.core_count, 0),
-        mtimecmp(cpu.core_count, 0)
-{    
-    last = std::chrono::steady_clock::now();
+        mtimecmp(cpu.core_count)
+{   
+    //timer_init(&mtime,ACLINT_FREQ_HZ);
+    //for(int i = 0; i < cpu.core_count; i++) {
+    //    timecmp_init(&mtimecmp[i],&mtime);
+    //}
+    
     if(fdt != NULL) {
         struct fdt_node* cpus = fdt_node_find(fdt, "cpus");
         std::vector<uint32_t> irq_ext = {}; 
@@ -54,9 +70,7 @@ ACLINT::ACLINT(uint64_t base, Machine& cpu, fdt_node* fdt)
 
 void ACLINT::tick() {
     mtime += 1;
-
     for(HART* hrt : cpu.harts) {
-        hrt->csrs[TIME] = mtime;
         update_mip(hrt);
     }
 }
@@ -90,8 +104,10 @@ uint64_t ACLINT::read_mswi(HART* hart, uint64_t offset) {
 uint64_t ACLINT::read_mtimer(HART* hart, uint64_t offset) {
     uint64_t hart_id = offset >> 3;
     if(offset == 0x7FF8) {
+        //return timer_get(&mtime);
         return mtime;
     }
+    //return timecmp_get(&mtimecmp[hart_id]);
     return mtimecmp[hart_id];
 }
 void ACLINT::write_mswi(HART* hart, uint64_t offset, uint64_t value) {
@@ -102,10 +118,12 @@ void ACLINT::write_mswi(HART* hart, uint64_t offset, uint64_t value) {
 void ACLINT::write_mtimer(HART* hart, uint64_t offset, uint64_t value) {
     uint64_t hart_id = offset >> 3;
     if (offset == 0x7FF8) {
+        //timer_set(&mtime,value);
         mtime = value;
         return;
     }
 
+    //timecmp_set(&mtimecmp[hart_id],value);
     mtimecmp[hart_id] = value;
     update_mip(cpu.harts[hart_id]);
 }
@@ -120,7 +138,7 @@ void ACLINT::update_mip(HART* hart) {
     else
         mip &= ~(1ULL << MIP_MSIP);
 
-    if (mtime >= mtimecmp[hart_id] && mtimecmp[hart_id] != 0)
+    if (mtime >= mtimecmp[hart_id])
         mip |= (1ULL << MIP_MTIP);
     else
         mip &= ~(1ULL << MIP_MTIP);

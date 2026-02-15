@@ -49,6 +49,8 @@ struct HART;
 
 struct inst_data;
 
+struct ACLINT;
+
 enum class PrivilegeMode {
     User = 0,
     Supervisor = 1,
@@ -120,6 +122,7 @@ struct HART {
 	uint8_t id = 0;
 
     MMIO* mmio;
+    ACLINT* aclint;
 
     bool WFI = false;
 

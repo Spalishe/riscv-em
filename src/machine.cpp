@@ -25,7 +25,6 @@ Copyright 2026 Spalishe
 void machine_run(Machine& cpu) {
     cpu.state = cpu.gdb ? MachineState::Halted : MachineState::Running;
 
-
     while(cpu.state != MachineState::PoweredOff) {
 		if (cpu.state == MachineState::PoweringOff) {
 			cpu.state = MachineState::PoweredOff;
@@ -39,6 +38,7 @@ void machine_run(Machine& cpu) {
             continue;
         }
 		termios_loop(cpu.uart,cpu);
+		cpu.clint->tick();
         for (auto& h : cpu.harts) {
 			cpu.plic->plic_service(h);
 			h->GPR[0] = 0;
@@ -54,7 +54,6 @@ void machine_run(Machine& cpu) {
             hart_check_interrupts(*h);
         }
 
-        cpu.clint->tick();
 		if(cpu.gdb_single_step) {
 			cpu.gdb_single_step = false;
 			cpu.state = MachineState::Halted;
@@ -235,6 +234,7 @@ void machine_create_harts(Machine& cpu) {
         HART* hart = new HART();
         hart->mmio = cpu.mmio;
         hart->id = i;
+		hart->aclint = cpu.clint;
         hart_reset(*hart,dtb_path_in_memory);
 		cpu.harts.push_back(hart);
     }
