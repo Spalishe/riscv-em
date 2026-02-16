@@ -72,8 +72,12 @@ struct Machine {
     std::vector<HART*> harts;
 
     MachineState state = MachineState::PoweredOff;
+
+    #ifdef USE_GDBSTUB
     bool gdb = false;
     bool gdb_single_step = false;
+    #endif
+
     bool dtb_is_file = false;
 };
 

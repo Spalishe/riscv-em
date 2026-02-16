@@ -46,28 +46,29 @@ int main(int argc, char* argv[]) {
 
 	parser.addArgument("--dtb", "Use specified FDT instead of auto-generated",false,false,Argparser::ArgumentType::str);
 	parser.addArgument("--dumpdtb", "Dumps auto-generated FDT to file",false,false,Argparser::ArgumentType::str);
-	parser.addArgument("--gdb", "Starts GDB Stub on port 1512", false, false, Argparser::ArgumentType::def);
 	parser.addArgument("--append", "Append command line arguments", false, false, Argparser::ArgumentType::str);
+	#ifdef USE_GDBSTUB
+		parser.addArgument("--gdb", "Starts GDB Stub on port 1512", false, false, Argparser::ArgumentType::def);
+	#endif
 
 	parser.parse();
-
-	std::string cmdline_append;
-	if(parser.getDefined(6)) {
-		cmdline_append = parser.getString(6);
-		std::cout << "Custom cmdargs defined: " << cmdline_append << std::endl;
-	}
 
 	bool kernel_has = parser.getDefined(1);
 	bool image_has = parser.getDefined(2);
 
 	bool dtb_has = parser.getDefined(3);
 	bool dtb_dump_has = parser.getDefined(4);
-	bool gdb_stub = parser.getDefined(5);
+
+	std::string cmdline_append;
+	if(parser.getDefined(5)) {
+		cmdline_append = parser.getString(5);
+		std::cout << "Custom cmdargs defined: " << cmdline_append << std::endl;
+	}
 
 	Machine VM = Machine();
 	VM.core_count = 1;
 	VM.memsize = DRAM_SIZE;
-	VM.gdb = gdb_stub;
+
 	machine_create_memory(VM);
 
 	bool file_has = parser.getDefined(0);
@@ -89,10 +90,15 @@ int main(int argc, char* argv[]) {
 	termios_start();
 	
 	std::thread VM_thread(machine_run,std::ref(VM));
-	if(gdb_stub) {
-		std::thread GDB_thread(GDB_Create,VM.harts[0],&VM);
-		GDB_thread.join();
-	}
+
+	#ifdef USE_GDBSTUB
+		bool gdb_stub = parser.getDefined(6);
+		VM.gdb = gdb_stub;
+		if(gdb_stub) {
+			std::thread GDB_thread(GDB_Create,VM.harts[0],&VM);
+			GDB_thread.join();
+		}
+	#endif
 
 	VM_thread.join();
 	

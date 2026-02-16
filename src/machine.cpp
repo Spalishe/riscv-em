@@ -23,7 +23,11 @@ Copyright 2026 Spalishe
 #include "../include/termios.hpp"
 
 void machine_run(Machine& cpu) {
-    cpu.state = cpu.gdb ? MachineState::Halted : MachineState::Running;
+	#ifdef USE_GDBSTUB
+		cpu.state = cpu.gdb ? MachineState::Halted : MachineState::Running;
+	#else
+		cpu.state = MachineState::Running;
+	#endif
 
     while(cpu.state != MachineState::PoweredOff) {
 		if (cpu.state == MachineState::PoweringOff) {
@@ -31,9 +35,11 @@ void machine_run(Machine& cpu) {
 			break;
 		}
         if (cpu.state == MachineState::Halted) {
-			if(cpu.gdb_single_step) {
-				cpu.state = MachineState::Running;
-			}
+			#ifdef USE_GDBSTUB
+				if(cpu.gdb_single_step) {
+					cpu.state = MachineState::Running;
+				}
+			#endif
             std::this_thread::yield();
             continue;
         }
@@ -53,11 +59,13 @@ void machine_run(Machine& cpu) {
             hart_step(*h);
             hart_check_interrupts(*h);
         }
-
-		if(cpu.gdb_single_step) {
-			cpu.gdb_single_step = false;
-			cpu.state = MachineState::Halted;
-		}
+		
+		#ifdef USE_GDBSTUB
+			if(cpu.gdb_single_step) {
+				cpu.gdb_single_step = false;
+				cpu.state = MachineState::Halted;
+			}
+		#endif
     }
     machine_destroy_harts(cpu);
 }

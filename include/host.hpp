@@ -17,17 +17,12 @@ Copyright 2026 Spalishe
 
 #pragma once
 
-#include <unistd.h>
-#include <cstdint>
-#include "cpu.hpp"
-#include "machine.hpp"
+#undef HOST_TARGET_X86_64
+#undef HOST_TARGET_AARCH64
 
-struct HART;
-struct Machine;
-
-#ifdef USE_GDBSTUB
-void GDB_Create(HART* hart, Machine* cpu);
-void GDB_Stop();
-void GDB_Loop();
-void GDB_EBREAK();
+#if defined(__x86_64__)
+    #define HOST_TARGET_X86_64 1
+#endif
+#if defined(__aarch64__)
+    #define HOST_TARGET_AARCH64 1
 #endif

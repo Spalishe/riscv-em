@@ -26,6 +26,8 @@ Copyright 2026 Spalishe
 #include <algorithm>
 #include <bit>
 
+#ifdef USE_GDBSTUB
+
 using namespace std;
 #pragma error disable 
 
@@ -667,3 +669,4 @@ void GDB_Loop() {
     close(gdb_recv);
     if(gdb_isR) GDB_Loop();
 }
+#endif
