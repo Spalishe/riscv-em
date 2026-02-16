@@ -164,6 +164,7 @@ extern inst_data parse_instruction(HART* hart, uint32_t inst, uint64_t pc);
 
 #define FENCE     0xF
 
+#ifdef USE_FPU
 #define R_F       0x53
     #define FADD 0x0
     #define FSUB 0x1
@@ -193,6 +194,7 @@ extern inst_data parse_instruction(HART* hart, uint32_t inst, uint64_t pc);
 #define FNMSUB    0x4B
 #define FLOAD     0x7
 #define FSTORE    0x27
+#endif
 
 //// RV64I
 // R-Type
@@ -317,6 +319,7 @@ inst_ret exec_AMOMAX_W(HART *hart, inst_data& inst);
 inst_ret exec_AMOMINU_W(HART *hart, inst_data& inst);
 inst_ret exec_AMOMAXU_W(HART *hart, inst_data& inst);
 
+#ifdef USE_FPU
 // RV64F
 inst_ret exec_FLW(HART *hart, inst_data& inst);
 inst_ret exec_FSW(HART *hart, inst_data& inst);
@@ -380,6 +383,8 @@ inst_ret exec_FLE_D(HART *hart, inst_data& inst);
 inst_ret exec_FLT_D(HART *hart, inst_data& inst);
 inst_ret exec_FEQ_D(HART *hart, inst_data& inst);
 inst_ret exec_FCLASS_D(HART *hart, inst_data& inst);
+
+#endif
 
 //// SYSTEM
 

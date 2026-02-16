@@ -31,7 +31,12 @@ Copyright 2026 Spalishe
 #include <functional>
 
 void hart_reset(HART& h, uint64_t dtb_path) {
-    for(int i = 0; i < 32; i++) {h.GPR[i] = 0; h.FPR[i] = 0.0;}
+    for(int i = 0; i < 32; i++) {
+        h.GPR[i] = 0; 
+        #ifdef USE_FPU
+        h.FPR[i] = 0.0;
+        #endif
+    }
     for(int i = 0; i < 4069; i++) {h.csrs[i] = 0;}
 
 	h.pc = DRAM_BASE;
@@ -39,7 +44,11 @@ void hart_reset(HART& h, uint64_t dtb_path) {
 
 	h.GPR[11] = dtb_path;
 
-	h.csrs[MISA] = riscv_mkmisa("imasu");
+    std::string fpustr = "";
+    #ifdef USE_FPU
+    fpustr = "fd";
+    #endif
+	h.csrs[MISA] = riscv_mkmisa(std::format("imasu%s",fpustr).c_str());
 	h.csrs[MVENDORID] = 0; 
 	h.csrs[MARCHID] = 0; 
 	h.csrs[MIMPID] = 0;

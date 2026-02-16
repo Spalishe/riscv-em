@@ -417,6 +417,7 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
                         canChangePC = true;
                         break;
                 }; break;
+            #ifdef USE_FPU
             case FLOAD:
                 switch(funct3) {
                     case 0x2: fn = exec_FLW; rd = d_rd(inst); rs1 = d_rs1(inst); d_imm = imm_I(inst); valid = true; break;
@@ -612,6 +613,7 @@ inst_data parse_instruction(struct HART* hart, uint32_t inst, uint64_t pc) {
                 rs2 = d_rs2(inst);
                 rs3 = d_rs3(inst);
                 break;
+            #endif
 
             //default: hart->cpu_trap(EXC_ILLEGAL_INSTRUCTION,inst,false); std::cout << "[WARNING] Unknown instruction: " << inst << std::endl; valid = true; break;
         }

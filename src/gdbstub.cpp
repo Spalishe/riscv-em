@@ -100,6 +100,7 @@ vector<tuple<string,uint32_t,char,optional<vector<tuple<string,uint8_t,uint8_t>>
     {"t6", 31, 'g', nullopt},
     {"pc", 32, 'g', nullopt},
 
+    #ifdef USE_FPU
     {"f0", 33, 'f', nullopt},
     {"f1", 34, 'f', nullopt},
     {"f2", 35, 'f', nullopt},
@@ -132,6 +133,7 @@ vector<tuple<string,uint32_t,char,optional<vector<tuple<string,uint8_t,uint8_t>>
     {"f29", 62, 'f', nullopt},
     {"f30", 63, 'f', nullopt},
     {"f31", 64, 'f', nullopt},
+    #endif
 
     {"mstatus", MSTATUS, 'c', vector<tuple<string,uint8_t,uint8_t>>{
         {"SIE", 1, 1},
@@ -191,6 +193,7 @@ vector<tuple<string,uint32_t,char,optional<vector<tuple<string,uint8_t,uint8_t>>
         {"ASID",SATP_ASID_LOW,SATP_ASID_HIGH},
         {"PPN",SATP_PPN_LOW,SATP_PPN_HIGH},
     }},
+    #ifdef USE_FPU
     {"fcsr", FCSR+5000, 'c', vector<tuple<string,uint8_t,uint8_t>>{
         {"FRM",5,7},
         {"NX",0,0},
@@ -199,6 +202,7 @@ vector<tuple<string,uint32_t,char,optional<vector<tuple<string,uint8_t,uint8_t>>
         {"DZ",3,3},
         {"NV",4,4},
     }},
+    #endif
     {"priv", 65, 'v', nullopt},
 };
 
@@ -229,6 +233,7 @@ string GDB_CreateXML() {
             }
         }
     }
+    #ifdef USE_FPU
     output << "  </feature>" << endl;
     output << R"(  <feature name="org.gnu.gdb.riscv.fpu">)" << endl;
     //<union id="riscv_double">\n    <field name="float" type="ieee_single"/>\n    <field name="double" type="ieee_double"/>\n  </union>
@@ -244,6 +249,7 @@ string GDB_CreateXML() {
             output << format(R"(    <reg name="{}" bitsize="{}" type="riscv_double"/>)", get<0>(cur_reg), 64);
         }
     }
+    #endif
     output << "  </feature>" << endl;
     output << R"(  <feature name="org.gnu.gdb.riscv.virtual">)" << endl;
     for(uint64_t i = 0; i < xml_data.size(); i++)
@@ -476,7 +482,9 @@ void GDB_parsePacket(const char* buffer) {
                 GDB_sendPacket(to_little_endian_hex(gdb_hart->pc));
             } else if(idx > 32 && idx < 64) {
                 //fpu
+                #ifdef USE_FPU
                 GDB_sendPacket(to_little_endian_hex(std::bit_cast<uint64_t>(gdb_hart->FPR[idx-33].val)));
+                #endif
             } else if(idx >= 64) {
                 //csr
                 if(idx == 65) {
@@ -504,7 +512,9 @@ void GDB_parsePacket(const char* buffer) {
                 //pc
                 gdb_hart->pc = num;
             } else if(idx > 32 && idx < 64) {
+                #ifdef USE_FPU
                 gdb_hart->FPR[idx-33] = (double)num;
+                #endif
             } else if(idx >= 64) {
                 if(idx == 33) {
                     //priv

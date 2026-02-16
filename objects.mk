@@ -1,3 +1,4 @@
 USE_GDBSTUB ?= 1
+USE_FPU ?= 1
 
 USE_VARS := $(filter USE_%,$(.VARIABLES))

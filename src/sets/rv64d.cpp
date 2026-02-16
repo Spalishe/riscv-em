@@ -21,6 +21,8 @@ Copyright 2026 Spalishe
 #include <cmath>
 #include <cfenv>
 
+#ifdef USE_FPU
+
 //FIXME: TODO: Finish; Not all tests passed
 
 template <typename T>
@@ -409,3 +411,5 @@ inst_ret exec_FCLASS_D(HART *hart, inst_data& inst) {
     hart->GPR[inst.rd] = out;
     return true;
 }
+
+#endif

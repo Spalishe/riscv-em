@@ -31,6 +31,7 @@ Copyright 2026 Spalishe
 
 #define HART_INST_EXECUTION_COUNT_CAP 50 // After that number block will be created
 
+#ifdef USE_FPU
 inline bool is_qnan(float d) {
     if(!std::isnan(d)) return false;
     uint32_t bits = std::bit_cast<uint32_t>(d);
@@ -42,6 +43,7 @@ inline bool is_snan(float d) {
     uint32_t bits = std::bit_cast<uint32_t>(d);
     return (bits >= 0x7F800001 && bits <= 0x7FBFFFFF) || (bits >= 0xFF800001 && bits <= 0xFFBFFFFF);
 }
+#endif
 
 struct MMIO;
 
@@ -71,6 +73,7 @@ struct InstructionBlock {
     uint64_t size;
 };
 
+#ifdef USE_FPU
 struct FPRValue {
     double val;
     bool is_signaling_nan;
@@ -109,10 +112,13 @@ struct FPRValue {
         is_quiet_nan = false;
     }
 };
+#endif
 
 struct HART {
     uint64_t GPR[32];
-    FPRValue FPR[32];
+    #ifdef USE_FPU
+        FPRValue FPR[32];
+    #endif
     uint64_t pc = DRAM_BASE;
     uint64_t csrs[4069];
     PrivilegeMode mode = PrivilegeMode::Machine;

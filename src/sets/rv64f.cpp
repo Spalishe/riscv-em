@@ -21,6 +21,8 @@ Copyright 2026 Spalishe
 #include <cmath>
 #include <cfenv>
 
+#ifdef USE_FPU
+
 FPRValue custom_min(FPRValue t1, FPRValue t2) {
     if(isnan((float)t1) && isnan((float)t2)) {
         return std::bit_cast<float>(F_QNAN);
@@ -407,3 +409,5 @@ inst_ret exec_FCLASS_S(HART *hart, inst_data& inst) {
     hart->GPR[inst.rd] = out;
     return true;
 }
+
+#endif
