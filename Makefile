@@ -85,7 +85,7 @@ endif
 CXX_VERSION := $(shell $(CXX) --version | head -n 1)
 
 LIBS := -latomic
-CXXFLAGS := -std=c++20 $(LIBS) -O3 -Iinclude
+CXXFLAGS := -std=c++20 -std=gnu++20 $(LIBS) -O3 -Iinclude
 
 CXXFLAGS += $(foreach v,$(USE_VARS),$(if $(filter-out 0,$($(v))),-D$(v)=$($(v))))
 
