@@ -85,7 +85,7 @@ endif
 CXX_VERSION := $(shell $(CXX) --version | head -n 1)
 
 LIBS := -latomic
-CXXFLAGS := -std=c++20 -std=gnu++20 $(LIBS) -O3 -Iinclude
+CXXFLAGS := -std=c++20 -std=gnu++20 $(LIBS) -O3 -march=native -flto -MMD -MP -Iinclude
 
 CXXFLAGS += $(foreach v,$(USE_VARS),$(if $(filter-out 0,$($(v))),-D$(v)=$($(v))))
 
@@ -113,6 +113,7 @@ $(OBJ_DIR)/%.o: src/%.cpp
 	@mkdir -p $(dir $@)
 	@echo -e "[$(ANSI_GREEN)CXX$(ANSI_RESET)] $<"
 	@$(CXX) $(CXXFLAGS) -c $< -o $@
+-include $(OBJS:.o=.d)
 
 $(TARGET): $(OBJS)
 	@echo -e "[$(ANSI_BLUE)LD$(ANSI_RESET)] $@"

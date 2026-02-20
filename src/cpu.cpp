@@ -235,9 +235,9 @@ void hart_trap(HART& h, uint64_t cause, uint64_t tval, bool is_interrupt) {
     if(delegate_to_s) {
         // Supervisor
         h.mode = PrivilegeMode::Supervisor;
-        uint64_t vector = ((h.csrs[STVEC] & 1 == 1 && is_interrupt) ? 4 * cause : 0);
-        h.pc = (h.csrs[STVEC] & ~1) + vector;
-        h.csrs[SEPC] = trap_pc & ~1;
+        uint64_t vector = (((h.csrs[STVEC] & 1) == 1 && is_interrupt) ? 4 * cause : 0);
+        h.pc = (h.csrs[STVEC] & ~3) + vector;
+        h.csrs[SEPC] = trap_pc & ~3;
         h.csrs[SCAUSE] = ((is_interrupt ? (1ULL << 63) : 0) | cause);
         h.csrs[STVAL] = tval;
         csr_write_mstatus(&h,MSTATUS_SPIE,MSTATUS_SPIE,csr_read_mstatus(&h,MSTATUS_SIE,MSTATUS_SIE));
@@ -246,9 +246,9 @@ void hart_trap(HART& h, uint64_t cause, uint64_t tval, bool is_interrupt) {
     } else {
         // Machine
         h.mode = PrivilegeMode::Machine;
-        uint64_t vector = ((h.csrs[MTVEC] & 1 == 1 && is_interrupt) ? 4 * cause : 0);
-        h.pc = (h.csrs[MTVEC] & ~1) + vector;
-        h.csrs[MEPC] = trap_pc & ~1;
+        uint64_t vector = (((h.csrs[MTVEC] & 1) == 1 && is_interrupt) ? 4 * cause : 0);
+        h.pc = (h.csrs[MTVEC] & ~3) + vector;
+        h.csrs[MEPC] = trap_pc & ~3;
         h.csrs[MCAUSE] = ((is_interrupt ? (1ULL << 63) : 0) | cause);
         h.csrs[MTVAL] = tval;
         csr_write_mstatus(&h,MSTATUS_MPIE,MSTATUS_MPIE,csr_read_mstatus(&h,MSTATUS_MIE,MSTATUS_MIE));

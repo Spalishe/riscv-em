@@ -583,6 +583,8 @@ void GDB_parsePacket(const char* buffer) {
 
             for(uint64_t i = 0; i < size; i++) {
                 optional<uint64_t> val = gdb_hart->mmio->load_GDB(gdb_hart,address+i,8);
+                if(address == 0x200BFF8) std::cout << gdb_hart->aclint->mtime << std::endl;
+                if(address == 0x2004000) std::cout << gdb_hart->aclint->mtimecmp[0] << std::endl;
                 if(!val.has_value()) {
                     GDB_sendPacket("E01");
                     return;
