@@ -16,3 +16,4 @@ qemu.dtb
 qemu.dts
 /build.linux.x86_64
 /build.linux.x86_64/
+perf.data

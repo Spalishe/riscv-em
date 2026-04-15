@@ -29,6 +29,10 @@ Copyright 2026 Spalishe
         It seems that i whatever i used host time or the consistent time, it still fails.
         Seems like smth inside ACLINT is broken, rather than MTIME.
         I just rn looked up through multiple repos on git, including spike, and they all use simple mtime++ 
+
+	!! Advice from pbx !!
+	In the start of cycle, write current time, and after cycle get diff and increase mtime by that val
+	Sounds stupid, but why not
 */
 
 ACLINT::ACLINT(uint64_t base, Machine& cpu, fdt_node* fdt)
