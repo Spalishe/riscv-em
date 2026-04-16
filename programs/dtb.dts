@@ -1,0 +1,107 @@
+/dts-v1/;
+
+/ {
+	#address-cells = <0x02>;
+	#size-cells = <0x02>;
+	model = "Risc-V EM";
+	compatible = "riscv-virtio", "simple-bus";
+
+	chosen {
+		bootargs = "earlycon=uart8250,mmio,0x10000000,100 console=ttyS0";
+		rng-seed = <0x6205aaf7 0xae2bd48d 0xb8f80dd0 0x72ac2dd8 0x44a592d4 0xe09c480a 0xf66d0dad 0xe06a4b7f 0x3195e75 0xfefad6eb 0x550d2865 0x7634eb7b 0x149d786f 0x809c8d81 0xcb1cbb3a 0xe172d32d>;
+		stdout-path = "/soc/serial@10000000";
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x00 0x80000000 0x00 0x20000000>;
+	};
+
+	cpus {
+		#address-cells = <0x01>;
+		#size-cells = <0x00>;
+		timebase-frequency = <0x989680>;
+
+		cpu@0 {
+			device_type = "cpu";
+			reg = <0x00>;
+			compatible = "riscv";
+			status = "okay";
+			riscv,isa = "rv64ima_zicsr_zifencei_zba_zbb_zbc_zbs_sstc";
+			mmu-type = "riscv,sv39";
+			phandle = <0x01>;
+			clock-frequency = <0xb2d05e00>;
+
+			interrupt-controller {
+				#interrupt-cells = <0x01>;
+				interrupt-controller;
+				compatible = "riscv,cpu-intc";
+				phandle = <0x02>;
+			};
+		};
+
+                cpu-map {
+
+                        cluster0 {
+
+                                core0 {
+                                        cpu = <0x01>;
+                                };
+                        };
+                };
+	};
+
+	soc {
+		#address-cells = <0x02>;
+		#size-cells = <0x02>;
+		compatible = "simple-bus";
+		ranges;
+
+		plic@c000000 {
+			reg = <0x00 0xc000000 0x00 0x400000>;
+			compatible = "sifive,plic-1.0.0";
+			interrupt-controller;
+			#interrupt-cells = <0x01>;
+			#address-cells = <0x00>;
+			riscv,ndev = <0x40>;
+			interrupts-extended = <0x02 0x0b 0x02 0x09>;
+			phandle = <0x04>;
+		};
+
+		test@1000000 {
+			reg = <0x00 0x1000000 0x00 0x1000>;
+			compatible = "sifive,test1", "sifive,test0", "syscon";
+			phandle = <0x03>;
+		};
+
+		serial@10000000 {
+			reg = <0x00 0x10000000 0x00 0x100>;
+			compatible = "ns16550a";
+			clock-frequency = <0x1312d00>;
+			fifo-size = <0x10>;
+			status = "okay";
+			interrupt-parent = <0x04>;
+			interrupts = <0x01>;
+		};
+
+		clint@2000000 {
+			reg = <0x00 0x2000000 0x00 0x10000>;
+			compatible = "sifive,clint0", "riscv,clint0";
+			interrupts-extended = <0x02 0x03 0x02 0x07>;
+		};
+	};
+
+	poweroff {
+		value = <0x5555>;
+		offset = <0x00>;
+		regmap = <0x03>;
+		compatible = "syscon-poweroff";
+	};
+
+	reboot {
+		value = <0x7777>;
+		offset = <0x00>;
+		regmap = <0x03>;
+		compatible = "syscon-reboot";
+	};
+};
