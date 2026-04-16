@@ -4,3 +4,4 @@
 /build
 /build.linux.x86_64
 /build.linux.x86_64/
+/tests/*
