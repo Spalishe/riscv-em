@@ -25,16 +25,8 @@ Copyright 2026 Spalishe
 
 /*
         TODO:
-    1. Replace pc_hits with array[128], indexing: idx = (pc >> 2) & (SIZE - 1);
-    2. Remove all instances of copying inst_data, make pointers instead
-    3. Replace for(inst_data dat : block->instrs) with for(const inst_data& dat
-   : block->instrs)
-    4. Remove vector from InstructionBlock with array
     5. Remove all optionals and replace those with return bool & write val at
    pointer
-    6. Remove PC from inst_data
-    7. Replace bools in inst_data to 1 bit flags
-    8. Change instr_cache size to smth lower
     9. Optimize devices search
     10. Replace switches with to lookup table
 

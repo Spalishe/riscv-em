@@ -69,8 +69,9 @@ struct Reservation {
 struct InstructionBlock {
     bool valid = false;
     uint64_t start_pc;
-    std::vector<inst_data> instrs;
+    inst_data* instrs[128];
     uint64_t size;
+    uint64_t length;
 };
 
 #ifdef USE_FPU
@@ -123,7 +124,7 @@ struct HART {
     uint64_t csrs[4069];
     PrivilegeMode mode = PrivilegeMode::Machine;
 
-    inst_data instr_cache[8192];
+    inst_data* instr_cache[8192];
 
 	uint8_t id = 0;
 
@@ -139,7 +140,7 @@ struct HART {
     bool is_creating_block = false;
     uint64_t block_creation_start_pc = 0;
     InstructionBlock blocks[1024];
-    std::unordered_map<uint64_t, uint32_t> pc_hits;
+    uint32_t pc_hits[256];
     
     PMP pmp;
     Reservation reservation;
@@ -148,7 +149,7 @@ struct HART {
 void hart_reset(HART&, uint64_t dtb_path);
 uint32_t hart_fetch(HART&, uint64_t _pc);
 void hart_step(HART&);
-inst_ret hart_execute(HART&, inst_data inst);
+inst_ret hart_execute(HART&, inst_data* inst);
 void hart_check_interrupts(HART&);
 bool hart_have_local_pending(HART& h);
 void hart_trap(HART&, uint64_t cause, uint64_t tval, bool is_interrupt);

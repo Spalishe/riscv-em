@@ -1,0 +1,148 @@
+/dts-v1/;
+
+/ {
+	#address-cells = <0x02>;
+	#size-cells = <0x02>;
+	model = "Risc-V EM";
+	compatible = "riscv-virtio", "simple-bus";
+
+	chosen {
+		rng-seed = <0xf657ef4a 0x9b4d9ce4 0x50d46246 0xeabc84d6 0x66f9cc69 0x4c6f2850 0xf81ded07 0x6a689505 0x83e06c85 0x1b65045b 0x54442706 0x5f3c8b81 0x332d2b1e 0x9bc51f0 0xe2bad363 0xc6eb28fb>;
+		stdout-path = "/soc/serial@10000000";
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x00 0x80000000 0x00 0x20000000>;
+	};
+
+	cpus {
+		#address-cells = <0x01>;
+		#size-cells = <0x00>;
+		timebase-frequency = <0x186a0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			reg = <0x00>;
+			riscv,cbop-block-size = <0x40>;
+			riscv,cboz-block-size = <0x40>;
+			riscv,cbom-block-size = <0x40>;
+			compatible = "riscv";
+			status = "okay";
+			riscv,isa = "rv64ima_zicsr_zifencei";
+			mmu-type = "riscv,none";
+			phandle = <0x01>;
+
+			interrupt-controller {
+				#interrupt-cells = <0x01>;
+				interrupt-controller;
+				compatible = "riscv,cpu-intc";
+				phandle = <0x02>;
+			};
+		};
+	};
+
+	soc {
+		#address-cells = <0x02>;
+		#size-cells = <0x02>;
+		compatible = "simple-bus";
+		ranges;
+
+		plic@c000000 {
+			reg = <0x00 0xc000000 0x00 0x400000>;
+			compatible = "sifive,plic-1.0.0";
+			interrupt-controller;
+			#interrupt-cells = <0x01>;
+			#address-cells = <0x00>;
+			interrupts-extended = <0x02 0x0b 0x02 0x09>;
+			riscv,ndev = <0x1f>;
+			phandle = <0x03>;
+		};
+
+		test@1000000 {
+			reg = <0x00 0x1000000 0x00 0x1000>;
+			compatible = "sifive,test1", "sifive,test0", "syscon";
+			phandle = <0x04>;
+		};
+
+		serial@10000000 {
+			reg = <0x00 0x10000000 0x00 0x100>;
+			compatible = "ns16550a";
+			clock-frequency = <0x1312d00>;
+			fifo-size = <0x10>;
+			status = "okay";
+			interrupt-parent = <0x03>;
+			interrupts = <0x0a>;
+			reg-shift = <0>;
+			reg-io-width = <1>;
+			no-loopback-test;
+		};
+
+		i2c@10030000 {
+			reg = <0x00 0x10030000 0x00 0x1000>;
+			compatible = "opencores,i2c-ocores";
+			interrupt-parent = <0x03>;
+			interrupts = <0x02>;
+			clocks = <0x00>;
+			clock-names = "clk";
+			reg-shift = <0x02>;
+			reg-io-width = <0x01>;
+			opencores,ip-clock-frequency = <0x1312d00>;
+			#address-cells = <0x01>;
+			#size-cells = <0x00>;
+			status = "okay";
+
+			i2c@1 {
+				reg = <0x01>;
+				compatible = "hid-over-i2c";
+				hid-descr-addr = <0x01>;
+				vdd-supply = <0x00>;
+				vddl-supply = <0x00>;
+				wakeup-source;
+				interrupt-parent = <0x03>;
+				interrupts = <0x03>;
+			};
+		};
+
+		clint@2000000 {
+			reg = <0x00 0x2000000 0x00 0x10000>;
+			compatible = "sifive,clint0", "riscv,clint0";
+			interrupts-extended = <0x02 0x03 0x02 0x07>;
+		};
+
+		framebuffer@18000000 {
+			reg = <0x00 0x18000000 0x00 0x12c000>;
+			compatible = "simple-framebuffer";
+			format = "a8r8g8b8";
+			width = <0x280>;
+			height = <0x1e0>;
+			stride = <0xa00>;
+		};
+	};
+
+	poweroff {
+		value = <0x5555>;
+		offset = <0x00>;
+		regmap = <0x04>;
+		compatible = "syscon-poweroff";
+	};
+
+	reboot {
+		value = <0x7777>;
+		offset = <0x00>;
+		regmap = <0x04>;
+		compatible = "syscon-reboot";
+	};
+
+	i2c_osc {
+		compatible = "fixed-clock";
+		#clock-cells = <0x00>;
+		clock-frequency = <0x1312d00>;
+		clock-output-names = "clk";
+	};
+
+	i2c_vdd {
+		compatible = "regulator-fixed";
+		regulator-name = "i2c_vdd";
+	};
+};

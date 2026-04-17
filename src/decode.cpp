@@ -82,7 +82,7 @@ uint32_t get_bits(uint32_t inst, int hi, int lo) {
   return (inst >> lo) & ((1u << (hi - lo + 1)) - 1);
 }
 
-inst_data parse_instruction(struct HART *hart, uint32_t inst, uint64_t pc) {
+inst_data* parse_instruction(struct HART *hart, uint32_t inst, uint64_t pc) {
   int OP = inst & 3;
 
   uint8_t rd = 0;
@@ -95,13 +95,8 @@ inst_data parse_instruction(struct HART *hart, uint32_t inst, uint64_t pc) {
   bool canChangePC = false;
   inst_ret (*fn)(HART *, inst_data &);
 
-  /*
-   * TODO:
-   *  Add bit fields to anything here
-   */
-
-  inst_data cache = hart->instr_cache[(pc >> 2) & 0x1FFF];
-  if (cache.valid && cache.pc == pc) {
+  inst_data* cache = hart->instr_cache[(pc >> 2) & 0x1FFF];
+  if (cache != NULL && cache->valid && cache->inst == inst) {
     return cache;
   } else {
     int opcode = inst & 0x7f;
@@ -1322,9 +1317,8 @@ inst_data parse_instruction(struct HART *hart, uint32_t inst, uint64_t pc) {
     }
     // if(increase) pc += 4;
 
-    inst_data dec = inst_data{valid, canChangePC, pc, inst, rd,  rs1,
+    inst_data* dec = new inst_data{valid, canChangePC, inst, rd,  rs1,
                               rs2,   d_imm,       fn, rm,   fmt, rs3};
-    hart->instr_cache[(pc >> 2) & 0x1FFF] = dec;
     return dec;
   }
 }

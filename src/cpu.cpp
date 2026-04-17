@@ -84,15 +84,17 @@ uint32_t hart_fetch(HART& h, uint64_t _pc) {
 
 void hart_step(HART& h) {
     uint32_t inst = hart_fetch(h,h.pc);
-    inst_data d = parse_instruction(&h, inst, h.pc);
+    inst_data* d = parse_instruction(&h, inst, h.pc);
+    h.instr_cache[(h.pc >> 2) & 0x1FFF] = d;
     h.csrs[CYCLE]++;
-    if(d.valid == false) {
+    if(d->valid == false) {
         hart_trap(h,EXC_ILLEGAL_INSTRUCTION, inst, false);
         return;
     }
-    h.pc_hits[h.pc]++;
+    uint16_t idx = (h.pc >> 2) & (256 - 1);
+    h.pc_hits[idx]++;
 
-    if(h.pc_hits[h.pc] >= HART_INST_EXECUTION_COUNT_CAP && !h.is_creating_block && !d.canChangePC) {
+    if(h.pc_hits[idx] >= HART_INST_EXECUTION_COUNT_CAP && !h.is_creating_block && !d->canChangePC) {
         InstructionBlock* block = &h.blocks[h.pc % 1024];
         if(block->valid == false || block->start_pc != h.pc) {
             h.is_creating_block = true;
@@ -100,8 +102,9 @@ void hart_step(HART& h) {
             InstructionBlock* block = &h.blocks[h.block_creation_start_pc % 1024];
             block->valid = true;
             block->start_pc = h.block_creation_start_pc;
-            block->instrs.clear();
+            memset(block->instrs,0,sizeof(block->instrs));
             block->size = 0;
+            block->length = 0;
         }
     }
     if(h.is_creating_block) {
@@ -113,17 +116,20 @@ void hart_step(HART& h) {
                 InstructionBlock* block = &h.blocks[i];
                 block->valid = false;
             }
-            h.pc_hits.clear();
+            memset(h.pc_hits,0,sizeof(h.pc_hits));
             h.is_creating_block = false;
             return;
-        } else if(d.canChangePC) {
+        } else if(d->canChangePC) {
             // We got a branch maybe
+            h.is_creating_block = false;
+            return;
+        } else if(block->length >= 128) {
+            // We got block size limit
             h.is_creating_block = false;
             return;
         } else {
             // Normal case
-            if(d.valid) {
-                block->instrs.push_back(d);
+            if(d->valid) {
                 inst_ret ret = hart_execute(h,d);
                 if(ret.increasePC == false) {
                     // Probably branch case / TRAP
@@ -131,17 +137,20 @@ void hart_step(HART& h) {
                     h.is_creating_block = false;
                     block->valid = false;
                 } else {
+                    block->instrs[block->length] = d;
                     block->size += ret.isCompressed ? 2 : 4;
+                    block->length++;
                 }
             }
         }
 
     } else {
-        InstructionBlock* block = &h.blocks[h.pc % 1024];
-        if(block->valid == true && block->start_pc == h.pc) {
+        InstructionBlock& block = h.blocks[h.pc % 1024];
+        if(block.valid == true && block.start_pc == h.pc) {
             // Execute block
-            for(inst_data dat : block->instrs) {
-                if(h.pc < block->start_pc || h.pc >= block->start_pc + block->size){
+            for(int i = 0; i < 256; i++) {
+                inst_data* dat = block.instrs[i];
+                if(h.pc < block.start_pc || h.pc >= block.start_pc + block.size){
                     // Interrupt
                     break;
                 }
@@ -154,8 +163,8 @@ void hart_step(HART& h) {
         } else hart_execute(h,d);
     }
 }
-inst_ret hart_execute(HART& h, inst_data inst) {
-    inst_ret success = inst.fn(&h,inst);
+inst_ret hart_execute(HART& h, inst_data* inst) {
+    inst_ret success = inst->fn(&h,*inst);
     if(success.increasePC) {
         h.csrs[INSTRET]++;
         h.pc += success.isCompressed ? 2 : 4;

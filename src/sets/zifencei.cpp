@@ -20,7 +20,8 @@ Copyright 2026 Spalishe
 
 inst_ret exec_FENCE_I(HART *hart, inst_data& inst) {
     for(int i=0; i< 8192; i++) {
-        hart->instr_cache[i].valid = false;
+        if (hart->instr_cache[i] == NULL) continue;
+        hart->instr_cache[i]->valid = false;
     }
     return true;
 }

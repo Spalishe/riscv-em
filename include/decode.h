@@ -53,7 +53,6 @@ enum class FMT {
 struct inst_data {
     bool valid;
     bool canChangePC = false;
-    uint64_t pc;
     uint32_t inst;
 
     uint8_t rd;
@@ -85,7 +84,7 @@ int32_t sext(uint32_t val, int bits);
 uint32_t get_bits(uint32_t inst, int hi, int lo);
 uint32_t switch_endian(uint32_t const input);
 
-extern inst_data parse_instruction(HART* hart, uint32_t inst, uint64_t pc);
+extern inst_data* parse_instruction(HART* hart, uint32_t inst, uint64_t pc);
 
 #define R_TYPE  0x33
     #define ADDSUB  0x0
