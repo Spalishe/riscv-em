@@ -277,7 +277,7 @@ uint64_t csr_read(HART *hart, uint16_t csr) {
             return hart->csrs[FCSR] & 0x1F;
         case TIME:
             //return timer_get(&hart->aclint->mtime);
-            return hart->aclint->mtime;
+            return timer_get(&hart->aclint->mtime);
         case FRM:
             return (hart->csrs[FCSR] >> 5) & 0x7;
         default:

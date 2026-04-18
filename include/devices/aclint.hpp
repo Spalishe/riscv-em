@@ -29,8 +29,10 @@ struct ACLINT : public Device {
 
     // Memory-mapped registers
     std::vector<uint32_t> msip;      // one per HART, 32-bit
-    std::vector<uint64_t> mtimecmp;  // one per HART, 64-bit
-    uint64_t mtime; // global timer
+    //std::vector<uint64_t> mtimecmp;  // one per HART, 64-bit
+    std::vector<timecmp_st> mtimecmp;  // one per HART, 64-bit
+    // uint64_t mtime; // global timer
+    timer_st mtime;
 
     void tick();
     uint64_t read(HART* hart, uint64_t addr, uint64_t size);
