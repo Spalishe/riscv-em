@@ -28,7 +28,6 @@ Copyright 2026 Spalishe
     5. Remove all optionals and replace those with return bool & write val at
    pointer
     9. Optimize devices search
-    10. Replace switches with to lookup table
 
                 - Fix the problem that kernel is stuck in arch_cpu_idle ->
    handle_exception -> arch_cpu_idle
@@ -104,6 +103,7 @@ int main(int argc, char *argv[]) {
   machine_create_harts(VM);
 
   termios_start();
+  instr_initialize();
 
   std::thread VM_thread(machine_run, std::ref(VM));
 

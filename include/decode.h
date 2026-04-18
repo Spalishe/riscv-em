@@ -16,6 +16,9 @@ Copyright 2026 Spalishe
 */
 
 #include <cstdint>
+#include <unordered_map>
+#include <iostream>
+using namespace std;
 #pragma once
 
 struct HART;
@@ -99,6 +102,9 @@ extern inst_data* parse_instruction(HART* hart, uint32_t inst, uint64_t pc);
 	#define SRA     0x20
     #define SLT     0x2
     #define SLTU    0x3
+    #define MUL     0x1
+    #define XOR_FN7 0x0
+
 #define R_TYPE64 0x3B
 #define I_TYPE  0x13
     #define ADDI    0x0
@@ -450,3 +456,325 @@ inst_ret exec_BSETI(HART *hart, inst_data& inst);
 // ZifenceI
 
 inst_ret exec_FENCE_I(HART *hart, inst_data& inst);
+
+enum class InstSubKind : uint8_t {
+    None = 0,
+    Funct7,
+    Funct6,
+    Funct5,
+    Imm12,     // inst >> 20
+    Fmt,       // fmt only
+    Funct5Fmt  // amo_funct5 + fmt
+};
+struct InstSubKeyInfo {
+    InstSubKind kind = InstSubKind::None;
+    uint16_t sub = 0;
+    uint16_t funct3 = 0;
+    uint64_t d_imm = 0;
+    bool has_imm = false;
+};
+
+static inline uint32_t make_key(uint8_t opcode,
+                                uint8_t funct3,
+                                InstSubKind kind,
+                                uint16_t sub)
+{
+    return  (uint32_t)opcode
+          | ((uint32_t)funct3 << 7)
+          | ((uint32_t)kind   << 10)
+          | ((uint32_t)sub    << 13);
+}
+static inline InstSubKeyInfo pick_subkey(uint32_t inst) {
+    InstSubKeyInfo out{};
+
+    const uint8_t opcode = inst & 0x7f;
+    const uint8_t funct3 = (inst >> 12) & 0x7;
+    const uint8_t funct7 = (inst >> 25) & 0x7f;
+    const uint8_t funct6 = (inst >> 26) & 0x3f;
+    const uint8_t amo_funct5 = (inst >> 27) & 0x1f;
+    const uint32_t imm12 = (inst >> 20) & 0x0fff;
+    const FMT fmt = (FMT)((inst >> 25) & 0x3);
+
+    out.funct3 = funct3;
+
+    switch (opcode) {
+    case FENCE:
+        out.kind = InstSubKind::None;
+        break;
+
+    case R_TYPE:
+    case R_TYPE64:
+        out.kind = InstSubKind::Funct7;
+        out.sub = funct7;
+        break;
+
+    case AMO:
+        out.kind = InstSubKind::Funct5;
+        out.sub = amo_funct5;
+        break;
+
+    case I_TYPE:
+        switch (funct3) {
+        case ADDI:
+        case XORI:
+        case ORI:
+        case ANDI:
+        case SLTI:
+        case SLTIU:
+            out.kind = InstSubKind::None;
+            out.d_imm = imm_I(inst);
+            out.has_imm = true;
+            break;
+
+        case SLLI:
+            switch (funct6) {
+            case 0:
+            case 10:
+            case 26:
+            case 36:
+                out.kind = InstSubKind::Funct6;
+                out.sub = funct6;
+                out.d_imm = shamt64(inst);
+                out.has_imm = true;
+                break;
+
+            case 48:
+                switch (imm12 & 0x1f) {
+                case 0:
+                case 1:
+                case 2:
+                case 4:
+                case 5:
+                    out.kind = InstSubKind::Imm12;
+                    out.sub = imm12;
+                    break;
+                default:
+                    break;
+                }
+                break;
+
+            default:
+                break;
+            }
+            break;
+
+        case SRI:
+            switch (funct6) {
+            case SRLI:
+            case SRAI:
+            case 18:
+            case 24:
+                out.kind = InstSubKind::Funct6;
+                out.sub = funct6;
+                out.d_imm = shamt64(inst);
+                out.has_imm = true;
+                break;
+            default:
+                break;
+            }
+
+            // If you re-enable the original commented branch, these are the
+            // imm12-based special cases.
+            switch (imm12) {
+            case 647:
+            case 1688:
+            case 1720:
+                out.kind = InstSubKind::Imm12;
+                out.sub = imm12;
+                break;
+            default:
+                break;
+            }
+            break;
+
+        default:
+            break;
+        }
+        break;
+
+    case I_TYPE64:
+        switch (funct3) {
+        case XORI:
+            switch (funct7) {
+            case 4:
+                out.kind = InstSubKind::Funct7;
+                out.sub = funct7;
+                break;
+            default:
+                break;
+            }
+            break;
+
+        case ADDI:
+            out.kind = InstSubKind::None;
+            out.d_imm = imm_I(inst);
+            out.has_imm = true;
+            break;
+
+        case SLLI:
+            switch (funct6) {
+            case 2:
+                out.kind = InstSubKind::Funct6;
+                out.sub = funct6;
+                out.d_imm = shamt64(inst);
+                out.has_imm = true;
+                break;
+            default:
+                break;
+            }
+
+            switch (funct7) {
+            case 0:
+                out.kind = InstSubKind::Funct7;
+                out.sub = funct7;
+                out.d_imm = shamt(inst);
+                out.has_imm = true;
+                break;
+
+            case 48:
+                switch (imm12 & 0x1f) {
+                case 0:
+                case 1:
+                case 2:
+                    out.kind = InstSubKind::Imm12;
+                    out.sub = imm12;
+                    break;
+                default:
+                    break;
+                }
+                break;
+
+            default:
+                break;
+            }
+            break;
+
+        case SRI:
+            switch (funct7) {
+            case SRLI:
+            case SRAIW:
+            case 24:
+                out.kind = InstSubKind::Funct7;
+                out.sub = funct7;
+                out.d_imm = shamt(inst);
+                out.has_imm = true;
+                break;
+            default:
+                break;
+            }
+            break;
+
+        default:
+            break;
+        }
+        break;
+
+    case LOAD_TYPE:
+        out.kind = InstSubKind::None;
+        out.d_imm = imm_I(inst);
+        out.has_imm = true;
+        break;
+
+    case S_TYPE:
+        out.kind = InstSubKind::None;
+        out.d_imm = imm_S(inst);
+        out.has_imm = true;
+        break;
+
+    case B_TYPE:
+        out.kind = InstSubKind::None;
+        out.d_imm = imm_B(inst);
+        out.has_imm = true;
+        break;
+
+    case JAL:
+        out.kind = InstSubKind::None;
+        out.d_imm = imm_J(inst);
+        out.has_imm = true;
+        out.funct3 = 0;
+        break;
+
+    case JALR:
+        out.kind = InstSubKind::None;
+        out.d_imm = imm_I(inst);
+        out.has_imm = true;
+        break;
+
+    case LUI:
+    case AUIPC:
+        out.kind = InstSubKind::None;
+        out.d_imm = imm_U(inst);
+        out.has_imm = true;
+        out.funct3 = 0;
+        break;
+
+    case ECALL:
+        switch (funct3) {
+        case CSRRW:
+        case CSRRS:
+        case CSRRC:
+        case CSRRWI:
+        case CSRRSI:
+        case CSRRCI:
+            out.kind = InstSubKind::None;
+            out.d_imm = imm_Zicsr(inst);
+            out.has_imm = true;
+            break;
+
+        case 0:
+            switch (imm12) {
+            case 0:
+            case 1:
+            case 261:
+            case 258:
+            case 288:
+            case 770:
+                out.kind = InstSubKind::Imm12;
+                out.sub = imm12;
+                break;
+            default:
+                break;
+            }
+            break;
+
+        default:
+            break;
+        }
+        break;
+
+#ifdef USE_FPU
+    case FLOAD:
+    case FSTORE:
+        out.kind = InstSubKind::None;
+        break;
+
+    case R_F:
+        out.kind = InstSubKind::Funct5Fmt;
+        out.sub = (uint16_t)((amo_funct5 << 2) | (uint8_t)fmt);
+        break;
+
+    case FMADD:
+    case FMSUB:
+    case FNMADD:
+    case FNMSUB:
+        out.kind = InstSubKind::Fmt;
+        out.sub = (uint16_t)fmt;
+        break;
+#endif
+
+    default:
+        break;
+    }
+
+    return out;
+}
+static unordered_map<uint32_t,inst_ret (*)(HART*, inst_data&)> inst_table;
+static void add_inst_func(uint32_t inst, inst_ret (*fn)(HART*, inst_data&)) {
+    int opcode = inst & 0x7f;
+    int funct3 = (inst >> 12) & 0x7;
+    InstSubKeyInfo sk = pick_subkey(inst);
+    uint32_t key = make_key(opcode, sk.funct3, sk.kind, sk.sub);
+    inst_table[key] = fn;
+    cout << "Registered inst " << inst << " with function pointer " << (void*)fn << " with key " << key << endl;
+}
+extern void instr_initialize();
