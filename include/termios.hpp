@@ -17,5 +17,7 @@ Copyright 2026 Spalishe
 
 #pragma once
 #include "devices/uart.hpp"
+#include <atomic>
 extern void termios_start();
 extern void termios_loop(UART* uart,Machine& machine);
+extern std::atomic<bool> termios_running;

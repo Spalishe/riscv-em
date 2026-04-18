@@ -43,7 +43,7 @@ void machine_run(Machine& cpu) {
             std::this_thread::yield();
             continue;
         }
-		termios_loop(cpu.uart,cpu);
+		
 		cpu.clint->tick();
         for (auto& h : cpu.harts) {
 			cpu.plic->plic_service(h);

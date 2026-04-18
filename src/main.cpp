@@ -106,6 +106,8 @@ int main(int argc, char *argv[]) {
   instr_initialize();
 
   std::thread VM_thread(machine_run, std::ref(VM));
+  termios_running.store(true);
+  std::thread input_thread(termios_loop, std::ref(VM.uart), std::ref(VM));
 
 #ifdef USE_GDBSTUB
   bool gdb_stub = parser.getDefined(6);
@@ -117,6 +119,9 @@ int main(int argc, char *argv[]) {
 #endif
 
   VM_thread.join();
+
+  termios_running.store(false);
+  input_thread.join();
 
   return 0;
 }

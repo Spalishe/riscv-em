@@ -775,6 +775,6 @@ static void add_inst_func(uint32_t inst, inst_ret (*fn)(HART*, inst_data&)) {
     InstSubKeyInfo sk = pick_subkey(inst);
     uint32_t key = make_key(opcode, sk.funct3, sk.kind, sk.sub);
     inst_table[key] = fn;
-    cout << "Registered inst " << inst << " with function pointer " << (void*)fn << " with key " << key << endl;
+    //cout << "Registered inst " << inst << " with function pointer " << (void*)fn << " with key " << key << endl;
 }
 extern void instr_initialize();

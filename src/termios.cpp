@@ -21,11 +21,13 @@ Copyright 2026 Spalishe
 #include <fcntl.h>
 #include <csignal>
 #include "../include/devices/uart.hpp"
+#include "../include/termios.hpp"
 
 termios orig_termios;
 
 std::vector<char> combo_sequence = {3, 24}; // Ctrl+C (0x03) -> Ctrl+X (0x18)
 std::vector<char> buffer;
+std::atomic<bool> termios_running{false};
 
 void restore_terminal(int) {
     tcsetattr(STDIN_FILENO, TCSANOW, &orig_termios);
@@ -46,21 +48,26 @@ void termios_start() {
     fcntl(STDIN_FILENO, F_SETFL, fcntl(STDIN_FILENO, F_GETFL, 0) | O_NONBLOCK);
 }
 
-void termios_loop(UART* uart,Machine& machine) {
+void termios_loop(UART* uart, Machine& machine) {
     char c;
-    if (read(STDIN_FILENO, &c, 1) > 0) {
-        buffer.push_back(c);
 
-        if (buffer.size() > combo_sequence.size()) {
-            buffer.erase(buffer.begin());
+    while (termios_running.load(std::memory_order_relaxed)) {
+        int r = read(STDIN_FILENO, &c, 1);
+
+        if (r > 0) {
+            buffer.push_back(c);
+
+            if (buffer.size() > combo_sequence.size()) {
+                buffer.erase(buffer.begin());
+            }
+
+            if (buffer.size() == combo_sequence.size() && buffer == combo_sequence) {
+                machine_poweroff(machine);
+                buffer.clear();
+                return;
+            }
+
+            uart->receive_byte(c);
         }
-
-        if (buffer.size() == combo_sequence.size() && buffer == combo_sequence) {
-            machine_poweroff(machine);
-            buffer.clear();
-            return;
-        }
-
-        uart->receive_byte(c);
     }
 }
