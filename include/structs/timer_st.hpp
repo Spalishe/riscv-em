@@ -25,9 +25,9 @@ typedef struct {
 } timer_st;
 
 inline uint64_t timer_clocksource(uint64_t freq) {
-    timeval tv = {0};
-    gettimeofday(&tv, NULL);
-    return (tv.tv_sec * freq) + (tv.tv_usec * freq / 1000000ULL);
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC_RAW,&ts);
+    return (ts.tv_sec * freq) + (ts.tv_nsec * freq / 1000000000ULL);
 }
 inline uint64_t timer_freq(timer_st* timer) {
     return timer->freq;

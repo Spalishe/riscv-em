@@ -8,7 +8,7 @@ git clone https://github.com/Spalishe/riscv-em
 cd riscv-em
 make
 ```
-Output program will be located in ./build folder
+Output program will be located in corresponding target and architecture folder(f.e. build.linux.x86_64/)
 ## Running
 Available arguments are:
 ```

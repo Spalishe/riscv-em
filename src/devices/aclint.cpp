@@ -43,6 +43,8 @@ ACLINT::ACLINT(uint64_t base, Machine& cpu, fdt_node* fdt)
     timer_init(&mtime,ACLINT_FREQ_HZ);
     for(int i = 0; i < cpu.core_count; i++) {
         timecmp_init(&mtimecmp[i],&mtime);
+        mtip_triggered.push_back(false);
+        stip_triggered.push_back(false);
     }
     
     if(fdt != NULL) {
@@ -121,6 +123,7 @@ void ACLINT::write_mswi(HART* hart, uint64_t offset, uint64_t value) {
 }
 void ACLINT::write_mtimer(HART* hart, uint64_t offset, uint64_t value) {
     uint64_t hart_id = offset >> 3;
+    mtip_triggered[hart_id] = false;
     if (offset == 0x7FF8) {
         timer_set(&mtime,value);
         //mtime = value;
@@ -152,15 +155,27 @@ void ACLINT::update_mip(HART* hart) {
     else
         mip &= ~(1ULL << MIP_STIP);*/
     
-    if (timecmp_pending(&mtimecmp[hart_id]))
-        mip |= (1ULL << MIP_MTIP);
-    else
+    if (timecmp_pending(&mtimecmp[hart_id])) {
+        if(!mtip_triggered[hart_id]) {
+            mip |= (1ULL << MIP_MTIP);
+            mtip_triggered[hart_id] = true;
+        }
+    } else {
+        if(mtip_triggered[hart_id]) {
+            mtip_triggered[hart_id] = false;
+        }
         mip &= ~(1ULL << MIP_MTIP);
+    }
 
-    if (timer_get(&mtime) >= hart->csrs[STIMECMP] && hart->csrs[STIMECMP] != 0)
-        mip |= (1ULL << MIP_STIP);
-    else
+    if (timer_get(&mtime) >= hart->csrs[STIMECMP] && hart->csrs[STIMECMP] != 0) {
+        if(!stip_triggered[hart_id]) {
+            mip |= (1ULL << MIP_STIP);
+            stip_triggered[hart_id] = true;
+        }
+    } else {
+        if(stip_triggered[hart_id]) stip_triggered[hart_id] = false;
         mip &= ~(1ULL << MIP_STIP);
+    }
 
     hart->csrs[MIP] = mip;
 }

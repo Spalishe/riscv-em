@@ -33,6 +33,8 @@ struct ACLINT : public Device {
     std::vector<timecmp_st> mtimecmp;  // one per HART, 64-bit
     // uint64_t mtime; // global timer
     timer_st mtime;
+    std::vector<bool> mtip_triggered;
+    std::vector<bool> stip_triggered;
 
     void tick();
     uint64_t read(HART* hart, uint64_t addr, uint64_t size);
