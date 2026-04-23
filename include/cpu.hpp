@@ -28,6 +28,8 @@ Copyright 2026 Spalishe
 #include <tuple>
 #include "pmp.hpp"
 #include <cmath>
+#include <ctime>
+#include "structs/timecmp_st.hpp"
 
 #define HART_INST_EXECUTION_COUNT_CAP 50 // After that number block will be created
 
@@ -69,7 +71,7 @@ struct Reservation {
 struct InstructionBlock {
     bool valid = false;
     uint64_t start_pc;
-    inst_data* instrs[128];
+    inst_data instrs[128];
     uint64_t size;
     uint64_t length;
 };
@@ -124,7 +126,7 @@ struct HART {
     uint64_t csrs[4069];
     PrivilegeMode mode = PrivilegeMode::Machine;
 
-    inst_data* instr_cache[8192];
+    inst_data instr_cache[8192];
 
 	uint8_t id = 0;
 
@@ -132,6 +134,7 @@ struct HART {
     ACLINT* aclint;
 
     bool WFI = false;
+    clock_t wfi_timer;
 
     uint32_t fetch_buffer[8];
     uint64_t fetch_pc; 
@@ -139,17 +142,21 @@ struct HART {
 
     bool is_creating_block = false;
     uint64_t block_creation_start_pc = 0;
-    InstructionBlock blocks[1024];
+    InstructionBlock blocks[256];
     uint32_t pc_hits[256];
     
     PMP pmp;
     Reservation reservation;
+
+    timecmp_st stimecmp;
+    uint64_t ie;
+    uint64_t ip;
 };
 
 void hart_reset(HART&, uint64_t dtb_path);
 uint32_t hart_fetch(HART&, uint64_t _pc);
 void hart_step(HART&);
-inst_ret hart_execute(HART&, inst_data* inst);
+inst_ret hart_execute(HART&, inst_data& inst);
 void hart_check_interrupts(HART&);
 bool hart_have_local_pending(HART& h);
 void hart_trap(HART&, uint64_t cause, uint64_t tval, bool is_interrupt);

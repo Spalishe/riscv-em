@@ -20,17 +20,15 @@ Copyright 2026 Spalishe
 #include "cpu.hpp"
 #include "libfdt.hpp"
 #include "gdbstub.hpp"
-#include "mmu.hpp"
 #include "devices/aclint.hpp"
 #include "devices/plic.hpp"
 #include "devices/syscon.hpp"
 #include "devices/uart.hpp"
 #include "devices/virtio_blk.hpp"
 #include "devices/rom.hpp"
+#include "devices/mmio.h"
 
 using namespace std;
-
-struct HART;
 
 enum class MachineState {
     Running = 0,
@@ -69,7 +67,7 @@ struct Machine {
     fdt_node* fdt;
     MemoryMap memmap;
 
-    std::vector<HART*> harts;
+    HART* harts[64];
 
     MachineState state = MachineState::PoweredOff;
 

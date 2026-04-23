@@ -87,7 +87,7 @@ int32_t sext(uint32_t val, int bits);
 uint32_t get_bits(uint32_t inst, int hi, int lo);
 uint32_t switch_endian(uint32_t const input);
 
-extern inst_data* parse_instruction(HART* hart, uint32_t inst, uint64_t pc);
+extern inst_data parse_instruction(HART* hart, uint32_t inst, uint64_t pc);
 
 #define R_TYPE  0x33
     #define ADDSUB  0x0
@@ -769,12 +769,14 @@ static inline InstSubKeyInfo pick_subkey(uint32_t inst) {
     return out;
 }
 static unordered_map<uint32_t,inst_ret (*)(HART*, inst_data&)> inst_table;
-static void add_inst_func(uint32_t inst, inst_ret (*fn)(HART*, inst_data&)) {
+static unordered_map<inst_ret(*)(HART*, inst_data&),string> inst_names;
+static void add_inst_func(uint32_t inst, inst_ret (*fn)(HART*, inst_data&),string name) {
     int opcode = inst & 0x7f;
     int funct3 = (inst >> 12) & 0x7;
     InstSubKeyInfo sk = pick_subkey(inst);
     uint32_t key = make_key(opcode, sk.funct3, sk.kind, sk.sub);
     inst_table[key] = fn;
-    //cout << "Registered inst " << inst << " with function pointer " << (void*)fn << " with key " << key << endl;
+    inst_names[fn] = name;
+    //cout << "Registered inst " << inst << " with function pointer " << (void*)fn << " with key " << key << " and name " << name << endl;
 }
 extern void instr_initialize();

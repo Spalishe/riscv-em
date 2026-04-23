@@ -21,8 +21,6 @@ Copyright 2026 Spalishe
 #include <vector>
 #include <dram.h>
 #include <csr.h>
-#include <cpu.hpp>
-#include <mmu.hpp>
 #include <optional>
 #include <cstdio>
 #include <atomic>
@@ -61,5 +59,3 @@ struct MMIO {
     std::optional<uint64_t> load_GDB(HART* hart, uint64_t addr, uint64_t size);
     void store_GDB(HART* hart, uint64_t addr, uint64_t size, uint64_t value);
 };
-
-#include "machine.hpp"

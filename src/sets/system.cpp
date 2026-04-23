@@ -18,6 +18,8 @@ Copyright 2026 Spalishe
 #include "../../include/cpu.hpp"
 #include "../../include/decode.h"
 #include "../../include/mmu.hpp"
+#include "../../include/devices/aclint.hpp"
+#include <ctime>
 
 // SYSTEM
 
@@ -90,6 +92,21 @@ inst_ret exec_WFI(HART *hart, inst_data& inst) {
         hart_trap(*hart,EXC_ILLEGAL_INSTRUCTION, inst.inst, false);
         return false;
     }
-    if((hart->csrs[MIP] & hart->csrs[MIE]) == 0) hart->WFI = true;
+    if((hart->ip & hart->ie) == 0) {
+        clock_t now = clock();
+        
+        uint64_t offset;
+        
+        if (hart->ie & (1U << IRQ_MTIMER)) {
+            offset = timecmp_delay_ns(&hart->aclint->mtimecmp[hart->id]);
+        }
+        if (hart->ie & (1U << IRQ_STIMER)) {
+            offset = min(UINT64_MAX,timecmp_delay_ns(&hart->stimecmp));
+        }
+
+        clock_t duration = (offset * CLOCKS_PER_SEC) / 1000000000LL;
+        hart->wfi_timer = now + duration;
+        hart->WFI = true;
+    }
     return true;
 }

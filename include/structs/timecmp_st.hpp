@@ -38,3 +38,13 @@ inline void timecmp_init(timecmp_st* cmp, timer_st* timer) {
     cmp->timer = timer;
     timecmp_set(cmp,-1);
 }
+inline uint64_t timecmp_delay(timecmp_st* cmp)
+{
+    uint64_t timer   = timer_get(cmp->timer);
+    uint64_t timecmp = timecmp_get(cmp);
+    return (timer < timecmp) ? (timecmp - timer) : 0;
+}
+inline uint64_t timecmp_delay_ns(timecmp_st* cmp)
+{
+    return timer_convert_freq(timecmp_delay(cmp), timer_freq(cmp->timer), 1000000000ULL);
+}

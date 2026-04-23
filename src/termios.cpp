@@ -22,6 +22,7 @@ Copyright 2026 Spalishe
 #include <csignal>
 #include "../include/devices/uart.hpp"
 #include "../include/termios.hpp"
+#include "../include/machine.hpp"
 
 termios orig_termios;
 

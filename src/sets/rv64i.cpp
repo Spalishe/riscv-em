@@ -335,5 +335,6 @@ inst_ret exec_FENCE(HART *hart, inst_data& inst) {
     // nop
     // If you planning adding some memory write/read buffer, you have to implement this instruction then
     // FENCE guaranties that all cores will see all changes that have done by 1 specific core before FENCE instruction
+
     return true;
 }

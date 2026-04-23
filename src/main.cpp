@@ -21,6 +21,7 @@ Copyright 2026 Spalishe
 
 #include "../include/machine.hpp"
 #include "../include/main.hpp"
+#include "../include/gdbstub.hpp"
 #include "../include/termios.hpp"
 
 /*
@@ -105,20 +106,26 @@ int main(int argc, char *argv[]) {
   termios_start();
   instr_initialize();
 
-  std::thread VM_thread(machine_run, std::ref(VM));
   termios_running.store(true);
   std::thread input_thread(termios_loop, std::ref(VM.uart), std::ref(VM));
 
 #ifdef USE_GDBSTUB
   bool gdb_stub = parser.getDefined(6);
   VM.gdb = gdb_stub;
+  std::thread GDB_thread;
   if (gdb_stub) {
-    std::thread GDB_thread(GDB_Create, VM.harts[0], &VM);
+    GDB_thread = std::thread(GDB_Create, VM.harts[0], &VM);
+  }
+#endif
+  std::thread VM_thread(machine_run, std::ref(VM));
+
+  VM_thread.join();
+
+#ifdef USE_GDBSTUB
+  if (gdb_stub) {
     GDB_thread.join();
   }
 #endif
-
-  VM_thread.join();
 
   termios_running.store(false);
   input_thread.join();

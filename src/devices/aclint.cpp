@@ -18,6 +18,7 @@ Copyright 2026 Spalishe
 #include "../../include/devices/aclint.hpp"
 #include "../../include/libfdt.hpp"
 #include "../../include/main.hpp"
+#include "machine.hpp"
 
 /*
     FIXME:
@@ -74,9 +75,9 @@ ACLINT::ACLINT(uint64_t base, Machine& cpu, fdt_node* fdt)
 
 void ACLINT::tick() {
     //mtime += 1;
-    for(HART* hrt : cpu.harts) {
+    /*for(HART* hrt : cpu.harts) {
         update_mip(hrt);
-    }
+    }*/
 }
 
 uint64_t ACLINT::read(HART* hart, uint64_t addr, uint64_t size) {
@@ -117,27 +118,35 @@ uint64_t ACLINT::read_mtimer(HART* hart, uint64_t offset) {
 void ACLINT::write_mswi(HART* hart, uint64_t offset, uint64_t value) {
     uint64_t hart_id = offset >> 2;
     msip[hart_id] = value;
-    update_mip(cpu.harts[hart_id]);
+    for(int i = 0; i < cpu.core_count; i++) {
+        HART* h = cpu.harts[i];
+        update_mip(h);
+    }
 }
 void ACLINT::write_mtimer(HART* hart, uint64_t offset, uint64_t value) {
     uint64_t hart_id = offset >> 3;
-    mtip_triggered[hart_id] = false;
     if (offset == 0x7FF8) {
         timer_set(&mtime,value);
-        update_mip(cpu.harts[hart_id]);
+        for(int i = 0; i < cpu.core_count; i++) {
+            HART* h = cpu.harts[i];
+            update_mip(h);
+        }
         //mtime = value;
         return;
     }
 
     timecmp_set(&mtimecmp[hart_id],value);
     //mtimecmp[hart_id] = value;
-    for(HART* h : cpu.harts) update_mip(h);
+    for(int i = 0; i < cpu.core_count; i++) {
+        HART* h = cpu.harts[i];
+        update_mip(h);
+    }
 }
 
 void ACLINT::update_mip(HART* hart) {
     uint32_t hart_id = hart->id;
 
-    uint64_t mip = hart->csrs[MIP];
+    uint64_t mip = hart->ip;
 
     if (msip[hart_id] & 1)
         mip |= (1ULL << MIP_MSIP);
@@ -159,11 +168,10 @@ void ACLINT::update_mip(HART* hart) {
     else 
         mip &= ~(1ULL << MIP_MTIP);
 
-    if (timer_get(&mtime) >= hart->csrs[STIMECMP] && hart->csrs[STIMECMP] != 0)
+    if (timecmp_pending(&hart->stimecmp) && timecmp_get(&hart->stimecmp) != UINT64_MAX)
         mip |= (1ULL << MIP_STIP);
     else
         mip &= ~(1ULL << MIP_STIP);
 
-
-    hart->csrs[MIP] = mip;
+    hart->ip = mip;
 }

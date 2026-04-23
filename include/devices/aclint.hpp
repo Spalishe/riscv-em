@@ -19,6 +19,8 @@ Copyright 2026 Spalishe
 
 #include "mmio.h"
 #include "../structs/timecmp_st.hpp"
+#include <atomic>
+#include <thread>
 
 #define ACLINT_MSWI_SIZE   0x4000
 #define ACLINT_MTIMER_SIZE 0x8000
@@ -33,8 +35,6 @@ struct ACLINT : public Device {
     std::vector<timecmp_st> mtimecmp;  // one per HART, 64-bit
     // uint64_t mtime; // global timer
     timer_st mtime;
-    std::vector<bool> mtip_triggered;
-    std::vector<bool> stip_triggered;
 
     void tick();
     uint64_t read(HART* hart, uint64_t addr, uint64_t size);
@@ -44,4 +44,5 @@ struct ACLINT : public Device {
     void write_mswi(HART* hart, uint64_t offset, uint64_t value);
     void write_mtimer(HART* hart, uint64_t offset, uint64_t value);
     void update_mip(HART* hart);
+    void update_timer(HART* hart);
 };

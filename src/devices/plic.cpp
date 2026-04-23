@@ -17,6 +17,7 @@ Copyright 2026 Spalishe
 #include "../../include/devices/plic.hpp"
 #include <vector>
 #include <cstdint>
+#include "machine.hpp"
 
 #ifndef PLIC_CTX_THRESHOLD
 #define PLIC_CTX_THRESHOLD 0x0

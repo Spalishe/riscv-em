@@ -42,3 +42,8 @@ inline void timer_init(timer_st* timer, uint64_t freq) {
     timer->freq = freq;
     timer_set(timer,0);
 }
+inline uint64_t timer_convert_freq(uint64_t clk, uint64_t src_freq, uint64_t dst_freq) {
+    uint64_t clk_div = clk / src_freq;
+    uint64_t clk_rem = clk - (clk_div * src_freq);
+    return (clk_div * dst_freq) + (clk_rem * dst_freq / src_freq);
+}

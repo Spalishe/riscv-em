@@ -19,7 +19,7 @@ Copyright 2026 Spalishe
 #include <stdint.h>
 #include <memory_map.h>
 
-#define DRAM_SIZE 1024*1024*512 //512 MiB
+#define DRAM_SIZE 1024*1024*256 //256 MiB
 #define DRAM_BASE 0x80000000
 
 struct Machine;

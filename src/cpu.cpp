@@ -17,12 +17,16 @@ Copyright 2026 Spalishe
 
 #include <iostream>
 #include "../include/cpu.hpp"
+#include "../include/mmu.hpp"
 #include <stdint.h>
 #include <string>
 #include <fstream>
+#include "../include/devices/mmio.h"
+#include "../include/machine.hpp"
 #include "../include/decode.h"
 #include "../include/csr.h"
 #include "../include/devices/plic.hpp"
+#include "../include/devices/aclint.hpp"
 #include <cstdio>
 #include <cstdarg>
 #include <format>
@@ -54,7 +58,10 @@ void hart_reset(HART& h, uint64_t dtb_path) {
 	h.csrs[MIMPID] = 0;
 	h.csrs[MHARTID] = h.id;
 	h.csrs[MIDELEG] = 5188;
-	h.csrs[MIP] = 0x80;
+	//h.csrs[MIP] = 0x80;
+    timecmp_init(&h.stimecmp,&h.aclint->mtime);
+    h.ie = 0;
+    h.ip = 0;
 	h.csrs[MSTATUS] = (0xA00000000);
 	csr_write(&h,SSTATUS,0x200000000);
 }
@@ -75,7 +82,9 @@ uint32_t hart_fetch(HART& h, uint64_t _pc) {
         h.fetch_pc = _pc;
     }
 	uint8_t fetch_indx = (_pc - h.fetch_pc) / 4;
+
 	return h.fetch_buffer[fetch_indx];
+
     /*auto phys = mmu_translate(*h.mmio->mmu, &h, _pc, AccessType::EXECUTE);
     if (!phys.has_value()) return 0;
     uint64_t addr = phys.value();
@@ -84,22 +93,26 @@ uint32_t hart_fetch(HART& h, uint64_t _pc) {
 
 void hart_step(HART& h) {
     uint32_t inst = hart_fetch(h,h.pc);
-    inst_data* d = parse_instruction(&h, inst, h.pc);
+    inst_data d = parse_instruction(&h, inst, h.pc);
     h.instr_cache[(h.pc >> 2) & 0x1FFF] = d;
     h.csrs[CYCLE]++;
-    if(d->valid == false) {
+    if(d.valid == false) {
         hart_trap(h,EXC_ILLEGAL_INSTRUCTION, inst, false);
         return;
     }
     uint16_t idx = (h.pc >> 2) & (256 - 1);
     h.pc_hits[idx]++;
 
-    if(h.pc_hits[idx] >= HART_INST_EXECUTION_COUNT_CAP && !h.is_creating_block && !d->canChangePC) {
-        InstructionBlock* block = &h.blocks[h.pc % 1024];
-        if(block->valid == false || block->start_pc != h.pc) {
+    #ifdef USE_GDB
+    if((h.pc_hits[idx] >= HART_INST_EXECUTION_COUNT_CAP && !h.aclint->cpu.gdb) && !h.is_creating_block && !d.canChangePC) {
+    #else
+    if(h.pc_hits[idx] >= HART_INST_EXECUTION_COUNT_CAP && !h.is_creating_block && !d.canChangePC) {
+    #endif
+        InstructionBlock* block = &h.blocks[h.pc % 256];
+        if(block->valid == false && block->start_pc != h.pc) {
             h.is_creating_block = true;
             h.block_creation_start_pc = h.pc;
-            InstructionBlock* block = &h.blocks[h.block_creation_start_pc % 1024];
+            InstructionBlock* block = &h.blocks[h.block_creation_start_pc % 256];
             block->valid = true;
             block->start_pc = h.block_creation_start_pc;
             memset(block->instrs,0,sizeof(block->instrs));
@@ -108,18 +121,18 @@ void hart_step(HART& h) {
         }
     }
     if(h.is_creating_block) {
-        InstructionBlock* block = &h.blocks[h.block_creation_start_pc % 1024];
+        InstructionBlock* block = &h.blocks[h.block_creation_start_pc % 256];
         if(block->valid == false || block->start_pc != h.block_creation_start_pc) {
             // Someone changed blocks in runtime!!
             // Invalidate ALL blocks, just in case
-            for(int i = 0; i < 1024; i++) {
+            for(int i = 0; i < 256; i++) {
                 InstructionBlock* block = &h.blocks[i];
                 block->valid = false;
             }
             memset(h.pc_hits,0,sizeof(h.pc_hits));
             h.is_creating_block = false;
             return;
-        } else if(d->canChangePC) {
+        } else if(d.canChangePC) {
             // We got a branch maybe
             h.is_creating_block = false;
             return;
@@ -129,7 +142,7 @@ void hart_step(HART& h) {
             return;
         } else {
             // Normal case
-            if(d->valid) {
+            if(d.valid) {
                 inst_ret ret = hart_execute(h,d);
                 if(ret.increasePC == false) {
                     // Probably branch case / TRAP
@@ -145,11 +158,11 @@ void hart_step(HART& h) {
         }
 
     } else {
-        InstructionBlock& block = h.blocks[h.pc % 1024];
+        InstructionBlock& block = h.blocks[h.pc % 256];
         if(block.valid == true && block.start_pc == h.pc) {
             // Execute block
             for(int i = 0; i < 256; i++) {
-                inst_data* dat = block.instrs[i];
+                inst_data dat = block.instrs[i];
                 if(h.pc < block.start_pc || h.pc >= block.start_pc + block.size){
                     // Interrupt
                     break;
@@ -163,8 +176,8 @@ void hart_step(HART& h) {
         } else hart_execute(h,d);
     }
 }
-inst_ret hart_execute(HART& h, inst_data* inst) {
-    inst_ret success = inst->fn(&h,*inst);
+inst_ret hart_execute(HART& h, inst_data& inst) {
+    inst_ret success = inst.fn(&h,inst);
     if(success.increasePC) {
         h.csrs[INSTRET]++;
         h.pc += success.isCompressed ? 2 : 4;
@@ -173,10 +186,10 @@ inst_ret hart_execute(HART& h, inst_data* inst) {
 }
 
 void hart_check_interrupts(HART& h) {
-    uint64_t mip = h.csrs[MIP];
-    uint64_t mie = h.csrs[MIE];
-    uint64_t sip = csr_read(&h,SIP);
-    uint64_t sie = csr_read(&h,SIE);
+    uint64_t mip = h.ip;
+    uint64_t mie = h.ie;
+    uint64_t sip = mip & SE_MASK;
+    uint64_t sie = mie & SE_MASK;
     uint64_t mideleg = h.csrs[MIDELEG];
 
     bool m_global = csr_read_mstatus(&h,MSTATUS_MIE,MSTATUS_MIE);
@@ -211,10 +224,10 @@ void hart_check_interrupts(HART& h) {
 }
 
 bool hart_have_local_pending(HART& h) {
-    uint64_t mip = h.csrs[MIP];
-    uint64_t mie = h.csrs[MIE];
-    uint64_t sip = csr_read(&h,SIP);
-    uint64_t sie = csr_read(&h,SIE);
+    uint64_t mip = h.ip;
+    uint64_t mie = h.ie;
+    uint64_t sip = mip & SE_MASK;
+    uint64_t sie = mie & SE_MASK;
     uint64_t mideleg = h.csrs[MIDELEG];
 
     uint64_t pending = mip & mie & ~mideleg;
@@ -270,9 +283,13 @@ uint64_t csr_read(HART *hart, uint16_t csr) {
         case SSTATUS:
             return hart->csrs[MSTATUS] & SSTATUS_MASK;
         case SIE:
-            return hart->csrs[MIE] & SE_MASK;
+            return hart->ie & SE_MASK;
         case SIP:
-            return hart->csrs[MIP] & SE_MASK;
+            return hart->ip & SE_MASK;
+        case MIE:
+            return hart->ie;
+        case MIP:
+            return hart->ip;
         case FFLAGS:
             return hart->csrs[FCSR] & 0x1F;
         case TIME:
@@ -280,6 +297,8 @@ uint64_t csr_read(HART *hart, uint16_t csr) {
             //return hart->aclint->mtime;
         case FRM:
             return (hart->csrs[FCSR] >> 5) & 0x7;
+        case STIMECMP:
+            return timecmp_get(&hart->stimecmp);
         default:
             return hart->csrs[csr];
     }
@@ -289,11 +308,15 @@ void csr_write(HART *hart, uint16_t csr, uint64_t val) {
         uint64_t mst = hart->csrs[MSTATUS] & ~SSTATUS_MASK;
         hart->csrs[MSTATUS] = mst | (val & SSTATUS_MASK);
     } else if(csr == SIP) {
-        uint64_t mst = hart->csrs[MIP] & ~SE_MASK;
-        hart->csrs[MIP] = mst | (val & SE_MASK);
+        uint64_t mst = hart->ip & ~SE_MASK;
+        hart->ip = mst | (val & SE_MASK);
     } else if(csr == SIE) {
-        uint64_t mst = hart->csrs[MIE] & ~SE_MASK;
-        hart->csrs[MIE] = mst | (val & SE_MASK);
+        uint64_t mst = hart->ie & ~SE_MASK;
+        hart->ie = mst | (val & SE_MASK);
+    } else if(csr == MIP) {
+        hart->ip = val;
+    } else if(csr == MIE) {
+        hart->ie = val;
     } else if(csr >= PMPCFG0 && csr <= PMPCFG15) {
         auto vals = pmp_get_num_cfgs(val);
         std::vector<uint8_t> update;
@@ -332,6 +355,9 @@ void csr_write(HART *hart, uint16_t csr, uint64_t val) {
         hart->csrs[FCSR] = cs;
     } else if(csr == FCSR) {
         hart->csrs[FCSR] = val & 0xFF;
+    } else if(csr == STIMECMP) {
+        timecmp_set(&hart->stimecmp,val);
+        hart->aclint->update_mip(hart);
     } else if(csr == MISA || csr == MARCHID || csr == MVENDORID || csr == MIMPID || csr == MHARTID) {
         // RO: nop
     } else {

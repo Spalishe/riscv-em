@@ -16,7 +16,7 @@ Copyright 2026 Spalishe
 */
 
 #include "../../include/devices/syscon.hpp"
-#include "../../include/main.hpp"
+#include "machine.hpp"
 
 SYSCON::SYSCON(uint64_t base, uint64_t size, Machine& cpu,fdt_node* fdt)
         : Device(base, size, cpu)

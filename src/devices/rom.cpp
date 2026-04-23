@@ -16,6 +16,7 @@ Copyright 2026 Spalishe
 */
 
 #include "../../include/devices/rom.hpp"
+#include "machine.hpp"
 
 uint64_t ROM::read(HART* hart,uint64_t addr,uint64_t size) {
     return dram_load(&cpu.dram,addr,size);

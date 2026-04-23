@@ -17,10 +17,12 @@ Copyright 2026 Spalishe
 
 #include "../../include/decode.h"
 #include "../../include/cpu.hpp"
-
+#include "machine.hpp"
+#include "mmu.hpp"
 
 void amo_check_reservation(Machine& cpu, uint64_t va) {
-    for(auto& h : cpu.harts) {
+    for(int i = 0; i < cpu.core_count; i++) {
+        HART* h = cpu.harts[i];
         if(h->reservation.valid && h->reservation.vaddr == va) {
             h->reservation.valid = false;
         }

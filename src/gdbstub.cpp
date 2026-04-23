@@ -17,6 +17,7 @@ Copyright 2026 Spalishe
 
 
 #include "../include/gdbstub.hpp"
+#include "../include/mmu.hpp"
 #include "../include/devices/plic.hpp"
 #include <sys/socket.h>
 #include <netinet/in.h>

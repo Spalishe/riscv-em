@@ -17,6 +17,7 @@ Copyright 2026 Spalishe
 
 #include "../include/pmp.hpp"
 #include "../include/cpu.hpp"
+#include "../include/mmu.hpp"
 
 std::vector<uint8_t> pmp_get_num_cfgs(uint64_t val) {
     std::vector<uint8_t> cfgs;

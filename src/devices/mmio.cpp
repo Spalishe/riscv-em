@@ -31,10 +31,10 @@ std::optional<uint64_t> MMIO::load(HART *hart, uint64_t addr, uint64_t size) {
     return std::nullopt;
   uint64_t pa = phys.value();
 
-  if ((pa % (size / 8)) != 0) {
+  /*if ((pa % (size / 8)) != 0) {
     hart_trap(*hart, EXC_LOAD_ADDR_MISALIGNED, addr, false);
     return std::nullopt;
-  }
+  }*/
 
   // DRAM
   if (pa >= DRAM_BASE && pa < DRAM_BASE + DRAM_SIZE) {
@@ -59,10 +59,10 @@ bool MMIO::store(HART *hart, uint64_t addr, uint64_t size, uint64_t value) {
     return false;
   uint64_t pa = phys.value();
 
-  if (pa % (size / 8) != 0) {
+  /*if (pa % (size / 8) != 0) {
     hart_trap(*hart, EXC_STORE_ADDR_MISALIGNED, addr, false);
     return false;
-  }
+  }*/
 
   // DRAM
   if (pa >= DRAM_BASE && pa < DRAM_BASE + DRAM_SIZE) {

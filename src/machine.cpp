@@ -21,6 +21,7 @@ Copyright 2026 Spalishe
 #include <random>
 #include "../include/machine.hpp"
 #include "../include/termios.hpp"
+#include "../include/mmu.hpp"
 
 void machine_run(Machine& cpu) {
 	#ifdef USE_GDBSTUB
@@ -45,10 +46,15 @@ void machine_run(Machine& cpu) {
         }
 		
 		cpu.clint->tick();
-        for (auto& h : cpu.harts) {
+        for (int i = 0; i < cpu.core_count; i++) {
+			HART* h = cpu.harts[i];
 			cpu.plic->plic_service(h);
 			h->GPR[0] = 0;
             if(h->WFI) {
+				clock_t now = clock();
+				if(now >= h->wfi_timer){
+					h->aclint->update_mip(h);	
+				}
             	hart_check_interrupts(*h);
 				if(hart_have_local_pending(*h)) {
 					// We must continue execution even if we has locally pending interruptions
@@ -67,6 +73,7 @@ void machine_run(Machine& cpu) {
 			}
 		#endif
     }
+
     machine_destroy_harts(cpu);
 }
 
@@ -244,10 +251,12 @@ void machine_create_harts(Machine& cpu) {
         hart->id = i;
 		hart->aclint = cpu.clint;
         hart_reset(*hart,dtb_path_in_memory);
-		cpu.harts.push_back(hart);
+		cpu.harts[i] = hart;
     }
 }
 
 void machine_destroy_harts(Machine& cpu) {
-    cpu.harts.clear();
+    for(int i = 0; i < cpu.core_count; i++) {
+		cpu.harts[i] = NULL;
+	}
 }
