@@ -52,9 +52,10 @@ void machine_run(Machine& cpu) {
 			h->GPR[0] = 0;
             if(h->WFI) {
 				clock_t now = clock();
-				if(now >= h->wfi_timer){
+				/*if(now >= h->wfi_timer){
 					h->aclint->update_mip(h);	
-				}
+				}*/
+				h->aclint->update_mip(h);
             	hart_check_interrupts(*h);
 				if(hart_have_local_pending(*h)) {
 					// We must continue execution even if we has locally pending interruptions

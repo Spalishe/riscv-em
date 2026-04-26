@@ -18,7 +18,6 @@ Copyright 2026 Spalishe
 #pragma once
 
 #include "mmio.h"
-#include "../structs/timecmp_st.hpp"
 #include <atomic>
 #include <thread>
 
@@ -31,10 +30,9 @@ struct ACLINT : public Device {
 
     // Memory-mapped registers
     std::vector<uint32_t> msip;      // one per HART, 32-bit
-    //std::vector<uint64_t> mtimecmp;  // one per HART, 64-bit
-    std::vector<timecmp_st> mtimecmp;  // one per HART, 64-bit
-    // uint64_t mtime; // global timer
-    timer_st mtime;
+    std::vector<uint64_t> mtimecmp;  // one per HART, 64-bit
+    uint64_t mtime; // global timer
+    uint16_t tmp;
 
     void tick();
     uint64_t read(HART* hart, uint64_t addr, uint64_t size);
@@ -44,5 +42,4 @@ struct ACLINT : public Device {
     void write_mswi(HART* hart, uint64_t offset, uint64_t value);
     void write_mtimer(HART* hart, uint64_t offset, uint64_t value);
     void update_mip(HART* hart);
-    void update_timer(HART* hart);
 };

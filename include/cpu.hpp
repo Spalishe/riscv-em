@@ -29,7 +29,6 @@ Copyright 2026 Spalishe
 #include "pmp.hpp"
 #include <cmath>
 #include <ctime>
-#include "structs/timecmp_st.hpp"
 
 #define HART_INST_EXECUTION_COUNT_CAP 50 // After that number block will be created
 
@@ -134,7 +133,7 @@ struct HART {
     ACLINT* aclint;
 
     bool WFI = false;
-    clock_t wfi_timer;
+    //clock_t wfi_timer;
 
     uint32_t fetch_buffer[8];
     uint64_t fetch_pc; 
@@ -150,7 +149,7 @@ struct HART {
 
     uint64_t ie;
     uint64_t ip;
-    timecmp_st stimecmp;
+    uint64_t stimecmp;
     status_t status;
 };
 

@@ -26,11 +26,3 @@ Copyright 2026 Spalishe
 #if defined(__aarch64__)
     #define HOST_TARGET_AARCH64 1
 #endif
-
-
-
-
-
-#if not defined(USE_GDBSTUB)
-    #define USE_GDBSTUB 1
-#endif

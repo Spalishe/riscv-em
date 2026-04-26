@@ -60,7 +60,7 @@ void hart_reset(HART& h, uint64_t dtb_path) {
 	h.csrs[CSR_MIDELEG] = 5188;
     h.csrs[CSR_MEDELEG] = 0x4B109;
 	//h.csrs[MIP] = 0x80;
-    timecmp_init(&h.stimecmp,&h.aclint->mtime);
+    //timecmp_init(&h.stimecmp,&h.aclint->mtime);
     h.ie = 0;
     h.ip = 0;
 }
@@ -281,7 +281,6 @@ void hart_trap(HART& h, uint64_t cause, uint64_t tval, bool is_interrupt) {
         h.status.fields.MIE = 0;
         h.status.fields.MPP = (uint8_t)prev_mode;
     }
-    cout << "SIE: " << h.status.fields.SIE << ", delegate_to_s: " << delegate_to_s << ", mcause: 0x" << hex << h.csrs[CSR_MCAUSE] << dec << ", scause: 0x" << hex << h.csrs[CSR_SCAUSE] << dec << endl;
 }
 uint64_t csr_read(HART *hart, uint16_t csr) {
     switch(csr) {
@@ -300,12 +299,13 @@ uint64_t csr_read(HART *hart, uint16_t csr) {
         case CSR_FFLAGS:
             return hart->csrs[CSR_FCSR] & 0x1F;
         case CSR_TIME:
-            return timer_get(&hart->aclint->mtime);
-            //return hart->aclint->mtime;
+            //return timer_get(&hart->aclint->mtime);
+            return hart->aclint->mtime;
         case CSR_FRM:
             return (hart->csrs[CSR_FCSR] >> 5) & 0x7;
         case CSR_STIMECMP:
-            return timecmp_get(&hart->stimecmp);
+            //return timecmp_get(&hart->stimecmp);
+            return hart->stimecmp;
         default:
             return hart->csrs[csr];
     }
@@ -363,7 +363,8 @@ void csr_write(HART *hart, uint16_t csr, uint64_t val) {
     } else if(csr == CSR_FCSR) {
         hart->csrs[CSR_FCSR] = val & 0xFF;
     } else if(csr == CSR_STIMECMP) {
-        timecmp_set(&hart->stimecmp,val);
+        //timecmp_set(&hart->stimecmp,val);
+        hart->stimecmp = val;
         hart->aclint->update_mip(hart);
     } else if(csr == CSR_MISA || csr == CSR_MARCHID || csr == CSR_MVENDORID || csr == CSR_MIMPID || csr == CSR_MHARTID) {
         // RO: nop

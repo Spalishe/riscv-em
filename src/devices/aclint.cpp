@@ -39,13 +39,13 @@ Copyright 2026 Spalishe
 ACLINT::ACLINT(uint64_t base, Machine& cpu, fdt_node* fdt)
     : Device(base, 0x10000, cpu),
         msip(cpu.core_count, 0),
-        mtimecmp(cpu.core_count)
+        mtimecmp(cpu.core_count, 0)
 {   
-    timer_init(&mtime,ACLINT_FREQ_HZ);
+    /*timer_init(&mtime,ACLINT_FREQ_HZ);
     for(int i = 0; i < cpu.core_count; i++) {
         timecmp_init(&mtimecmp[i],&mtime);
         timecmp_set(&mtimecmp[i],UINT64_MAX);
-    }
+    }*/
     
     if(fdt != NULL) {
         struct fdt_node* cpus = fdt_node_find(fdt, "cpus");
@@ -75,10 +75,14 @@ ACLINT::ACLINT(uint64_t base, Machine& cpu, fdt_node* fdt)
 }
 
 void ACLINT::tick() {
-    //mtime += 1;
-    /*for(HART* hrt : cpu.harts) {
-        update_mip(hrt);
-    }*/
+    tmp++;
+    if(tmp % 32 == 0) {
+        tmp = 0;
+        mtime += 1;
+        /*for(HART* hrt : cpu.harts) {
+            update_mip(hrt);
+        }*/
+    }
 }
 
 uint64_t ACLINT::read(HART* hart, uint64_t addr, uint64_t size) {
@@ -110,11 +114,11 @@ uint64_t ACLINT::read_mswi(HART* hart, uint64_t offset) {
 uint64_t ACLINT::read_mtimer(HART* hart, uint64_t offset) {
     uint64_t hart_id = offset >> 3;
     if(offset == 0x7FF8) {
-        return timer_get(&mtime);
-        //return mtime;
+        //return timer_get(&mtime);
+        return mtime;
     }
-    return timecmp_get(&mtimecmp[hart_id]);
-    //return mtimecmp[hart_id];
+    //return timecmp_get(&mtimecmp[hart_id]);
+    return mtimecmp[hart_id];
 }
 void ACLINT::write_mswi(HART* hart, uint64_t offset, uint64_t value) {
     uint64_t hart_id = offset >> 2;
@@ -127,21 +131,15 @@ void ACLINT::write_mswi(HART* hart, uint64_t offset, uint64_t value) {
 void ACLINT::write_mtimer(HART* hart, uint64_t offset, uint64_t value) {
     uint64_t hart_id = offset >> 3;
     if (offset == 0x7FF8) {
-        timer_set(&mtime,value);
-        for(int i = 0; i < cpu.core_count; i++) {
-            HART* h = cpu.harts[i];
-            update_mip(h);
-        }
-        //mtime = value;
+        //timer_set(&mtime,value);
+        mtime = value;
+        update_mip(hart);
         return;
     }
 
-    timecmp_set(&mtimecmp[hart_id],value);
-    //mtimecmp[hart_id] = value;
-    for(int i = 0; i < cpu.core_count; i++) {
-        HART* h = cpu.harts[i];
-        update_mip(h);
-    }
+    //timecmp_set(&mtimecmp[hart_id],value);
+    mtimecmp[hart_id] = value;
+    update_mip(hart);
 }
 
 void ACLINT::update_mip(HART* hart) {
@@ -154,17 +152,17 @@ void ACLINT::update_mip(HART* hart) {
     else
         mip &= ~(1ULL << MIP_MSIP);
 
-    /*if (mtime >= mtimecmp[hart_id])
+    if (mtime >= mtimecmp[hart_id])
         mip |= (1ULL << MIP_MTIP);
     else
         mip &= ~(1ULL << MIP_MTIP);
 
-    if (mtime >= hart->csrs[STIMECMP] && hart->csrs[STIMECMP] != 0)
+    if (mtime >= hart->stimecmp && hart->stimecmp != UINT64_MAX)
         mip |= (1ULL << MIP_STIP);
     else
-        mip &= ~(1ULL << MIP_STIP);*/
+        mip &= ~(1ULL << MIP_STIP);
     
-    if (timecmp_pending(&mtimecmp[hart_id])) {
+    /*if (timecmp_pending(&mtimecmp[hart_id])) {
         mip |= (1ULL << MIP_MTIP);
     } else 
         mip &= ~(1ULL << MIP_MTIP);
@@ -172,7 +170,7 @@ void ACLINT::update_mip(HART* hart) {
     if (timecmp_pending(&hart->stimecmp) && timecmp_get(&hart->stimecmp) != UINT64_MAX) {
         mip |= (1ULL << MIP_STIP);
     } else
-        mip &= ~(1ULL << MIP_STIP);
+        mip &= ~(1ULL << MIP_STIP);*/
 
     hart->ip = mip;
 }

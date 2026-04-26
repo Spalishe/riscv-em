@@ -97,7 +97,7 @@ inst_ret exec_WFI(HART *hart, inst_data& inst) {
         
         uint64_t offset;
         
-        if (hart->ie & (1U << IRQ_MTIMER)) {
+        /*if (hart->ie & (1U << IRQ_MTIMER)) {
             offset = timecmp_delay_ns(&hart->aclint->mtimecmp[hart->id]);
         }
         if (hart->ie & (1U << IRQ_STIMER)) {
@@ -108,7 +108,7 @@ inst_ret exec_WFI(HART *hart, inst_data& inst) {
 
         //cout << timer_get(&hart->aclint->mtime) << "  " << timecmp_get(&hart->stimecmp) << "  " << offset << "   " << duration << endl;
 
-        hart->wfi_timer = now + duration;
+        hart->wfi_timer = now + duration;*/
         hart->WFI = true;
     }
     return true;
