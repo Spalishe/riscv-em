@@ -215,14 +215,14 @@ void PLIC::plic_service(HART* hart) {
     last_claimed[ctx] = best_src;
 
     if (hart->mode == PrivilegeMode::Machine) {
-        uint64_t mip = hart->csrs[MIP];
+        uint64_t mip = hart->ip;
         mip |= (1ULL << MIP_MEIP);
-        hart->csrs[MIP] = mip;
+        hart->ip = mip;
         hart_trap(*hart,IRQ_MEXT, 0, true);
     } else if (hart->mode == PrivilegeMode::Supervisor) {
-        uint64_t sip = hart->csrs[SIP];
+        uint64_t sip = hart->ip & SE_MASK;
         sip |= (1ULL << MIP_SEIP);
-        hart->csrs[SIP] = sip;
+        csr_write(hart, CSR_SIP, sip);
         hart_trap(*hart,IRQ_SEXT, 0, true);
     }
 }

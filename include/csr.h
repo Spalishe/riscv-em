@@ -22,223 +22,223 @@ Copyright 2026 Spalishe
 //------------------------------------------------------------------------------------
 
 // User Trap Setup
-#define USTATUS     0x000 // URW User status register.
-#define UIE         0x004 // URW User interrupt-enable register.
-#define UTVEC       0x005 // URW User trap handler base address.
+#define CSR_USTATUS     0x000 // URW User status register.
+#define CSR_UIE         0x004 // URW User interrupt-enable register.
+#define CSR_UTVEC       0x005 // URW User trap handler base address.
 
 //User Trap Handling
-#define USCRATCH    0x040 // URW Scratch register for user trap handlers.
-#define UEPC        0x041 // URW User exception program counter.
-#define UCAUSE      0x042 // URW User trap cause.
-#define UTVAL       0x043 // URW User bad address or instruction.
-#define UIP         0x044 // URW User interrupt pending.
+#define CSR_USCRATCH    0x040 // URW Scratch register for user trap handlers.
+#define CSR_UEPC        0x041 // URW User exception program counter.
+#define CSR_UCAUSE      0x042 // URW User trap cause.
+#define CSR_UTVAL       0x043 // URW User bad address or instruction.
+#define CSR_UIP         0x044 // URW User interrupt pending.
 
 //User Floating-Point CSRs
-#define FFLAGS      0x001 // URW Floating-Point Accrued Exceptions.
-#define FRM         0x002 // URW Floating-Point Dynamic Rounding Mode.
-#define FCSR        0x003 // URW Floating-Point Control and Status Register (frm + fflags)
+#define CSR_FFLAGS      0x001 // URW Floating-Point Accrued Exceptions.
+#define CSR_FRM         0x002 // URW Floating-Point Dynamic Rounding Mode.
+#define CSR_FCSR        0x003 // URW Floating-Point Control and Status Register (frm + fflags)
 
 //User Counter/Timers
-#define CYCLE       0xC00 // URO Cycle counter for RDCYCLE instruction.
-#define TIME        0xC01 // URO Timer for RDTIME instruction.
-#define INSTRET     0xC02 // URO Instructions-retired counter for RDINSTRET instruction.
-#define HPMCOUNTER3 0xC03 // URO Performance-monitoring counter.
-#define HPMCOUNTER4 0xC04 // URO Performance-monitoring counter.
+#define CSR_CYCLE       0xC00 // URO Cycle counter for RDCYCLE instruction.
+#define CSR_TIME        0xC01 // URO Timer for RDTIME instruction.
+#define CSR_INSTRET     0xC02 // URO Instructions-retired counter for RDINSTRET instruction.
+#define CSR_HPMCOUNTER3 0xC03 // URO Performance-monitoring counter.
+#define CSR_HPMCOUNTER4 0xC04 // URO Performance-monitoring counter.
 // ... hpm counter 4-31 (TODO)
-#define HPMCOUNTER31 0xC1F // URO Performance-monitoring counter.
-#define CYCLEH      0xC80  // URO Upper 32 bits of cycle, RV32I only.
-#define TIMEH       0xC81  // URO Upper 32 bits of time, RV32I only.
-#define INSTRETH    0xC82  // URO Upper 32 bits of instret, RV32I only.
-#define HPMCOUNTER3H 0xC83 // URO Upper 32 bits of hpmcounter3, RV32I only.
-#define HPMCOUNTER4H 0xC84 // URO Upper 32 bits of hpmcounter4, RV32I only.
+#define CSR_HPMCOUNTER31 0xC1F // URO Performance-monitoring counter.
+#define CSR_CYCLEH      0xC80  // URO Upper 32 bits of cycle, RV32I only.
+#define CSR_TIMEH       0xC81  // URO Upper 32 bits of time, RV32I only.
+#define CSR_INSTRETH    0xC82  // URO Upper 32 bits of instret, RV32I only.
+#define CSR_HPMCOUNTER3H 0xC83 // URO Upper 32 bits of hpmcounter3, RV32I only.
+#define CSR_HPMCOUNTER4H 0xC84 // URO Upper 32 bits of hpmcounter4, RV32I only.
 // ... hpm counter 4-31 (TODO)
-#define HPMCOUNTER31H 0xC9F URO 
+#define CSR_HPMCOUNTER31H 0xC9F URO 
 
 
 //Supervisor Trap Setup
-#define SSTATUS     0x100 // SRW Supervisor status register.
-#define SEDELEG     0x102 // SRW Supervisor exception delegation register.
-#define SIDELEG     0x103 // SRW Supervisor interrupt delegation register.
-#define SIE         0x104 // SRW Supervisor interrupt-enable register.
-#define STVEC       0x105 // SRW Supervisor trap handler base address.
-#define SCOUNTEREN  0x106 // SRW Supervisor counter enable.
+#define CSR_SSTATUS     0x100 // SRW Supervisor status register.
+#define CSR_SEDELEG     0x102 // SRW Supervisor exception delegation register.
+#define CSR_SIDELEG     0x103 // SRW Supervisor interrupt delegation register.
+#define CSR_SIE         0x104 // SRW Supervisor interrupt-enable register.
+#define CSR_STVEC       0x105 // SRW Supervisor trap handler base address.
+#define CSR_SCOUNTEREN  0x106 // SRW Supervisor counter enable.
 
 //Supervisor Trap Handling
-#define SSCRATCH    0x140 // SRW Scratch register for supervisor trap handlers.
-#define SEPC        0x141 // SRW Supervisor exception program counter.
-#define SCAUSE      0x142 // SRW Supervisor trap cause.
-#define STVAL       0x143 // SRW Supervisor bad address or instruction.
-#define SIP         0x144 // SRW Supervisor interrupt pending.
+#define CSR_SSCRATCH    0x140 // SRW Scratch register for supervisor trap handlers.
+#define CSR_SEPC        0x141 // SRW Supervisor exception program counter.
+#define CSR_SCAUSE      0x142 // SRW Supervisor trap cause.
+#define CSR_STVAL       0x143 // SRW Supervisor bad address or instruction.
+#define CSR_SIP         0x144 // SRW Supervisor interrupt pending.
 
 //https://lists.riscv.org/g/tech-privileged/topic/fast_track_stimecmp/78649672
-#define STIMECMP    0x14D // SRW Supervisor timer compare
-#define STIMECMPH   0x15D // SRW Supervisor timer compare high
+#define CSR_STIMECMP    0x14D // SRW Supervisor timer compare
+#define CSR_STIMECMPH   0x15D // SRW Supervisor timer compare high
 
 //Supervisor Protection and Translation
-#define SATP        0x180 // SRW Supervisor address translation and protection.
+#define CSR_SATP        0x180 // SRW Supervisor address translation and protection.
 
 //Machine Information Registers
-#define MVENDORID   0xF11 // MRO Vendor ID.
-#define MARCHID     0xF12 // MRO Architecture ID.
-#define MIMPID      0xF13 // MRO Implementation ID.
-#define MHARTID     0xF14 // MRO Hardware thread ID.
+#define CSR_MVENDORID   0xF11 // MRO Vendor ID.
+#define CSR_MARCHID     0xF12 // MRO Architecture ID.
+#define CSR_MIMPID      0xF13 // MRO Implementation ID.
+#define CSR_MHARTID     0xF14 // MRO Hardware thread ID.
 
 //Machine Trap Setup
-#define MSTATUS     0x300 // MRW Machine status register.
-#define MISA        0x301 // MRW ISA and extensions
-#define MEDELEG     0x302 // MRW Machine exception delegation register.
-#define MIDELEG     0x303 // MRW Machine interrupt delegation register.
-#define MIE         0x304 // MRW Machine interrupt-enable register.
-#define MTVEC       0x305 // MRW Machine trap-handler base address.
-#define MCOUNTEREN  0x306 // MRW Machine counter enable.
+#define CSR_MSTATUS     0x300 // MRW Machine status register.
+#define CSR_MISA        0x301 // MRW ISA and extensions
+#define CSR_MEDELEG     0x302 // MRW Machine exception delegation register.
+#define CSR_MIDELEG     0x303 // MRW Machine interrupt delegation register.
+#define CSR_MIE         0x304 // MRW Machine interrupt-enable register.
+#define CSR_MTVEC       0x305 // MRW Machine trap-handler base address.
+#define CSR_MCOUNTEREN  0x306 // MRW Machine counter enable.
 
 //Machine Trap Handling
-#define MSCRATCH    0x340 // MRW Scratch register for machine trap handlers.
-#define MEPC        0x341 // MRW Machine exception program counter.
-#define MCAUSE      0x342 // MRW Machine trap cause.
-#define MTVAL       0x343 // MRW Machine bad address or instruction.
-#define MIP         0x344 // MRW Machine interrupt pending.
+#define CSR_MSCRATCH    0x340 // MRW Scratch register for machine trap handlers.
+#define CSR_MEPC        0x341 // MRW Machine exception program counter.
+#define CSR_MCAUSE      0x342 // MRW Machine trap cause.
+#define CSR_MTVAL       0x343 // MRW Machine bad address or instruction.
+#define CSR_MIP         0x344 // MRW Machine interrupt pending.
 
 //Machine Memory Protection
-#define PMPCFG0     0x3A0 // MRW Physical memory protection configuration.
-#define PMPCFG1     0x3A1 // MRW Physical memory protection configuration, RV32 only.
-#define PMPCFG2     0x3A2 // MRW Physical memory protection configuration.
-#define PMPCFG3     0x3A3 // MRW Physical memory protection configuration, RV32 only.
-#define PMPCFG4     0x3A4 // MRW Physical memory protection configuration.
-#define PMPCFG5     0x3A5 // MRW Physical memory protection configuration, RV32 only.
-#define PMPCFG6     0x3A6 // MRW Physical memory protection configuration.
-#define PMPCFG7     0x3A7 // MRW Physical memory protection configuration, RV32 only.
-#define PMPCFG8     0x3A8 // MRW Physical memory protection configuration.
-#define PMPCFG9     0x3A9 // MRW Physical memory protection configuration, RV32 only.
-#define PMPCFG10    0x3AA // MRW Physical memory protection configuration.
-#define PMPCFG11    0x3AB // MRW Physical memory protection configuration, RV32 only.
-#define PMPCFG12    0x3AC // MRW Physical memory protection configuration.
-#define PMPCFG13    0x3AD // MRW Physical memory protection configuration, RV32 only.
-#define PMPCFG14    0x3AE // MRW Physical memory protection configuration.
-#define PMPCFG15    0x3AF // MRW Physical memory protection configuration, RV32 only.
+#define CSR_PMPCFG0     0x3A0 // MRW Physical memory protection configuration.
+#define CSR_PMPCFG1     0x3A1 // MRW Physical memory protection configuration, RV32 only.
+#define CSR_PMPCFG2     0x3A2 // MRW Physical memory protection configuration.
+#define CSR_PMPCFG3     0x3A3 // MRW Physical memory protection configuration, RV32 only.
+#define CSR_PMPCFG4     0x3A4 // MRW Physical memory protection configuration.
+#define CSR_PMPCFG5     0x3A5 // MRW Physical memory protection configuration, RV32 only.
+#define CSR_PMPCFG6     0x3A6 // MRW Physical memory protection configuration.
+#define CSR_PMPCFG7     0x3A7 // MRW Physical memory protection configuration, RV32 only.
+#define CSR_PMPCFG8     0x3A8 // MRW Physical memory protection configuration.
+#define CSR_PMPCFG9     0x3A9 // MRW Physical memory protection configuration, RV32 only.
+#define CSR_PMPCFG10    0x3AA // MRW Physical memory protection configuration.
+#define CSR_PMPCFG11    0x3AB // MRW Physical memory protection configuration, RV32 only.
+#define CSR_PMPCFG12    0x3AC // MRW Physical memory protection configuration.
+#define CSR_PMPCFG13    0x3AD // MRW Physical memory protection configuration, RV32 only.
+#define CSR_PMPCFG14    0x3AE // MRW Physical memory protection configuration.
+#define CSR_PMPCFG15    0x3AF // MRW Physical memory protection configuration, RV32 only.
 
-#define PMPADDR0    0x3B0 // MRW Physical memory protection address register.
-#define PMPADDR1    0x3B1 // MRW Physical memory protection address register.
-#define PMPADDR2    0x3B2 // MRW Physical memory protection address register.
-#define PMPADDR3    0x3B3 // MRW Physical memory protection address register.
-#define PMPADDR4    0x3B4 // MRW Physical memory protection address register.
-#define PMPADDR5    0x3B5 // MRW Physical memory protection address register.
-#define PMPADDR6    0x3B6 // MRW Physical memory protection address register.
-#define PMPADDR7    0x3B7 // MRW Physical memory protection address register.
-#define PMPADDR8    0x3B8 // MRW Physical memory protection address register.
-#define PMPADDR9    0x3B9 // MRW Physical memory protection address register.
-#define PMPADDR10   0x3BA // MRW Physical memory protection address register.
-#define PMPADDR11   0x3BB // MRW Physical memory protection address register.
-#define PMPADDR12   0x3BC // MRW Physical memory protection address register.
-#define PMPADDR13   0x3BD // MRW Physical memory protection address register.
-#define PMPADDR14   0x3BE // MRW Physical memory protection address register.
-#define PMPADDR15   0x3BF // MRW Physical memory protection address register.
-#define PMPADDR16   0x3C0 // MRW Physical memory protection address register.
-#define PMPADDR17   0x3C1 // MRW Physical memory protection address register.
-#define PMPADDR18   0x3C2 // MRW Physical memory protection address register.
-#define PMPADDR19   0x3C3 // MRW Physical memory protection address register.
-#define PMPADDR20   0x3C4 // MRW Physical memory protection address register.
-#define PMPADDR21   0x3C5 // MRW Physical memory protection address register.
-#define PMPADDR22   0x3C6 // MRW Physical memory protection address register.
-#define PMPADDR23   0x3C7 // MRW Physical memory protection address register.
-#define PMPADDR24   0x3C8 // MRW Physical memory protection address register.
-#define PMPADDR25   0x3C9 // MRW Physical memory protection address register.
-#define PMPADDR26   0x3CA // MRW Physical memory protection address register.
-#define PMPADDR27   0x3CB // MRW Physical memory protection address register.
-#define PMPADDR28   0x3CC // MRW Physical memory protection address register.
-#define PMPADDR29   0x3CD // MRW Physical memory protection address register.
-#define PMPADDR30   0x3CE // MRW Physical memory protection address register.
-#define PMPADDR31   0x3CF // MRW Physical memory protection address register.
-#define PMPADDR32   0x3D0 // MRW Physical memory protection address register.
-#define PMPADDR33   0x3D1 // MRW Physical memory protection address register.
-#define PMPADDR34   0x3D2 // MRW Physical memory protection address register.
-#define PMPADDR35   0x3D3 // MRW Physical memory protection address register.
-#define PMPADDR36   0x3D4 // MRW Physical memory protection address register.
-#define PMPADDR37   0x3D5 // MRW Physical memory protection address register.
-#define PMPADDR38   0x3D6 // MRW Physical memory protection address register.
-#define PMPADDR39   0x3D7 // MRW Physical memory protection address register.
-#define PMPADDR40   0x3D8 // MRW Physical memory protection address register.
-#define PMPADDR41   0x3D9 // MRW Physical memory protection address register.
-#define PMPADDR42   0x3DA // MRW Physical memory protection address register.
-#define PMPADDR43   0x3DB // MRW Physical memory protection address register.
-#define PMPADDR44   0x3DC // MRW Physical memory protection address register.
-#define PMPADDR45   0x3DD // MRW Physical memory protection address register.
-#define PMPADDR46   0x3DE // MRW Physical memory protection address register.
-#define PMPADDR47   0x3DF // MRW Physical memory protection address register.
-#define PMPADDR48   0x3E0 // MRW Physical memory protection address register.
-#define PMPADDR49   0x3E1 // MRW Physical memory protection address register.
-#define PMPADDR50   0x3E2 // MRW Physical memory protection address register.
-#define PMPADDR51   0x3E3 // MRW Physical memory protection address register.
-#define PMPADDR52   0x3E4 // MRW Physical memory protection address register.
-#define PMPADDR53   0x3E5 // MRW Physical memory protection address register.
-#define PMPADDR54   0x3E6 // MRW Physical memory protection address register.
-#define PMPADDR55   0x3E7 // MRW Physical memory protection address register.
-#define PMPADDR56   0x3E8 // MRW Physical memory protection address register.
-#define PMPADDR57   0x3E9 // MRW Physical memory protection address register.
-#define PMPADDR58   0x3EA // MRW Physical memory protection address register.
-#define PMPADDR59   0x3EB // MRW Physical memory protection address register.
-#define PMPADDR60   0x3EC // MRW Physical memory protection address register.
-#define PMPADDR61   0x3ED // MRW Physical memory protection address register.
-#define PMPADDR62   0x3EE // MRW Physical memory protection address register.
-#define PMPADDR63   0x3EF // MRW Physical memory protection address register.
+#define CSR_PMPADDR0    0x3B0 // MRW Physical memory protection address register.
+#define CSR_PMPADDR1    0x3B1 // MRW Physical memory protection address register.
+#define CSR_PMPADDR2    0x3B2 // MRW Physical memory protection address register.
+#define CSR_PMPADDR3    0x3B3 // MRW Physical memory protection address register.
+#define CSR_PMPADDR4    0x3B4 // MRW Physical memory protection address register.
+#define CSR_PMPADDR5    0x3B5 // MRW Physical memory protection address register.
+#define CSR_PMPADDR6    0x3B6 // MRW Physical memory protection address register.
+#define CSR_PMPADDR7    0x3B7 // MRW Physical memory protection address register.
+#define CSR_PMPADDR8    0x3B8 // MRW Physical memory protection address register.
+#define CSR_PMPADDR9    0x3B9 // MRW Physical memory protection address register.
+#define CSR_PMPADDR10   0x3BA // MRW Physical memory protection address register.
+#define CSR_PMPADDR11   0x3BB // MRW Physical memory protection address register.
+#define CSR_PMPADDR12   0x3BC // MRW Physical memory protection address register.
+#define CSR_PMPADDR13   0x3BD // MRW Physical memory protection address register.
+#define CSR_PMPADDR14   0x3BE // MRW Physical memory protection address register.
+#define CSR_PMPADDR15   0x3BF // MRW Physical memory protection address register.
+#define CSR_PMPADDR16   0x3C0 // MRW Physical memory protection address register.
+#define CSR_PMPADDR17   0x3C1 // MRW Physical memory protection address register.
+#define CSR_PMPADDR18   0x3C2 // MRW Physical memory protection address register.
+#define CSR_PMPADDR19   0x3C3 // MRW Physical memory protection address register.
+#define CSR_PMPADDR20   0x3C4 // MRW Physical memory protection address register.
+#define CSR_PMPADDR21   0x3C5 // MRW Physical memory protection address register.
+#define CSR_PMPADDR22   0x3C6 // MRW Physical memory protection address register.
+#define CSR_PMPADDR23   0x3C7 // MRW Physical memory protection address register.
+#define CSR_PMPADDR24   0x3C8 // MRW Physical memory protection address register.
+#define CSR_PMPADDR25   0x3C9 // MRW Physical memory protection address register.
+#define CSR_PMPADDR26   0x3CA // MRW Physical memory protection address register.
+#define CSR_PMPADDR27   0x3CB // MRW Physical memory protection address register.
+#define CSR_PMPADDR28   0x3CC // MRW Physical memory protection address register.
+#define CSR_PMPADDR29   0x3CD // MRW Physical memory protection address register.
+#define CSR_PMPADDR30   0x3CE // MRW Physical memory protection address register.
+#define CSR_PMPADDR31   0x3CF // MRW Physical memory protection address register.
+#define CSR_PMPADDR32   0x3D0 // MRW Physical memory protection address register.
+#define CSR_PMPADDR33   0x3D1 // MRW Physical memory protection address register.
+#define CSR_PMPADDR34   0x3D2 // MRW Physical memory protection address register.
+#define CSR_PMPADDR35   0x3D3 // MRW Physical memory protection address register.
+#define CSR_PMPADDR36   0x3D4 // MRW Physical memory protection address register.
+#define CSR_PMPADDR37   0x3D5 // MRW Physical memory protection address register.
+#define CSR_PMPADDR38   0x3D6 // MRW Physical memory protection address register.
+#define CSR_PMPADDR39   0x3D7 // MRW Physical memory protection address register.
+#define CSR_PMPADDR40   0x3D8 // MRW Physical memory protection address register.
+#define CSR_PMPADDR41   0x3D9 // MRW Physical memory protection address register.
+#define CSR_PMPADDR42   0x3DA // MRW Physical memory protection address register.
+#define CSR_PMPADDR43   0x3DB // MRW Physical memory protection address register.
+#define CSR_PMPADDR44   0x3DC // MRW Physical memory protection address register.
+#define CSR_PMPADDR45   0x3DD // MRW Physical memory protection address register.
+#define CSR_PMPADDR46   0x3DE // MRW Physical memory protection address register.
+#define CSR_PMPADDR47   0x3DF // MRW Physical memory protection address register.
+#define CSR_PMPADDR48   0x3E0 // MRW Physical memory protection address register.
+#define CSR_PMPADDR49   0x3E1 // MRW Physical memory protection address register.
+#define CSR_PMPADDR50   0x3E2 // MRW Physical memory protection address register.
+#define CSR_PMPADDR51   0x3E3 // MRW Physical memory protection address register.
+#define CSR_PMPADDR52   0x3E4 // MRW Physical memory protection address register.
+#define CSR_PMPADDR53   0x3E5 // MRW Physical memory protection address register.
+#define CSR_PMPADDR54   0x3E6 // MRW Physical memory protection address register.
+#define CSR_PMPADDR55   0x3E7 // MRW Physical memory protection address register.
+#define CSR_PMPADDR56   0x3E8 // MRW Physical memory protection address register.
+#define CSR_PMPADDR57   0x3E9 // MRW Physical memory protection address register.
+#define CSR_PMPADDR58   0x3EA // MRW Physical memory protection address register.
+#define CSR_PMPADDR59   0x3EB // MRW Physical memory protection address register.
+#define CSR_PMPADDR60   0x3EC // MRW Physical memory protection address register.
+#define CSR_PMPADDR61   0x3ED // MRW Physical memory protection address register.
+#define CSR_PMPADDR62   0x3EE // MRW Physical memory protection address register.
+#define CSR_PMPADDR63   0x3EF // MRW Physical memory protection address register.
 
 //Machine Counter/Timers
-#define MCYCLE       0xB00 // MRW Machine cycle counter.
-#define MINSTRET     0xB02 // MRW Machine instructions-retired counter.
-#define MHPMCOUNTER3 0xB03 // MRW Machine performance-monitoring counter.
-#define MHPMCOUNTER4 0xB04 // MRW Machine performance-monitoring counter.
+#define CSR_MCYCLE       0xB00 // MRW Machine cycle counter.
+#define CSR_MINSTRET     0xB02 // MRW Machine instructions-retired counter.
+#define CSR_MHPMCOUNTER3 0xB03 // MRW Machine performance-monitoring counter.
+#define CSR_MHPMCOUNTER4 0xB04 // MRW Machine performance-monitoring counter.
 // #define ...
-#define MHPMCOUNTER31 0xB1F // MRW Machine performance-monitoring counter.
-#define MCYCLEH       0xB80 // MRW Upper 32 bits of mcycle, RV32I only.
-#define MINSTRETH     0xB82 // MRW Upper 32 bits of minstret, RV32I only.
-#define MHPMCOUNTER3H 0xB83 // MRW Upper 32 bits of mhpmcounter3, RV32I only.
-#define MHPMCOUNTER4H 0xB84 // MRW Upper 32 bits of mhpmcounter4, RV32I only.
+#define CSR_MHPMCOUNTER31 0xB1F // MRW Machine performance-monitoring counter.
+#define CSR_MCYCLEH       0xB80 // MRW Upper 32 bits of mcycle, RV32I only.
+#define CSR_MINSTRETH     0xB82 // MRW Upper 32 bits of minstret, RV32I only.
+#define CSR_MHPMCOUNTER3H 0xB83 // MRW Upper 32 bits of mhpmcounter3, RV32I only.
+#define CSR_MHPMCOUNTER4H 0xB84 // MRW Upper 32 bits of mhpmcounter4, RV32I only.
 // ...
-#define MHPMCOUNTER31H 0xB9F // MRW Upper 32 bits of mhpmcounter31, RV32I only.
+#define CSR_MHPMCOUNTER31H 0xB9F // MRW Upper 32 bits of mhpmcounter31, RV32I only.
 
 //Machine Counter Setup
-#define MCOUNTINHIBIT 0x320 // MRW Machine counter-inhibit register.
-#define MHPMEVENT3    0x323 // MRW Machine performance-monitoring event selector.
-#define MHPMEVENT4    0x324 // MRW Machine performance-monitoring event selector.
-#define MHPMEVENT5    0x325 // MRW Machine performance-monitoring event selector.
-#define MHPMEVENT6    0x326 // MRW Machine performance-monitoring event selector.
-#define MHPMEVENT7    0x327 // MRW Machine performance-monitoring event selector.
-#define MHPMEVENT8    0x328 // MRW Machine performance-monitoring event selector.
-#define MHPMEVENT9    0x329 // MRW Machine performance-monitoring event selector.
-#define MHPMEVENT10    0x32A // MRW Machine performance-monitoring event selector.
-#define MHPMEVENT11    0x32B // MRW Machine performance-monitoring event selector.
-#define MHPMEVENT12    0x32C // MRW Machine performance-monitoring event selector.
-#define MHPMEVENT13    0x32D // MRW Machine performance-monitoring event selector.
-#define MHPMEVENT14    0x32E // MRW Machine performance-monitoring event selector.
-#define MHPMEVENT15    0x32F // MRW Machine performance-monitoring event selector.
-#define MHPMEVENT16    0x330 // MRW Machine performance-monitoring event selector.
-#define MHPMEVENT17    0x331 // MRW Machine performance-monitoring event selector.
-#define MHPMEVENT18    0x332 // MRW Machine performance-monitoring event selector.
-#define MHPMEVENT19    0x333 // MRW Machine performance-monitoring event selector.
-#define MHPMEVENT20    0x334 // MRW Machine performance-monitoring event selector.
-#define MHPMEVENT21    0x335 // MRW Machine performance-monitoring event selector.
-#define MHPMEVENT22    0x336 // MRW Machine performance-monitoring event selector.
-#define MHPMEVENT23    0x337 // MRW Machine performance-monitoring event selector.
-#define MHPMEVENT24    0x338 // MRW Machine performance-monitoring event selector.
-#define MHPMEVENT25    0x339 // MRW Machine performance-monitoring event selector.
-#define MHPMEVENT26    0x33A // MRW Machine performance-monitoring event selector.
-#define MHPMEVENT27    0x33B // MRW Machine performance-monitoring event selector.
-#define MHPMEVENT28    0x33C // MRW Machine performance-monitoring event selector.
-#define MHPMEVENT29    0x33D // MRW Machine performance-monitoring event selector.
-#define MHPMEVENT30    0x33E // MRW Machine performance-monitoring event selector.
-#define MHPMEVENT31 0x33F // MRW Machine performance-monitoring event selector.
+#define CSR_MCOUNTINHIBIT 0x320 // MRW Machine counter-inhibit register.
+#define CSR_MHPMEVENT3    0x323 // MRW Machine performance-monitoring event selector.
+#define CSR_MHPMEVENT4    0x324 // MRW Machine performance-monitoring event selector.
+#define CSR_MHPMEVENT5    0x325 // MRW Machine performance-monitoring event selector.
+#define CSR_MHPMEVENT6    0x326 // MRW Machine performance-monitoring event selector.
+#define CSR_MHPMEVENT7    0x327 // MRW Machine performance-monitoring event selector.
+#define CSR_MHPMEVENT8    0x328 // MRW Machine performance-monitoring event selector.
+#define CSR_MHPMEVENT9    0x329 // MRW Machine performance-monitoring event selector.
+#define CSR_MHPMEVENT10    0x32A // MRW Machine performance-monitoring event selector.
+#define CSR_MHPMEVENT11    0x32B // MRW Machine performance-monitoring event selector.
+#define CSR_MHPMEVENT12    0x32C // MRW Machine performance-monitoring event selector.
+#define CSR_MHPMEVENT13    0x32D // MRW Machine performance-monitoring event selector.
+#define CSR_MHPMEVENT14    0x32E // MRW Machine performance-monitoring event selector.
+#define CSR_MHPMEVENT15    0x32F // MRW Machine performance-monitoring event selector.
+#define CSR_MHPMEVENT16    0x330 // MRW Machine performance-monitoring event selector.
+#define CSR_MHPMEVENT17    0x331 // MRW Machine performance-monitoring event selector.
+#define CSR_MHPMEVENT18    0x332 // MRW Machine performance-monitoring event selector.
+#define CSR_MHPMEVENT19    0x333 // MRW Machine performance-monitoring event selector.
+#define CSR_MHPMEVENT20    0x334 // MRW Machine performance-monitoring event selector.
+#define CSR_MHPMEVENT21    0x335 // MRW Machine performance-monitoring event selector.
+#define CSR_MHPMEVENT22    0x336 // MRW Machine performance-monitoring event selector.
+#define CSR_MHPMEVENT23    0x337 // MRW Machine performance-monitoring event selector.
+#define CSR_MHPMEVENT24    0x338 // MRW Machine performance-monitoring event selector.
+#define CSR_MHPMEVENT25    0x339 // MRW Machine performance-monitoring event selector.
+#define CSR_MHPMEVENT26    0x33A // MRW Machine performance-monitoring event selector.
+#define CSR_MHPMEVENT27    0x33B // MRW Machine performance-monitoring event selector.
+#define CSR_MHPMEVENT28    0x33C // MRW Machine performance-monitoring event selector.
+#define CSR_MHPMEVENT29    0x33D // MRW Machine performance-monitoring event selector.
+#define CSR_MHPMEVENT30    0x33E // MRW Machine performance-monitoring event selector.
+#define CSR_MHPMEVENT31 0x33F // MRW Machine performance-monitoring event selector.
 
 //Debug/Trace Registers (shared with Debug Mode)
-#define TSELECT     0x7A0 // MRW Debug/Trace trigger register select.
-#define TDATA1      0x7A1 // MRW First Debug/Trace trigger data register.
-#define TDATA2      0x7A2 // MRW Second Debug/Trace trigger data register.
-#define TDATA3      0x7A3 // MRW Third Debug/Trace trigger data register.
+#define CSR_TSELECT     0x7A0 // MRW Debug/Trace trigger register select.
+#define CSR_TDATA1      0x7A1 // MRW First Debug/Trace trigger data register.
+#define CSR_TDATA2      0x7A2 // MRW Second Debug/Trace trigger data register.
+#define CSR_TDATA3      0x7A3 // MRW Third Debug/Trace trigger data register.
 
 //Debug Mode Registers
-#define DCSR        0x7B0 // DRW Debug control and status register.
-#define DPC         0x7B1 // DRW Debug PC.
-#define DSCRATCH0   0x7B2 // DRW Debug scratch register 0.
-#define DSCRATCH1   0x7B3 // DRW Debug scratch register 1.
+#define CSR_DCSR        0x7B0 // DRW Debug control and status register.
+#define CSR_DPC         0x7B1 // DRW Debug PC.
+#define CSR_DSCRATCH0   0x7B2 // DRW Debug scratch register 0.
+#define CSR_DSCRATCH1   0x7B3 // DRW Debug scratch register 1.
 
 // mcause / scause exception codes (Interrupt bit is set separately)
 #define EXC_INST_ADDR_MISALIGNED  0
@@ -324,4 +324,37 @@ static const int irq_priority[] = {
     1,  // SSI
     7,  // MTI
     5   // STI
+};
+
+union status_t {
+    struct {
+        unsigned int : 1;
+        unsigned int SIE : 1;
+        unsigned int : 1;
+        unsigned int MIE : 1;
+        unsigned int  : 1;
+        unsigned int SPIE : 1;
+        unsigned int UBE : 1;
+        unsigned int MPIE : 1;
+        unsigned int SPP : 1;
+        unsigned int VS : 2;
+        unsigned int MPP : 2;
+        unsigned int FS : 2;
+        unsigned int XS : 2;
+        unsigned int MPRV : 1;
+        unsigned int SUM : 1;
+        unsigned int MXR : 1;
+        unsigned int TVM : 1;
+        unsigned int TW : 1;
+        unsigned int TSR : 1;
+        unsigned int : 9;
+        unsigned int UXL : 2;
+        unsigned int SXL : 2;
+        unsigned int SBE : 1;
+        unsigned int MBE : 1;
+        unsigned int : 25;
+        unsigned int SD : 1;
+    } fields;
+
+    uint64_t raw;
 };

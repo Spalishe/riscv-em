@@ -136,7 +136,7 @@ vector<tuple<string,uint32_t,char,optional<vector<tuple<string,uint8_t,uint8_t>>
     {"f31", 64, 'f', nullopt},
     #endif
 
-    {"mstatus", MSTATUS, 'c', vector<tuple<string,uint8_t,uint8_t>>{
+    {"mstatus", CSR_MSTATUS, 'c', vector<tuple<string,uint8_t,uint8_t>>{
         {"SIE", 1, 1},
         {"MIE", 3, 3},
         {"SPIE", 5, 5},
@@ -154,22 +154,22 @@ vector<tuple<string,uint32_t,char,optional<vector<tuple<string,uint8_t,uint8_t>>
         {"TW", 21, 21},
         {"TSR", 22, 22},
     }},
-    {"cycle", CYCLE, 'c', nullopt},
-    {"time", TIME, 'c', nullopt},
-    {"instret", INSTRET, 'c', nullopt},
-    {"misa", MISA, 'c', nullopt},
-    {"medeleg", MEDELEG, 'c', nullopt},
-    {"mideleg", MIDELEG, 'c', nullopt},
-    {"mie", MIE, 'c', nullopt},
-    {"mip", MIP, 'c', nullopt},
-    {"mtvec", MTVEC, 'c', nullopt},
-    {"mcounteren", MCOUNTEREN, 'c', nullopt},
-    {"mscratch", MSCRATCH, 'c', nullopt},
-    {"mhartid", MHARTID, 'c', nullopt},
-    {"mepc", MEPC, 'c', nullopt},
-    {"mcause", MCAUSE, 'c', nullopt},
-    {"mtval", MTVAL, 'c', nullopt},
-    {"sstatus", SSTATUS, 'c', vector<tuple<string,uint8_t,uint8_t>>{
+    {"cycle", CSR_CYCLE, 'c', nullopt},
+    {"time", CSR_TIME, 'c', nullopt},
+    {"instret", CSR_INSTRET, 'c', nullopt},
+    {"misa", CSR_MISA, 'c', nullopt},
+    {"medeleg", CSR_MEDELEG, 'c', nullopt},
+    {"mideleg", CSR_MIDELEG, 'c', nullopt},
+    {"mie", CSR_MIE, 'c', nullopt},
+    {"mip", CSR_MIP, 'c', nullopt},
+    {"mtvec", CSR_MTVEC, 'c', nullopt},
+    {"mcounteren", CSR_MCOUNTEREN, 'c', nullopt},
+    {"mscratch", CSR_MSCRATCH, 'c', nullopt},
+    {"mhartid", CSR_MHARTID, 'c', nullopt},
+    {"mepc", CSR_MEPC, 'c', nullopt},
+    {"mcause", CSR_MCAUSE, 'c', nullopt},
+    {"mtval", CSR_MTVAL, 'c', nullopt},
+    {"sstatus", CSR_SSTATUS, 'c', vector<tuple<string,uint8_t,uint8_t>>{
         {"SIE", 1, 1},
         {"SPIE", 5, 5},
         {"UBE", 6, 6},
@@ -178,24 +178,24 @@ vector<tuple<string,uint32_t,char,optional<vector<tuple<string,uint8_t,uint8_t>>
         {"FS", 13, 14},
         {"XS", 15, 16},
     }},
-    {"sedeleg", SEDELEG, 'c', nullopt},
-    {"sideleg", SIDELEG, 'c', nullopt},
-    {"sie", SIE, 'c', nullopt},
-    {"sip", SIP, 'c', nullopt},
-    {"stvec", STVEC, 'c', nullopt},
-    {"scounteren", SCOUNTEREN, 'c', nullopt},
-    {"sscratch", SSCRATCH, 'c', nullopt},
-    {"sepc", SEPC, 'c', nullopt},
-    {"scause", SCAUSE, 'c', nullopt},
-    {"stval", STVAL, 'c', nullopt},
-    {"stimecmp", STIMECMP, 'c', nullopt},
-    {"satp", SATP, 'c', vector<tuple<string,uint8_t,uint8_t>>{
+    {"sedeleg", CSR_SEDELEG, 'c', nullopt},
+    {"sideleg", CSR_SIDELEG, 'c', nullopt},
+    {"sie", CSR_SIE, 'c', nullopt},
+    {"sip", CSR_SIP, 'c', nullopt},
+    {"stvec", CSR_STVEC, 'c', nullopt},
+    {"scounteren", CSR_SCOUNTEREN, 'c', nullopt},
+    {"sscratch", CSR_SSCRATCH, 'c', nullopt},
+    {"sepc", CSR_SEPC, 'c', nullopt},
+    {"scause", CSR_SCAUSE, 'c', nullopt},
+    {"stval", CSR_STVAL, 'c', nullopt},
+    {"stimecmp", CSR_STIMECMP, 'c', nullopt},
+    {"satp", CSR_SATP, 'c', vector<tuple<string,uint8_t,uint8_t>>{
         {"MODE",SATP_MODE_LOW,SATP_MODE_HIGH},
         {"ASID",SATP_ASID_LOW,SATP_ASID_HIGH},
         {"PPN",SATP_PPN_LOW,SATP_PPN_HIGH},
     }},
     #ifdef USE_FPU
-    {"fcsr", FCSR+5000, 'c', vector<tuple<string,uint8_t,uint8_t>>{
+    {"fcsr", CSR_FCSR+5000, 'c', vector<tuple<string,uint8_t,uint8_t>>{
         {"FRM",5,7},
         {"NX",0,0},
         {"UF",1,1},
@@ -453,7 +453,7 @@ void GDB_parsePacket(const char* buffer) {
         }
         if(packet.starts_with("?")) {
             // Trap reason
-            GDB_sendPacket(format("S{:02d}",gdb_hart->csrs[MCAUSE]));
+            GDB_sendPacket(format("S{:02d}",gdb_hart->csrs[CSR_MCAUSE]));
             return;
         }
         if(packet.starts_with("qfThreadInfo")) {

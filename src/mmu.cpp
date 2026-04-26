@@ -55,12 +55,12 @@ uint64_t SV39_PTE_PPN(SV39_PTE pte, int i) {
 // Look at https://riscv.github.io/riscv-isa-manual/snapshot/privileged/; 12.3.1. Addressing and Memory Protection
 std::optional<uint64_t> mmu_translate(MMU& mmu, HART *hart, uint64_t VA, AccessType access_type) {
     try {
-        uint64_t satp = hart->csrs[SATP];
+        uint64_t satp = hart->csrs[CSR_SATP];
         PagingMode MODE = (PagingMode)number_read_bits(satp,SATP_MODE_LOW,SATP_MODE_HIGH);
         uint16_t ASID = number_read_bits(satp,SATP_ASID_LOW,SATP_ASID_HIGH);
         uint64_t PPN = number_read_bits(satp,SATP_PPN_LOW,SATP_PPN_HIGH);
 
-        PrivilegeMode mode = ((csr_read_mstatus(hart,MSTATUS_MPRV,MSTATUS_MPRV) && access_type != AccessType::EXECUTE) ? (PrivilegeMode)csr_read_mstatus(hart,MSTATUS_MPP_LOW,MSTATUS_MPP_HIGH) : hart->mode);
+        PrivilegeMode mode = ((hart->status.fields.MPRV && access_type != AccessType::EXECUTE) ? (PrivilegeMode)hart->status.fields.MPP : hart->mode);
         //mode = (hart->mode != PrivilegeMode::Machine) ? hart->mode : mode;
 
         if(MODE == PagingMode::Bare || mode == PrivilegeMode::Machine) {
@@ -69,7 +69,7 @@ std::optional<uint64_t> mmu_translate(MMU& mmu, HART *hart, uint64_t VA, AccessT
             return VA;
         }
 
-        if (auto pa = tlb_lookup(mmu.tlb, VA, ASID, access_type, mode, csr_read_mstatus(hart,18,18)))
+        if (auto pa = tlb_lookup(mmu.tlb, VA, ASID, access_type, mode, hart->status.fields.SUM))
             return *pa;
 
         // Sv39 implementations support a 39-bit virtual address space, divided into pages.
@@ -109,8 +109,8 @@ std::optional<uint64_t> mmu_translate(MMU& mmu, HART *hart, uint64_t VA, AccessT
                 // Determine if the requested memory access is allowed by the pte.u bit,
                 // given the current privilege mode and the value of the SUM and MXR fields of the mstatus register.
                 // If not, stop and raise a page-fault exception corresponding to the original access type.
-                uint8_t MXR = csr_read_mstatus(hart,MSTATUS_MXR,MSTATUS_MXR);
-                uint8_t SUM = csr_read_mstatus(hart,MSTATUS_SUM,MSTATUS_SUM);
+                uint8_t MXR = hart->status.fields.MXR;
+                uint8_t SUM = hart->status.fields.SUM;
 
                 if(mode == PrivilegeMode::User && !pte.U) throw 1;
                 if(mode == PrivilegeMode::Supervisor && pte.U && !SUM) throw 1;

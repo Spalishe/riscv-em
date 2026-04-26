@@ -47,7 +47,7 @@ void pmp_update(HART* hart, uint8_t ind) {
     
     if(pmp.entries[ind].L) return;
 
-    uint8_t csr = PMPCFG0 + (ind / 8);
+    uint8_t csr = CSR_PMPCFG0 + (ind / 8);
     uint64_t csr_v = hart->csrs[csr];
     uint8_t cfg = (csr_v >> ((ind % 8) * 8)) & 0xFF;
     
@@ -67,17 +67,17 @@ bool pmp_region_match(HART* hart, uint64_t PA, uint8_t ind) {
         return false;
 
     if (A == AddressingMode::TOR) {
-        uint64_t low  = (ind == 0) ? 0 : (hart->csrs[PMPADDR0 + (ind - 1)] << 2);
-        uint64_t high = hart->csrs[PMPADDR0 + ind] << 2;
+        uint64_t low  = (ind == 0) ? 0 : (hart->csrs[CSR_PMPADDR0 + (ind - 1)] << 2);
+        uint64_t high = hart->csrs[CSR_PMPADDR0 + ind] << 2;
         return PA >= low && PA < high;
     }
 
     if (A == AddressingMode::NA4) {
-        uint64_t base = hart->csrs[PMPADDR0 + ind] << 2;
+        uint64_t base = hart->csrs[CSR_PMPADDR0 + ind] << 2;
         return PA >= base && PA < base + 4;
     }
 
-    uint64_t addr = hart->csrs[PMPADDR0 + ind];
+    uint64_t addr = hart->csrs[CSR_PMPADDR0 + ind];
     uint64_t mask = (~addr) & (addr + 1);
 
     uint64_t base = (addr & ~mask) << 2;

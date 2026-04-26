@@ -131,7 +131,7 @@ extern inst_data parse_instruction(HART* hart, uint32_t inst, uint64_t pc);
 	#define SB		0x0
 	#define SH		0x1
 	#define SW		0x2
-	#define SD		0x3
+	#define inst_SD		0x3
 #define B_TYPE    0x63
 	#define BEQ		0x0
 	#define BNE		0x1

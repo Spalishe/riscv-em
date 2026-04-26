@@ -63,6 +63,7 @@ void machine_run(Machine& cpu) {
                 continue;
             }
             hart_step(*h);
+			h->aclint->update_mip(h);
             hart_check_interrupts(*h);
         }
 		

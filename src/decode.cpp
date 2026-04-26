@@ -747,7 +747,7 @@ inst_data parse_instruction(struct HART *hart, uint32_t inst, uint64_t pc) {
         fn = exec_SW;
         valid = true;
         break;
-      case SD:
+      case inst_SD:
         fn = exec_SD;
         valid = true;
         break;

@@ -52,18 +52,17 @@ void hart_reset(HART& h, uint64_t dtb_path) {
     #ifdef USE_FPU
     fpustr = "fd";
     #endif
-	h.csrs[MISA] = riscv_mkmisa(std::format("imasu%s",fpustr).c_str());
-	h.csrs[MVENDORID] = 0; 
-	h.csrs[MARCHID] = 0; 
-	h.csrs[MIMPID] = 0;
-	h.csrs[MHARTID] = h.id;
-	h.csrs[MIDELEG] = 5188;
+	h.csrs[CSR_MISA] = riscv_mkmisa(std::format("imasu%s",fpustr).c_str());
+	h.csrs[CSR_MVENDORID] = 0; 
+	h.csrs[CSR_MARCHID] = 0; 
+	h.csrs[CSR_MIMPID] = 0;
+	h.csrs[CSR_MHARTID] = h.id;
+	h.csrs[CSR_MIDELEG] = 5188;
+    h.csrs[CSR_MEDELEG] = 0x4B109;
 	//h.csrs[MIP] = 0x80;
     timecmp_init(&h.stimecmp,&h.aclint->mtime);
     h.ie = 0;
     h.ip = 0;
-	h.csrs[MSTATUS] = (0xA00000000);
-	csr_write(&h,SSTATUS,0x200000000);
 }
 
 uint32_t hart_fetch(HART& h, uint64_t _pc) {
@@ -95,7 +94,7 @@ void hart_step(HART& h) {
     uint32_t inst = hart_fetch(h,h.pc);
     inst_data d = parse_instruction(&h, inst, h.pc);
     h.instr_cache[(h.pc >> 2) & 0x1FFF] = d;
-    h.csrs[CYCLE]++;
+    h.csrs[CSR_CYCLE]++;
     if(d.valid == false) {
         hart_trap(h,EXC_ILLEGAL_INSTRUCTION, inst, false);
         return;
@@ -179,7 +178,7 @@ void hart_step(HART& h) {
 inst_ret hart_execute(HART& h, inst_data& inst) {
     inst_ret success = inst.fn(&h,inst);
     if(success.increasePC) {
-        h.csrs[INSTRET]++;
+        h.csrs[CSR_INSTRET]++;
         h.pc += success.isCompressed ? 2 : 4;
     }
     return success;
@@ -188,14 +187,16 @@ inst_ret hart_execute(HART& h, inst_data& inst) {
 void hart_check_interrupts(HART& h) {
     uint64_t mip = h.ip;
     uint64_t mie = h.ie;
-    uint64_t sip = mip & SE_MASK;
-    uint64_t sie = mie & SE_MASK;
-    uint64_t mideleg = h.csrs[MIDELEG];
+    uint64_t mideleg = h.csrs[CSR_MIDELEG];
 
-    bool m_global = csr_read_mstatus(&h,MSTATUS_MIE,MSTATUS_MIE);
-    bool s_global = csr_read_mstatus(&h,MSTATUS_SIE,MSTATUS_SIE);
+    bool m_global = h.status.fields.MIE;
+    bool s_global = h.status.fields.SIE;
 
-    if (m_global) {
+    bool take_m =
+    (h.mode == PrivilegeMode::Machine && m_global) ||
+    (h.mode < PrivilegeMode::Machine);
+
+    if (take_m) {
         uint64_t pending = mip & mie & ~mideleg;
 
         if (pending) {
@@ -207,9 +208,12 @@ void hart_check_interrupts(HART& h) {
             }
         }
     }
+    bool take_s =
+    (h.mode == PrivilegeMode::Supervisor && s_global) ||
+    (h.mode < PrivilegeMode::Supervisor);
 
-    if (h.mode <= PrivilegeMode::Supervisor && s_global) {
-        uint64_t pending = sip & sie & mideleg;
+    if (take_s) {
+        uint64_t pending = (mip & mideleg) & mie;
         if (pending) {
             for (int irq : irq_priority) {
                 if (pending & (1ULL << irq)) {
@@ -228,7 +232,7 @@ bool hart_have_local_pending(HART& h) {
     uint64_t mie = h.ie;
     uint64_t sip = mip & SE_MASK;
     uint64_t sie = mie & SE_MASK;
-    uint64_t mideleg = h.csrs[MIDELEG];
+    uint64_t mideleg = h.csrs[CSR_MIDELEG];
 
     uint64_t pending = mip & mie & ~mideleg;
     uint64_t pending_s = sip & sie & mideleg;
@@ -244,8 +248,8 @@ void hart_trap(HART& h, uint64_t cause, uint64_t tval, bool is_interrupt) {
     uint64_t trap_pc = h.pc;
     PrivilegeMode prev_mode = h.mode;
 
-    uint64_t medeleg = h.csrs[MEDELEG];
-    uint64_t mideleg = h.csrs[MIDELEG];
+    uint64_t medeleg = h.csrs[CSR_MEDELEG];
+    uint64_t mideleg = h.csrs[CSR_MIDELEG];
     bool delegate_to_s = false;
     if (prev_mode != PrivilegeMode::Machine) {
         if (is_interrupt)
@@ -257,67 +261,70 @@ void hart_trap(HART& h, uint64_t cause, uint64_t tval, bool is_interrupt) {
     if(delegate_to_s) {
         // Supervisor
         h.mode = PrivilegeMode::Supervisor;
-        uint64_t vector = (((h.csrs[STVEC] & 1) == 1 && is_interrupt) ? 4 * cause : 0);
-        h.pc = (h.csrs[STVEC] & ~3) + vector;
-        h.csrs[SEPC] = trap_pc & ~3;
-        h.csrs[SCAUSE] = ((is_interrupt ? (1ULL << 63) : 0) | cause);
-        h.csrs[STVAL] = tval;
-        csr_write_mstatus(&h,MSTATUS_SPIE,MSTATUS_SPIE,csr_read_mstatus(&h,MSTATUS_SIE,MSTATUS_SIE));
-        csr_write_mstatus(&h,MSTATUS_SIE,MSTATUS_SIE,0);
-        csr_write_mstatus(&h,MSTATUS_SPP,MSTATUS_SPP,(prev_mode != PrivilegeMode::User));
+        uint64_t vector = (((h.csrs[CSR_STVEC] & 1) == 1 && is_interrupt) ? 4 * cause : 0);
+        h.pc = (h.csrs[CSR_STVEC] & ~3) + vector;
+        h.csrs[CSR_SEPC] = trap_pc & ~3;
+        h.csrs[CSR_SCAUSE] = ((is_interrupt ? (1ULL << 63) : 0) | cause);
+        h.csrs[CSR_STVAL] = tval;
+        h.status.fields.SPIE = h.status.fields.SIE;
+        h.status.fields.SIE = 0;
+        h.status.fields.SPP = (prev_mode != PrivilegeMode::User);
     } else {
         // Machine
         h.mode = PrivilegeMode::Machine;
-        uint64_t vector = (((h.csrs[MTVEC] & 1) == 1 && is_interrupt) ? 4 * cause : 0);
-        h.pc = (h.csrs[MTVEC] & ~3) + vector;
-        h.csrs[MEPC] = trap_pc & ~3;
-        h.csrs[MCAUSE] = ((is_interrupt ? (1ULL << 63) : 0) | cause);
-        h.csrs[MTVAL] = tval;
-        csr_write_mstatus(&h,MSTATUS_MPIE,MSTATUS_MPIE,csr_read_mstatus(&h,MSTATUS_MIE,MSTATUS_MIE));
-        csr_write_mstatus(&h,MSTATUS_MIE,MSTATUS_MIE,0);
-        csr_write_mstatus(&h,MSTATUS_MPP_LOW,MSTATUS_MPP_HIGH,(uint8_t)prev_mode);
+        uint64_t vector = (((h.csrs[CSR_MTVEC] & 1) == 1 && is_interrupt) ? 4 * cause : 0);
+        h.pc = (h.csrs[CSR_MTVEC] & ~3) + vector;
+        h.csrs[CSR_MEPC] = trap_pc & ~3;
+        h.csrs[CSR_MCAUSE] = ((is_interrupt ? (1ULL << 63) : 0) | cause);
+        h.csrs[CSR_MTVAL] = tval;
+        h.status.fields.MPIE = h.status.fields.MIE;
+        h.status.fields.MIE = 0;
+        h.status.fields.MPP = (uint8_t)prev_mode;
     }
+    cout << "SIE: " << h.status.fields.SIE << ", delegate_to_s: " << delegate_to_s << ", mcause: 0x" << hex << h.csrs[CSR_MCAUSE] << dec << ", scause: 0x" << hex << h.csrs[CSR_SCAUSE] << dec << endl;
 }
 uint64_t csr_read(HART *hart, uint16_t csr) {
     switch(csr) {
-        case SSTATUS:
-            return hart->csrs[MSTATUS] & SSTATUS_MASK;
-        case SIE:
+        case CSR_MSTATUS:
+            return hart->status.raw;
+        case CSR_SSTATUS:
+            return hart->status.raw & SSTATUS_MASK;
+        case CSR_SIE:
             return hart->ie & SE_MASK;
-        case SIP:
+        case CSR_SIP:
             return hart->ip & SE_MASK;
-        case MIE:
+        case CSR_MIE:
             return hart->ie;
-        case MIP:
+        case CSR_MIP:
             return hart->ip;
-        case FFLAGS:
-            return hart->csrs[FCSR] & 0x1F;
-        case TIME:
+        case CSR_FFLAGS:
+            return hart->csrs[CSR_FCSR] & 0x1F;
+        case CSR_TIME:
             return timer_get(&hart->aclint->mtime);
             //return hart->aclint->mtime;
-        case FRM:
-            return (hart->csrs[FCSR] >> 5) & 0x7;
-        case STIMECMP:
+        case CSR_FRM:
+            return (hart->csrs[CSR_FCSR] >> 5) & 0x7;
+        case CSR_STIMECMP:
             return timecmp_get(&hart->stimecmp);
         default:
             return hart->csrs[csr];
     }
 }
 void csr_write(HART *hart, uint16_t csr, uint64_t val) {
-    if(csr == SSTATUS) {
-        uint64_t mst = hart->csrs[MSTATUS] & ~SSTATUS_MASK;
-        hart->csrs[MSTATUS] = mst | (val & SSTATUS_MASK);
-    } else if(csr == SIP) {
+    if(csr == CSR_SSTATUS) {
+        uint64_t mst = hart->status.raw & ~SSTATUS_MASK;
+        hart->status.raw = mst | (val & SSTATUS_MASK);
+    } else if(csr == CSR_SIP) {
         uint64_t mst = hart->ip & ~SE_MASK;
         hart->ip = mst | (val & SE_MASK);
-    } else if(csr == SIE) {
+    } else if(csr == CSR_SIE) {
         uint64_t mst = hart->ie & ~SE_MASK;
         hart->ie = mst | (val & SE_MASK);
-    } else if(csr == MIP) {
+    } else if(csr == CSR_MIP) {
         hart->ip = val;
-    } else if(csr == MIE) {
+    } else if(csr == CSR_MIE) {
         hart->ie = val;
-    } else if(csr >= PMPCFG0 && csr <= PMPCFG15) {
+    } else if(csr >= CSR_PMPCFG0 && csr <= CSR_PMPCFG15) {
         auto vals = pmp_get_num_cfgs(val);
         std::vector<uint8_t> update;
         uint64_t old_val = hart->csrs[csr];
@@ -335,30 +342,30 @@ void csr_write(HART *hart, uint16_t csr, uint64_t val) {
         for(uint8_t i : update) {
             pmp_update(hart, i);
         }
-    } else if(csr >= PMPADDR0 && csr <= PMPADDR63) {
-        uint8_t i = csr - PMPADDR0;
+    } else if(csr >= CSR_PMPADDR0 && csr <= CSR_PMPADDR63) {
+        uint8_t i = csr - CSR_PMPADDR0;
         if(!pmp_check_locked_addr(hart,i)) hart->csrs[csr] = val;
-    } else if(csr == MSTATUS) {
+    } else if(csr == CSR_MSTATUS) {
         uint64_t mask = 1ULL << 32 | 1ULL << 33 | 1ULL << 34 | 1ULL << 35;
         val &= ~mask;
-        val |= hart->csrs[MSTATUS] & mask;
-        hart->csrs[MSTATUS] = val;
-    } else if(csr == FFLAGS) {
-        uint64_t cs = hart->csrs[FCSR];
+        val |= hart->status.raw & mask;
+        hart->status.raw = val;
+    } else if(csr == CSR_FFLAGS) {
+        uint64_t cs = hart->csrs[CSR_FCSR];
         cs &= ~31;
         cs |= (val & 31);
-        hart->csrs[FCSR] = cs;
-    } else if(csr == FRM) {
-        uint64_t cs = hart->csrs[FCSR];
+        hart->csrs[CSR_FCSR] = cs;
+    } else if(csr == CSR_FRM) {
+        uint64_t cs = hart->csrs[CSR_FCSR];
         cs &= ~224;
         cs |= ((val & 7)<<5);
-        hart->csrs[FCSR] = cs;
-    } else if(csr == FCSR) {
-        hart->csrs[FCSR] = val & 0xFF;
-    } else if(csr == STIMECMP) {
+        hart->csrs[CSR_FCSR] = cs;
+    } else if(csr == CSR_FCSR) {
+        hart->csrs[CSR_FCSR] = val & 0xFF;
+    } else if(csr == CSR_STIMECMP) {
         timecmp_set(&hart->stimecmp,val);
         hart->aclint->update_mip(hart);
-    } else if(csr == MISA || csr == MARCHID || csr == MVENDORID || csr == MIMPID || csr == MHARTID) {
+    } else if(csr == CSR_MISA || csr == CSR_MARCHID || csr == CSR_MVENDORID || csr == CSR_MIMPID || csr == CSR_MHARTID) {
         // RO: nop
     } else {
         hart->csrs[csr] = val;

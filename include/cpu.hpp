@@ -148,9 +148,10 @@ struct HART {
     PMP pmp;
     Reservation reservation;
 
-    timecmp_st stimecmp;
     uint64_t ie;
     uint64_t ip;
+    timecmp_st stimecmp;
+    status_t status;
 };
 
 void hart_reset(HART&, uint64_t dtb_path);
@@ -174,34 +175,5 @@ inline uint64_t riscv_mkmisa(const char* str)
     return ret;
 }
 
-inline uint64_t csr_read_mstatus(HART *hart, uint8_t bit_low, uint8_t bit_high) {
-    uint64_t mstatus = hart->csrs[MSTATUS];
-    uint8_t width = bit_high - bit_low + 1;
-
-    uint64_t mask;
-    if (width == 64) {
-        mask = ~0ULL;
-    } else {
-        mask = (1ULL << width) - 1;
-    }
-
-    return (mstatus >> bit_low) & mask;
-}
-
-inline void csr_write_mstatus(HART *hart, uint8_t bit_low, uint8_t bit_high, uint64_t new_val) {
-    uint64_t mstatus = hart->csrs[MSTATUS];
-    uint8_t width = bit_high - bit_low + 1;
-
-    uint64_t mask;
-    if (width == 64) {
-        mask = ~0ULL;
-    } else {
-        mask = (1ULL << width) - 1;
-    }
-
-    mstatus &= ~(mask << bit_low);
-    mstatus |= (new_val & mask) << bit_low;
-    hart->csrs[MSTATUS] = mstatus;
-}
 void csr_write(HART *hart, uint16_t csr, uint64_t val);
 uint64_t csr_read(HART *hart, uint16_t csr);

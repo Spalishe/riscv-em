@@ -24,15 +24,15 @@ Copyright 2026 Spalishe
 // SYSTEM
 
 inst_ret exec_MRET(HART *hart, inst_data& inst) {
-    hart->pc = hart->csrs[MEPC] - 4;
-    switch(csr_read_mstatus(hart,MSTATUS_MPP_LOW,MSTATUS_MPP_HIGH)) {
+    hart->pc = hart->csrs[CSR_MEPC] - 4;
+    switch(hart->status.fields.MPP) {
         case 0b00:
             // If MPP != M-mode, MRET also sets MPRV=0.
-            csr_write_mstatus(hart,MSTATUS_MPRV,MSTATUS_MPRV,0);
+            hart->status.fields.MPRV = 0;
             hart->mode = PrivilegeMode::User;
             break;
         case 0b01:
-            csr_write_mstatus(hart,MSTATUS_MPRV,MSTATUS_MPRV,0);
+            hart->status.fields.MPRV = 0;
             hart->mode = PrivilegeMode::Supervisor;
             break;
         case 0b11:
@@ -40,38 +40,38 @@ inst_ret exec_MRET(HART *hart, inst_data& inst) {
             break;
     }
     // Read a previous interrupt-enable bit for machine mode (MPIE, 7), and set a global interrupt-enable bit for machine mode (MIE, 3) to it.
-    csr_write_mstatus(hart,MSTATUS_MIE,MSTATUS_MIE,csr_read_mstatus(hart,MSTATUS_MPIE,MSTATUS_MPIE));
-    csr_write_mstatus(hart,MSTATUS_MPIE,MSTATUS_MPIE,1);
-    csr_write_mstatus(hart,MSTATUS_MPP_LOW,MSTATUS_MPP_HIGH,(char)PrivilegeMode::User);
+    hart->status.fields.MIE = hart->status.fields.MPIE;
+    hart->status.fields.MPIE = 1;
+    hart->status.fields.MPP = (char)PrivilegeMode::User;
     return true;
 }
 inst_ret exec_SRET(HART *hart, inst_data& inst) {
     if (hart->mode == PrivilegeMode::User ||
-        (hart->mode == PrivilegeMode::Supervisor && (csr_read_mstatus(hart,MSTATUS_TSR,MSTATUS_TSR) & 1))) {
+        (hart->mode == PrivilegeMode::Supervisor && (hart->status.fields.TSR & 1))) {
         hart_trap(*hart,EXC_ILLEGAL_INSTRUCTION, inst.inst, false);
         return false;
     }
-    hart->pc = hart->csrs[SEPC] - 4;
-    switch(csr_read_mstatus(hart,MSTATUS_SPP,MSTATUS_SPP)) {
+    hart->pc = hart->csrs[CSR_SEPC] - 4;
+    switch(hart->status.fields.SPP) {
         case 0b0:
             hart->mode = PrivilegeMode::User;
             break;
         case 0b1:
             // If SPP != M-mode, SRET also sets MPRV=0.
-            csr_write_mstatus(hart,MSTATUS_MPRV,MSTATUS_MPRV,0);
+            hart->status.fields.MPRV = 0;
             hart->mode = PrivilegeMode::Supervisor;
             break;
     }
     // Read a previous interrupt-enable bit for supervisor mode (SPIE,5), and set a global interrupt-enable bit for supervisor mode (SIE, 1) to it.
-    csr_write_mstatus(hart,MSTATUS_SIE,MSTATUS_SIE,csr_read_mstatus(hart,MSTATUS_SPIE,MSTATUS_SPIE));
-    csr_write_mstatus(hart,MSTATUS_SPIE,MSTATUS_SPIE,1);
-    csr_write_mstatus(hart,MSTATUS_SPP,MSTATUS_SPP,(char)PrivilegeMode::User);
+    hart->status.fields.SIE = hart->status.fields.SPIE;
+    hart->status.fields.SPIE = 1;
+    hart->status.fields.SPP = (char)PrivilegeMode::User;
     return true;
 }
 inst_ret exec_SFENCE_VMA(HART *hart, inst_data& inst) {
     // Clear TLB Cache
 
-    bool tvm = csr_read_mstatus(hart,20,20);
+    bool tvm = hart->status.fields.TVM;
 
     // Only legal in S or M mode
     if (hart->mode == PrivilegeMode::User) {
@@ -86,7 +86,7 @@ inst_ret exec_SFENCE_VMA(HART *hart, inst_data& inst) {
     return true;
 }
 inst_ret exec_WFI(HART *hart, inst_data& inst) {
-    bool tw = csr_read_mstatus(hart,21,21);
+    bool tw = hart->status.fields.TW;
 
     if (tw) {
         hart_trap(*hart,EXC_ILLEGAL_INSTRUCTION, inst.inst, false);
@@ -105,6 +105,9 @@ inst_ret exec_WFI(HART *hart, inst_data& inst) {
         }
 
         clock_t duration = (offset * CLOCKS_PER_SEC) / 1000000000LL;
+
+        //cout << timer_get(&hart->aclint->mtime) << "  " << timecmp_get(&hart->stimecmp) << "  " << offset << "   " << duration << endl;
+
         hart->wfi_timer = now + duration;
         hart->WFI = true;
     }

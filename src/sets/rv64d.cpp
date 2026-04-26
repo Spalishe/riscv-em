@@ -102,7 +102,7 @@ FPRValue accurate_round64(FPRValue val, RoundingMode rm, RoundingMode frm) {
 }
 
 FPRValue update_fflags(HART *hart, double res, inst_data inst) {
-    FPRValue new_val = accurate_round64(res,inst.rm,(RoundingMode)csr_read(hart,FRM));
+    FPRValue new_val = accurate_round64(res,inst.rm,(RoundingMode)csr_read(hart,CSR_FRM));
     uint32_t fflags = 0;
     if(std::fetestexcept(FE_INEXACT)) {
         fflags |= 0x1;
@@ -119,7 +119,7 @@ FPRValue update_fflags(HART *hart, double res, inst_data inst) {
     if(std::fetestexcept(FE_INVALID)) {
         fflags |= 0x10;
     }
-    csr_write(hart,FFLAGS,fflags);
+    csr_write(hart,CSR_FFLAGS,fflags);
     return new_val;
 }
 FPRValue update_fflags(HART *hart, double res) {
@@ -139,7 +139,7 @@ FPRValue update_fflags(HART *hart, double res) {
     if(std::fetestexcept(FE_INVALID)) {
         fflags |= 0x10;
     }
-    csr_write(hart,FFLAGS,fflags);
+    csr_write(hart,CSR_FFLAGS,fflags);
     return res;
 }
 
@@ -227,7 +227,7 @@ inst_ret exec_FNMSUB_D(HART *hart, inst_data& inst) {
 
 inst_ret exec_FCVT_W_D(HART *hart, inst_data& inst) {
     std::feclearexcept(FE_ALL_EXCEPT);
-    double rounded_val = accurate_round64(hart->FPR[inst.rs1],inst.rm,(RoundingMode)csr_read(hart,FRM));
+    double rounded_val = accurate_round64(hart->FPR[inst.rs1],inst.rm,(RoundingMode)csr_read(hart,CSR_FRM));
     if(rounded_val != hart->FPR[inst.rs1].val) std::feraiseexcept(FE_INEXACT);
 
     if (std::isnan(hart->FPR[inst.rs1].val)) {
@@ -245,7 +245,7 @@ inst_ret exec_FCVT_W_D(HART *hart, inst_data& inst) {
 }
 inst_ret exec_FCVT_WU_D(HART *hart, inst_data& inst) {
     std::feclearexcept(FE_ALL_EXCEPT);
-    double rounded_val = accurate_round64(hart->FPR[inst.rs1],inst.rm,(RoundingMode)csr_read(hart,FRM));
+    double rounded_val = accurate_round64(hart->FPR[inst.rs1],inst.rm,(RoundingMode)csr_read(hart,CSR_FRM));
     if(rounded_val != hart->FPR[inst.rs1].val) std::feraiseexcept(FE_INEXACT);
 
     if (std::isnan(hart->FPR[inst.rs1].val)) {
@@ -263,7 +263,7 @@ inst_ret exec_FCVT_WU_D(HART *hart, inst_data& inst) {
 }
 inst_ret exec_FCVT_L_D(HART *hart, inst_data& inst) {
     std::feclearexcept(FE_ALL_EXCEPT);
-    double rounded_val = accurate_round64(hart->FPR[inst.rs1],inst.rm,(RoundingMode)csr_read(hart,FRM));
+    double rounded_val = accurate_round64(hart->FPR[inst.rs1],inst.rm,(RoundingMode)csr_read(hart,CSR_FRM));
     if(rounded_val != hart->FPR[inst.rs1].val) std::feraiseexcept(FE_INEXACT);
 
     if (std::isnan(hart->FPR[inst.rs1].val)) {
@@ -280,7 +280,7 @@ inst_ret exec_FCVT_L_D(HART *hart, inst_data& inst) {
 }
 inst_ret exec_FCVT_LU_D(HART *hart, inst_data& inst) {
     std::feclearexcept(FE_ALL_EXCEPT);
-    double rounded_val = accurate_round64(hart->FPR[inst.rs1],inst.rm,(RoundingMode)csr_read(hart,FRM));
+    double rounded_val = accurate_round64(hart->FPR[inst.rs1],inst.rm,(RoundingMode)csr_read(hart,CSR_FRM));
     if(rounded_val != hart->FPR[inst.rs1].val) std::feraiseexcept(FE_INEXACT);
 
     if (std::isnan(hart->FPR[inst.rs1].val)) {

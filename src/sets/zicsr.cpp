@@ -68,9 +68,8 @@ bool csr_accessible(uint16_t csr_addr, PrivilegeMode current_priv, bool write) {
     return true;
 }
 inst_ret exec_CSRRW(HART *hart, inst_data& inst) {
-    uint64_t mstatus = hart->csrs[MSTATUS];
-    bool tvm = (mstatus >> 20) & 1; // TVM bit
-    if(hart->mode == PrivilegeMode::Supervisor && tvm && inst.imm == SATP) {
+    bool tvm = hart->status.fields.TVM;
+    if(hart->mode == PrivilegeMode::Supervisor && tvm && inst.imm == CSR_SATP) {
         hart_trap(*hart,EXC_ILLEGAL_INSTRUCTION,inst.inst,false);
         return false;
     }
@@ -89,9 +88,8 @@ inst_ret exec_CSRRW(HART *hart, inst_data& inst) {
     return true;
 }
 inst_ret exec_CSRRS(HART *hart, inst_data& inst) {
-    uint64_t mstatus = hart->csrs[MSTATUS];
-    bool tvm = (mstatus >> 20) & 1; // TVM bit
-    if(hart->mode == PrivilegeMode::Supervisor && tvm && inst.imm == SATP) {
+    bool tvm = hart->status.fields.TVM;
+    if(hart->mode == PrivilegeMode::Supervisor && tvm && inst.imm == CSR_SATP) {
         hart_trap(*hart,EXC_ILLEGAL_INSTRUCTION,inst.inst,false);
         return false;
     }
@@ -109,9 +107,8 @@ inst_ret exec_CSRRS(HART *hart, inst_data& inst) {
     return true;
 }
 inst_ret exec_CSRRC(HART *hart, inst_data& inst) {
-    uint64_t mstatus = hart->csrs[MSTATUS];
-    bool tvm = (mstatus >> 20) & 1; // TVM bit
-    if(hart->mode == PrivilegeMode::Supervisor && tvm && inst.imm == SATP) {
+    bool tvm = hart->status.fields.TVM;
+    if(hart->mode == PrivilegeMode::Supervisor && tvm && inst.imm == CSR_SATP) {
         hart_trap(*hart,EXC_ILLEGAL_INSTRUCTION,inst.inst,false);
         return false;
     }
@@ -130,9 +127,8 @@ inst_ret exec_CSRRC(HART *hart, inst_data& inst) {
 }
 
 inst_ret exec_CSRRWI(HART *hart, inst_data& inst) {
-    uint64_t mstatus = hart->csrs[MSTATUS];
-    bool tvm = (mstatus >> 20) & 1; // TVM bit
-    if(hart->mode == PrivilegeMode::Supervisor && tvm && inst.imm == SATP) {
+    bool tvm = hart->status.fields.TVM;
+    if(hart->mode == PrivilegeMode::Supervisor && tvm && inst.imm == CSR_SATP) {
         hart_trap(*hart,EXC_ILLEGAL_INSTRUCTION,inst.inst,false);
         return false;
     }
@@ -148,9 +144,8 @@ inst_ret exec_CSRRWI(HART *hart, inst_data& inst) {
     return true;
 }
 inst_ret exec_CSRRSI(HART *hart, inst_data& inst) {
-    uint64_t mstatus = hart->csrs[MSTATUS];
-    bool tvm = (mstatus >> 20) & 1; // TVM bit
-    if(hart->mode == PrivilegeMode::Supervisor && tvm && inst.imm == SATP) {
+    bool tvm = hart->status.fields.TVM;
+    if(hart->mode == PrivilegeMode::Supervisor && tvm && inst.imm == CSR_SATP) {
         hart_trap(*hart,EXC_ILLEGAL_INSTRUCTION,inst.inst,false);
         return false;
     }
@@ -168,9 +163,8 @@ inst_ret exec_CSRRSI(HART *hart, inst_data& inst) {
     return true;
 }
 inst_ret exec_CSRRCI(HART *hart, inst_data& inst) {
-    uint64_t mstatus = hart->csrs[MSTATUS];
-    bool tvm = (mstatus >> 20) & 1; // TVM bit
-    if(hart->mode == PrivilegeMode::Supervisor && tvm && inst.imm == SATP) {
+    bool tvm = hart->status.fields.TVM;
+    if(hart->mode == PrivilegeMode::Supervisor && tvm && inst.imm == CSR_SATP) {
         hart_trap(*hart,EXC_ILLEGAL_INSTRUCTION,inst.inst,false);
         return false;
     }
