@@ -257,7 +257,7 @@ void hart_trap(HART& h, uint64_t cause, uint64_t tval, bool is_interrupt) {
         else
             delegate_to_s = (medeleg >> cause) & 1ULL;
     }
-
+    
     if(delegate_to_s) {
         // Supervisor
         h.mode = PrivilegeMode::Supervisor;

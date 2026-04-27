@@ -67,6 +67,7 @@ bool MMIO::store(HART *hart, uint64_t addr, uint64_t size, uint64_t value) {
   // DRAM
   if (pa >= DRAM_BASE && pa < DRAM_BASE + DRAM_SIZE) {
     dram_store(ram, pa, size, value);
+    amo_check_reservation(*mmu->cpu,addr);
     return true;
   }
 

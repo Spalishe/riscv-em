@@ -32,10 +32,7 @@ VirtIO_BLK::VirtIO_BLK(uint64_t base, uint64_t size, Machine& cpu, PLIC* plic, f
     fdt_node_add_child(fdt_node_find(fdt,"soc"), virtio_blk_node);
 
     // Device features
-    device_features = VIRTIO_F_VERSION_1 |
-                  VIRTIO_BLK_F_SIZE_MAX |
-                  VIRTIO_BLK_F_SEG_MAX | 
-                  VIRTIO_BLK_F_BLK_SIZE;
+    device_features = VIRTIO_F_VERSION_1;
 
     // open disk image (create if missing) -- use binary read/write
     disk.open(image_path, std::ios::in | std::ios::out | std::ios::binary);
@@ -54,6 +51,7 @@ VirtIO_BLK::VirtIO_BLK(uint64_t base, uint64_t size, Machine& cpu, PLIC* plic, f
         std::streamoff sz = disk.tellg();
         if (sz < 0) sz = 0;
         capacity_sectors = static_cast<uint64_t>(sz / SECTOR_SIZE);
+        cout << "virtio_blk: capacity_sectors: " << capacity_sectors << "; sz: " << sz << endl;
     }
 
     // init queue defaults
@@ -64,6 +62,14 @@ VirtIO_BLK::VirtIO_BLK(uint64_t base, uint64_t size, Machine& cpu, PLIC* plic, f
     queue0.last_avail_idx = 0;
     queue0.last_used_idx = 0;
     queue0.ready = false;
+
+    device_features_sel = 0;
+    driver_features_sel = 0;
+    driver_features = 0;
+    queue_sel = 0;
+    device_status = 0;
+    interrupt_status = 0;
+    config_generation = 0;
 }
 
 // -------------------- DRAM memory helpers --------------------
@@ -259,7 +265,7 @@ uint64_t VirtIO_BLK::read(HART* hart, uint64_t addr, uint64_t size) {
         case VIRT_REG_VERSION:
         case VIRT_REG_DEVICEID:
             return 0x2;
-        case VIRT_REG_VENDORID: return 0x4d455652; // 0x554d4551 for xv6 idk why
+        case VIRT_REG_VENDORID: return 0x554d4551;
         case VIRT_REG_DEVICEFEATURES: {
             if (device_features_sel == 0) return (uint32_t)(device_features & 0xFFFFFFFF);
             else return (uint32_t)(device_features >> 32);
@@ -292,6 +298,8 @@ uint64_t VirtIO_BLK::read(HART* hart, uint64_t addr, uint64_t size) {
             return 0;
         case VIRT_REG_SEGMAX:
             return 128; // Reasonable value
+        case 0x144:
+            return SECTOR_SIZE;
         default:
             return 0;
     }
@@ -354,7 +362,6 @@ void VirtIO_BLK::write(HART* hart, uint64_t addr, uint64_t size, uint64_t val) {
             break;
         case VIRT_REG_STATUS:
             if (val == 0) {
-                // reset device
                 device_status = 0;
                 interrupt_status = 0;
                 queue0.ready = false;
@@ -362,8 +369,15 @@ void VirtIO_BLK::write(HART* hart, uint64_t addr, uint64_t size, uint64_t val) {
                 queue0.desc_addr = queue0.avail_addr = queue0.used_addr = 0;
                 queue0.last_avail_idx = queue0.last_used_idx = 0;
             } else {
-                // status bits are ORed (driver writes progressive)
                 device_status |= (uint32_t)val;
+
+                if (device_status & VIRT_STATUS_FEATURES_OK) {
+                    uint64_t negotiated = device_features & driver_features;
+
+                    if ((driver_features & ~device_features) != 0) {
+                        device_status &= ~VIRT_STATUS_FEATURES_OK;
+                    }
+                }
             }
             break;
         default:
