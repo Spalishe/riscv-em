@@ -46,9 +46,9 @@ void machine_run(Machine& cpu) {
         }
 		
 		cpu.clint->tick();
+		cpu.plic->plic_service();
         for (int i = 0; i < cpu.core_count; i++) {
 			HART* h = cpu.harts[i];
-			cpu.plic->plic_service(h);
 			h->GPR[0] = 0;
             if(h->WFI) {
 				clock_t now = clock();
@@ -206,7 +206,7 @@ void machine_create_devices(Machine& cpu, const string image_path = "") {
 	cpu.mmio->add(rom);
 
 	cpu.memmap.add_region(0x0C000000, 0x400000);
-	PLIC* plic = new PLIC(0x0C000000,0x400000,cpu,64,(cpu.dtb_is_file ? NULL : cpu.fdt));
+	PLIC* plic = new PLIC(0x0C000000,0x400000,cpu,8,cpu.core_count,(cpu.dtb_is_file ? NULL : cpu.fdt));
 	cpu.mmio->add(plic);
     cpu.plic = plic;
 	

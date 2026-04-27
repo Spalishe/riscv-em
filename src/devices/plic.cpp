@@ -14,47 +14,55 @@ Copyright 2026 Spalishe
    limitations under the License.
 
 */
+
 #include "../../include/devices/plic.hpp"
-#include <vector>
-#include <cstdint>
 #include "machine.hpp"
 
-#ifndef PLIC_CTX_THRESHOLD
-#define PLIC_CTX_THRESHOLD 0x0
-#endif
-#ifndef PLIC_CTX_CLAIMCOMP
-#define PLIC_CTX_CLAIMCOMP 0x4
-#endif
 
-PLIC::PLIC(uint64_t base, uint64_t size, Machine& cpu, uint32_t num_sources, fdt_node* fdt)
+PLIC::PLIC(uint64_t base, uint64_t size, Machine& cpu,
+                       uint32_t max_sources, uint32_t num_harts, fdt_node* fdt)
     : Device(base, size, cpu),
-      base_addr(base),
-      size_bytes(size),
-      num_sources(num_sources),
-      num_harts(cpu.core_count),
-      num_contexts(cpu.core_count * 2),
-      priority(num_sources + 1, 1),
-      pending(num_sources + 1, 0),
-      active(num_sources + 1, 0),
-      threshold(num_contexts, 0),
-      last_claimed(num_contexts, 0)
+      max_sources(max_sources),
+      num_harts(num_harts),
+      num_contexts(num_harts * 2)
 {
-    uint32_t words = (num_sources + 31) / 32;
-    enable.assign(num_contexts, std::vector<uint32_t>(words, 0));
+    pending_words_count = (max_sources + 31) / 32;
+    enable_words_count = pending_words_count;
+
+    priorities.resize(max_sources + 1, 0);
+    pending_words.resize(pending_words_count, 0);
+
+    contexts.resize(num_contexts);
+    for (uint32_t i = 0; i < num_contexts; ++i) {
+        contexts[i].enables.resize(enable_words_count, 0);
+        contexts[i].threshold = 0;
+        contexts[i].interrupt_line = false;
+
+        contexts[i].hart_id = static_cast<int>(i / 2);
+        contexts[i].supervisor_mode = (i % 2) == 1;
+    }
 
     if (fdt) {
         struct fdt_node* cpus = fdt_node_find(fdt, "cpus");
         std::vector<uint32_t> irq_ext;
-        for (int i = 0; i < (int)cpu.core_count; ++i) {
-            struct fdt_node* cpu = fdt_node_find_reg(cpus, "cpu", i);
-            struct fdt_node* cpu_irq = fdt_node_find(cpu, "interrupt-controller");
+
+        for (uint32_t i = 0; i < cpu.core_count; ++i) {
+            struct fdt_node* cpu_node = fdt_node_find_reg(cpus, "cpu", i);
+            if (!cpu_node) continue;
+
+            struct fdt_node* cpu_irq = fdt_node_find(cpu_node, "interrupt-controller");
+            if (!cpu_irq) continue;
+
             uint32_t irq_phandle = fdt_node_get_phandle(cpu_irq);
-            if (irq_phandle) {
-                irq_ext.push_back(irq_phandle);
-                irq_ext.push_back(0x0b);
-                irq_ext.push_back(irq_phandle);
-                irq_ext.push_back(0x09);
-            }
+            if (!irq_phandle) continue;
+
+            // M-mode external interrupt
+            irq_ext.push_back(irq_phandle);
+            irq_ext.push_back(MIE_MEIE_BIT);
+
+            // S-mode external interrupt
+            irq_ext.push_back(irq_phandle);
+            irq_ext.push_back(MIE_SEIE_BIT);
         }
 
         struct fdt_node* plic_fdt = fdt_node_create_reg("plic", base);
@@ -63,166 +71,205 @@ PLIC::PLIC(uint64_t base, uint64_t size, Machine& cpu, uint32_t num_sources, fdt
         fdt_node_add_prop(plic_fdt, "interrupt-controller", nullptr, 0);
         fdt_node_add_prop_u32(plic_fdt, "#interrupt-cells", 1);
         fdt_node_add_prop_u32(plic_fdt, "#address-cells", 0);
-        fdt_node_add_prop_u32(plic_fdt, "riscv,ndev", num_sources);
+        fdt_node_add_prop_u32(plic_fdt, "riscv,ndev", max_sources);
+
         if (!irq_ext.empty()) {
             fdt_node_add_prop_cells(plic_fdt, "interrupts-extended", irq_ext, irq_ext.size());
         }
-        fdt_node_add_child(fdt_node_find(fdt,"soc"), plic_fdt);
+
+        fdt_node_add_child(fdt_node_find(fdt, "soc"), plic_fdt);
     }
 }
 
-void PLIC::raise(uint32_t src) {
-    if (src == 0 || src > num_sources) return;
-    pending[src] = 1;
-}
+void PLIC::set_pending(uint32_t source_id, bool pending) {
+    if (source_id == 0 || source_id > max_sources)
+        return;
 
-void PLIC::clear(uint32_t src) {
-    if (src == 0 || src > num_sources) return;
-    pending[src] = 0;
-}
+    uint32_t word_idx = source_id / 32;
+    uint32_t bit_mask = 1U << (source_id % 32);
 
-bool PLIC::is_enabled(uint32_t ctx, uint32_t src) {
-    if (ctx >= num_contexts || src == 0 || src > num_sources) return false;
-    uint32_t idx = (src - 1) / 32;
-    uint32_t bit = (src - 1) % 32;
-    return ((enable[ctx][idx] >> bit) & 1U) != 0;
-}
-
-uint32_t PLIC::pick_claimable(uint32_t ctx) {
-    if (ctx >= num_contexts) return 0;
-    uint32_t best_src = 0;
-    uint32_t best_pri = 0;
-    uint32_t th = threshold[ctx];
-
-    for (uint32_t src = 1; src <= num_sources; ++src) {
-        if (!pending[src] || active[src] || !is_enabled(ctx, src)) continue;
-        uint32_t pri = priority[src];
-        if (pri == 0 || pri <= th) continue;
-        if (pri > best_pri || (pri == best_pri && (best_src == 0 || src < best_src))) {
-            best_pri = pri;
-            best_src = src;
-        }
+    if (pending) {
+        pending_words[word_idx] |= bit_mask;
     }
-    return best_src;
+    else
+        pending_words[word_idx] &= ~bit_mask;
+
+    update_all_contexts();
 }
 
-uint64_t PLIC::read(HART* hart, uint64_t addr, uint64_t size) {
-    if (addr < base_addr || addr >= base_addr + size_bytes) return 0;
-    uint64_t off = addr - base_addr;
+void PLIC::plic_service() {
+    update_all_contexts();
+}
 
-    uint64_t pr_sz = (num_sources + 1) * 4;
-    uint64_t pend_sz = ((num_sources + 31) / 32) * 4;
-    uint64_t en_sz = num_contexts * pend_sz;
-    uint64_t ctx_base = pr_sz + pend_sz + en_sz;
+uint64_t PLIC::read(HART*, uint64_t addr, uint64_t size) {
+    if (size != 32) return 0;
 
-    // PRIORITY
-    if (off < pr_sz) return priority[off / 4];
+    uint64_t offset = addr - base;
 
-    // PENDING
-    if (off >= pr_sz && off < pr_sz + pend_sz) {
-        uint32_t word_idx = (off - pr_sz) / 4;
-        uint32_t word = 0;
-        for (uint32_t i = 0; i < 32; ++i) {
-            uint32_t src = word_idx * 32 + 1 + i;
-            if (src > num_sources) break;
-            if (pending[src]) word |= (1u << i);
-        }
-        return word;
-    }
-
-    // ENABLE
-    if (off >= pr_sz + pend_sz && off < ctx_base) {
-        uint64_t local = off - pr_sz - pend_sz;
-        uint32_t ctx = local / pend_sz;
-        uint32_t word_index = (local % pend_sz) / 4;
-        if (ctx < num_contexts && word_index < enable[ctx].size())
-            return enable[ctx][word_index];
+    // Priority registers
+    if (offset < 0x1000) {
+        uint32_t idx = static_cast<uint32_t>(offset / 4);
+        if (idx >= 1 && idx <= max_sources)
+            return priorities[idx];
         return 0;
     }
 
-    // CONTEXT THRESHOLD / CLAIMCOMP
-    if (off >= ctx_base && off < ctx_base + num_contexts * 0x1000) {
-        uint32_t ctx = (off - ctx_base) / 0x1000;
-        uint64_t roff = (off - ctx_base) % 0x1000;
-        if (ctx >= num_contexts) return 0;
-        if (roff == PLIC_CTX_THRESHOLD) return threshold[ctx];
-        if (roff == PLIC_CTX_CLAIMCOMP) {
-            uint32_t src = pick_claimable(ctx);
-            if (src) {
-                pending[src] = 0;
-                active[src] = 1;
-                last_claimed[ctx] = src;
-            }
-            return src;
-        }
+    // Pending (read-only)
+    if (offset >= 0x1000 && offset < 0x1080) {
+        uint32_t word_idx = static_cast<uint32_t>((offset - 0x1000) / 4);
+        if (word_idx < pending_words_count)
+            return pending_words[word_idx];
         return 0;
     }
 
+    // Enable registers
+    if (offset >= 0x2000 && offset < 0x200000) {
+        uint32_t ctx_idx = static_cast<uint32_t>((offset - 0x2000) / 0x80);
+        if (ctx_idx >= num_contexts) return 0;
+
+        uint32_t word_offset = static_cast<uint32_t>(((offset - 0x2000) % 0x80) / 4);
+        if (word_offset < enable_words_count)
+            return contexts[ctx_idx].enables[word_offset];
+        return 0;
+    }
+
+    // Threshold and Claim
+    if (offset >= 0x200000 && offset < 0x200000 + num_contexts * 0x1000) {
+        uint32_t ctx_idx = static_cast<uint32_t>((offset - 0x200000) / 0x1000);
+        if (ctx_idx >= num_contexts) return 0;
+
+        uint32_t sub_offset = static_cast<uint32_t>((offset - 0x200000) % 0x1000);
+        if (sub_offset == 0) {
+            return contexts[ctx_idx].threshold;
+        } else if (sub_offset == 4) {
+            return claim_interrupt(ctx_idx);
+        }
+    }
     return 0;
 }
 
-void PLIC::write(HART* hart, uint64_t addr, uint64_t size, uint64_t value) {
-    if (addr < base_addr || addr >= base_addr + size_bytes) return;
-    uint64_t off = addr - base_addr;
+void PLIC::write(HART*, uint64_t addr, uint64_t size, uint64_t value) {
+    if (size != 32) return;
 
-    uint64_t pr_sz = (num_sources + 1) * 4;
-    uint64_t pend_sz = ((num_sources + 31) / 32) * 4;
-    uint64_t en_sz = num_contexts * pend_sz;
-    uint64_t ctx_base = pr_sz + pend_sz + en_sz;
+    uint64_t offset = addr - base;
 
-    // PRIORITY
-    if (off < pr_sz) {
-        uint32_t idx = off / 4;
-        if (idx > 0 && idx <= num_sources) priority[idx] = value & 0x7;
+    // Priority
+    if (offset < 0x1000) {
+        uint32_t idx = static_cast<uint32_t>(offset / 4);
+        if (idx >= 1 && idx <= max_sources) {
+            priorities[idx] = static_cast<uint32_t>(value & 0x7FFFFFFF);
+            update_all_contexts();
+        }
         return;
     }
 
-    // ENABLE
-    if (off >= pr_sz + pend_sz && off < ctx_base) {
-        uint64_t local = off - pr_sz - pend_sz;
-        uint32_t ctx = local / pend_sz;
-        uint32_t word_index = (local % pend_sz) / 4;
-        if (ctx < num_contexts && word_index < enable[ctx].size())
-            enable[ctx][word_index] = (uint32_t)value;
+    // Pending is read-only
+    if (offset >= 0x1000 && offset < 0x1080) return;
+
+    // Enable
+    if (offset >= 0x2000 && offset < 0x200000) {
+        uint32_t ctx_idx = static_cast<uint32_t>((offset - 0x2000) / 0x80);
+        if (ctx_idx >= num_contexts) return;
+
+        uint32_t word_offset = static_cast<uint32_t>(((offset - 0x2000) % 0x80) / 4);
+        if (word_offset < enable_words_count) {
+            contexts[ctx_idx].enables[word_offset] = static_cast<uint32_t>(value);
+            update_context(ctx_idx);
+        }
         return;
     }
 
-    // CONTEXT
-    if (off >= ctx_base && off < ctx_base + num_contexts * 0x1000) {
-        uint32_t ctx = (off - ctx_base) / 0x1000;
-        uint64_t roff = (off - ctx_base) % 0x1000;
-        if (ctx >= num_contexts) return;
-        if (roff == PLIC_CTX_THRESHOLD) threshold[ctx] = value & 0x7;
-        else if (roff == PLIC_CTX_CLAIMCOMP) {
-            uint32_t src = value;
-            if (src > 0 && src <= num_sources && active[src]) {
-                active[src] = 0;
-                last_claimed[ctx] = 0;
-            }
+    // Threshold and Complete
+    if (offset >= 0x200000 && offset < 0x200000 + num_contexts * 0x1000) {
+        uint32_t ctx_idx = static_cast<uint32_t>((offset - 0x200000) / 0x1000);
+        if (ctx_idx >= num_contexts) return;
+
+        uint32_t sub_offset = static_cast<uint32_t>((offset - 0x200000) % 0x1000);
+        if (sub_offset == 0) {
+            contexts[ctx_idx].threshold = static_cast<uint32_t>(value & 0x7FFFFFFF);
+            update_context(ctx_idx);
+        } else if (sub_offset == 4) {
+            complete_interrupt(ctx_idx, static_cast<uint32_t>(value));
         }
         return;
     }
 }
 
-void PLIC::plic_service(HART* hart) {
-    uint32_t ctx = hart->id;
-    uint32_t best_src = pick_claimable(ctx);
+uint32_t PLIC::find_highest_pending_enabled(uint32_t ctx_idx) {
+    const Context& ctx = contexts[ctx_idx];
+    uint32_t best_id = 0;
+    uint32_t best_priority = 0;
 
-    if (best_src == 0) return;
+    for (uint32_t id = 1; id <= max_sources; ++id) {
+        uint32_t word = id / 32;
+        uint32_t bit = id % 32;
 
-    pending[best_src] = 0;
-    active[best_src]  = 1;
-    last_claimed[ctx] = best_src;
+        if (!(pending_words[word] & (1U << bit))) continue;
+        if (!(ctx.enables[word] & (1U << bit))) continue;
 
-    if (hart->mode == PrivilegeMode::Machine) {
-        uint64_t mip = hart->ip;
-        mip |= (1ULL << MIP_MEIP);
-        hart->ip = mip;
-        hart_trap(*hart,IRQ_MEXT, 0, true);
-    } else if (hart->mode == PrivilegeMode::Supervisor) {
-        uint64_t sip = hart->ip & SE_MASK;
-        sip |= (1ULL << MIP_SEIP);
-        csr_write(hart, CSR_SIP, sip);
-        hart_trap(*hart,IRQ_SEXT, 0, true);
+        uint32_t prio = priorities[id];
+        if (prio > ctx.threshold) {
+            if (prio > best_priority || (prio == best_priority && id < best_id)) {
+                best_priority = prio;
+                best_id = id;
+            }
+        }
+    }
+    return best_id;
+}
+
+uint32_t PLIC::claim_interrupt(uint32_t ctx_idx) {
+    uint32_t id = find_highest_pending_enabled(ctx_idx);
+    if (id != 0) {
+        uint32_t word = id / 32;
+        uint32_t bit = id % 32;
+        pending_words[word] &= ~(1U << bit);
+        update_context(ctx_idx);
+    }
+    return id;
+}
+
+void PLIC::complete_interrupt(uint32_t ctx_idx, uint32_t id) {
+    if (id == 0 || id > max_sources) return;
+    uint32_t word = id / 32;
+    uint32_t bit = id % 32;
+    pending_words[word] &= ~(1U << bit);
+    update_context(ctx_idx);
+}
+
+void PLIC::update_context(uint32_t ctx_idx) {
+    Context& ctx = contexts[ctx_idx];
+    bool should_raise = (find_highest_pending_enabled(ctx_idx) != 0);
+    if (should_raise != ctx.interrupt_line) {
+        ctx.interrupt_line = should_raise;
+        signal_cpu_interrupt(ctx.hart_id, ctx.supervisor_mode, should_raise);
+    }
+}
+
+void PLIC::update_all_contexts() {
+    for (uint32_t i = 0; i < num_contexts; ++i)
+        update_context(i);
+}
+
+void PLIC::signal_cpu_interrupt(int hart_id, bool supervisor_mode, bool level) {
+    if (hart_id < 0 || hart_id >= 64)
+        return;
+
+    HART* hart = cpu.harts[hart_id];
+    if (!hart) return;
+
+    const uint64_t MEIP_BIT = 1ULL << 11;
+    const uint64_t SEIP_BIT = 1ULL << 9;
+
+    if (supervisor_mode) {
+        if (level)
+            hart->ip |= SEIP_BIT;
+        else
+            hart->ip &= ~SEIP_BIT;
+    } else {
+        if (level)
+            hart->ip |= MEIP_BIT;
+        else
+            hart->ip &= ~MEIP_BIT;
     }
 }

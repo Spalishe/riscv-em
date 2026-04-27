@@ -374,6 +374,6 @@ void VirtIO_BLK::write(HART* hart, uint64_t addr, uint64_t size, uint64_t val) {
 
 void VirtIO_BLK::raise_interrupt() {
     if (plic) {
-        plic->raise(irq_num);
+        plic->set_pending(irq_num,true);
     }
 }
