@@ -15,14 +15,12 @@ Copyright 2026 Spalishe
 
 */
 
-#include "../include/argparser.h"
+#include "../include/argparser.hpp"
 #include <iostream>
 #include <string>
 
-#include "../include/machine.hpp"
-#include "../include/main.hpp"
 #include "../include/gdbstub.hpp"
-#include "../include/termios.hpp"
+#include "../include/main.hpp"
 
 /*
         TODO:
@@ -78,57 +76,6 @@ int main(int argc, char *argv[]) {
     cmdline_append = parser.getString(5);
     std::cout << "Custom cmdargs defined: " << cmdline_append << std::endl;
   }
-
-  Machine VM = Machine();
-  VM.core_count = 1;
-  VM.memsize = DRAM_SIZE;
-
-  machine_create_memory(VM);
-
-  bool file_has = parser.getDefined(0);
-  if (file_has) {
-    std::string file = parser.getString(0);
-    VM.memmap.load_file(DRAM_BASE, file);
-  }
-
-  if (!dtb_has)
-    machine_create_fdt(VM, cmdline_append);
-  machine_create_devices(VM, (image_has ? parser.getString(2) : ""));
-  machine_load_fdt(VM, (dtb_has ? parser.getString(3) : ""),
-                   (dtb_dump_has ? parser.getString(4) : ""));
-
-  if (kernel_has) {
-    std::string kernel_path = parser.getString(1);
-    VM.memmap.load_file(DRAM_BASE + 0x200000, kernel_path);
-  }
-  machine_create_harts(VM);
-
-  termios_start();
-  instr_initialize();
-
-  termios_running.store(true);
-  std::thread input_thread(termios_loop, std::ref(VM.uart), std::ref(VM));
-
-#ifdef USE_GDBSTUB
-  bool gdb_stub = parser.getDefined(6);
-  VM.gdb = gdb_stub;
-  std::thread GDB_thread;
-  if (gdb_stub) {
-    GDB_thread = std::thread(GDB_Create, VM.harts[0], &VM);
-  }
-#endif
-  std::thread VM_thread(machine_run, std::ref(VM));
-
-  VM_thread.join();
-
-#ifdef USE_GDBSTUB
-  if (gdb_stub) {
-    GDB_thread.join();
-  }
-#endif
-
-  termios_running.store(false);
-  input_thread.join();
 
   return 0;
 }

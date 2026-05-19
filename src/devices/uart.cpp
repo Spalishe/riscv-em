@@ -37,11 +37,11 @@ UART::UART(uint64_t base, Machine& cpu, PLIC* plic, int irq_num, fdt_node* fdt)
     }
 
 void UART::trigger_irq() {
-    plic->set_pending(irq_num,true);
+    plic->raise(irq_num);
 }
 
 void UART::clear_irq() {
-    plic->set_pending(irq_num,false);
+    plic->clear(irq_num);
 }
 
 uint8_t UART::calc_iir_locked() {

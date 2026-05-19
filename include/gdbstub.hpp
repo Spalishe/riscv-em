@@ -17,16 +17,14 @@ Copyright 2026 Spalishe
 
 #pragma once
 
-#include <unistd.h>
 #include <cstdint>
-#include "cpu.hpp"
-#include "machine.hpp"
+#include <unistd.h>
 
 struct HART;
 struct Machine;
 
 #ifdef USE_GDBSTUB
-void GDB_Create(HART* hart, Machine* cpu);
+void GDB_Create(HART *hart, Machine *cpu);
 void GDB_Stop();
 void GDB_Loop();
 void GDB_EBREAK();

@@ -76,10 +76,9 @@ ACLINT::ACLINT(uint64_t base, Machine& cpu, fdt_node* fdt)
 
 void ACLINT::tick() {
     tmp++;
-	mtime++;
     if(tmp % 32 == 0) {
         tmp = 0;
-        //mtime += 1;
+        mtime += 1;
         /*for(HART* hrt : cpu.harts) {
             update_mip(hrt);
         }*/
@@ -163,6 +162,15 @@ void ACLINT::update_mip(HART* hart) {
     else
         mip &= ~(1ULL << MIP_STIP);
     
+    /*if (timecmp_pending(&mtimecmp[hart_id])) {
+        mip |= (1ULL << MIP_MTIP);
+    } else 
+        mip &= ~(1ULL << MIP_MTIP);
+
+    if (timecmp_pending(&hart->stimecmp) && timecmp_get(&hart->stimecmp) != UINT64_MAX) {
+        mip |= (1ULL << MIP_STIP);
+    } else
+        mip &= ~(1ULL << MIP_STIP);*/
 
     hart->ip = mip;
 }
