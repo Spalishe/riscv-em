@@ -15,7 +15,7 @@ Copyright 2026 Spalishe
 
 */
 
-#include "../include/argparser.hpp"
+#include "argparser.cpp"
 #include <iostream>
 #include <string>
 
@@ -23,57 +23,54 @@ Copyright 2026 Spalishe
 #include "../include/main.hpp"
 
 /*
-        TODO:
-    5. Remove all optionals and replace those with return bool & write val at
-   pointer
-    9. Optimize devices search
-
-                - Fix the problem that kernel is stuck in arch_cpu_idle ->
-   handle_exception -> arch_cpu_idle
-
-                -RV64F
-                -RV64D
-
-                -RTC GoldFish
-
-                -MMU Fixes(if required)
-                -RVC    <- this is required to run MMU-Linux
-*/
+ *		   TODO:
+ *          -RV64I
+ *          -RV64M
+ *          -RV64A
+ *          -CSRs
+ *          -Zicsr
+ *          -ZiFenceI
+ *          -EXC
+ *          -Device:
+ *            1. PLIC
+ *            2. UART
+ *            3. VirtIO-BLK
+ *            4. ACLINT
+ *            5. RTC GoldFish
+ *
+ */
 
 int main(int argc, char *argv[]) {
-  Argparser::Argparser parser(argc, argv);
-  parser.setProgramName("RISC-V EM");
-  parser.addArgument("--bios", "File with Machine Level program (bootloader)",
-                     true, false, Argparser::ArgumentType::str);
+  arp::Argparser parser(argc, argv);
+  parser.setDescription("RISC-V EM");
+  auto bios_var = parser.add<arp::str>(
+      "--bios", "File with Machine level program (bootloader)", arp::norequired,
+      arp::nopos);
+  auto kernel_var =
+      parser.add<arp::str>("--kernel", "File with Supervisor Level program",
+                           arp::norequired, arp::nopos);
+  auto image_var = parser.add<arp::str>(
+      "--image", "File with Image file that will put on VirtIO-BLK",
+      arp::norequired, arp::nopos);
 
-  parser.addArgument("--kernel", "File with Supervisor Level program", false,
-                     false, Argparser::ArgumentType::str);
-  parser.addArgument("--image",
-                     "File with Image file that will put on VirtIO-BLK", false,
-                     false, Argparser::ArgumentType::str);
-
-  parser.addArgument("--dtb", "Use specified FDT instead of auto-generated",
-                     false, false, Argparser::ArgumentType::str);
-  parser.addArgument("--dumpdtb", "Dumps auto-generated FDT to file", false,
-                     false, Argparser::ArgumentType::str);
-  parser.addArgument("--append", "Append command line arguments", false, false,
-                     Argparser::ArgumentType::str);
+  auto dtb_var = parser.add<arp::str>(
+      "--dtb", "Use specified FDT instead of auto-generated", arp::norequired,
+      arp::nopos);
+  auto dumpdtb_var =
+      parser.add<arp::str>("--dumpdtb", "Dumps auto-generated FDT to file",
+                           arp::norequired, arp::nopos);
+  auto append_var = parser.add<arp::str>(
+      "--append", "Append command line arguments", arp::norequired, arp::nopos);
 #ifdef USE_GDBSTUB
-  parser.addArgument("--gdb", "Starts GDB Stub on port 1512", false, false,
-                     Argparser::ArgumentType::def);
+  auto gdb_var = parser.add<arp::def>("--gdb", "Starts GDB Stub on port 1512",
+                                      arp::norequired, arp::nopos);
 #endif
 
   parser.parse();
 
-  bool kernel_has = parser.getDefined(1);
-  bool image_has = parser.getDefined(2);
-
-  bool dtb_has = parser.getDefined(3);
-  bool dtb_dump_has = parser.getDefined(4);
-
   std::string cmdline_append;
-  if (parser.getDefined(5)) {
-    cmdline_append = parser.getString(5);
+  if (append_var->defined()) {
+    cmdline_append = append_var->val();
     std::cout << "Custom cmdargs defined: " << cmdline_append << std::endl;
   }
 
