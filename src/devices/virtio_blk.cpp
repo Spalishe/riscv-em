@@ -189,6 +189,7 @@ void VirtIO_BLK::process_queue(uint32_t qsel) {
                 break;
             }
         }
+        
         if (status_desc_i < 1) {
             ok = false;
         } else {
@@ -198,6 +199,7 @@ void VirtIO_BLK::process_queue(uint32_t qsel) {
 
             // perform operation per type
             if (req.type == VIRTIO_BLK_T_IN) {
+                
                 // read from disk to dram
                 // must read in sector-aligned chunks
                 uint64_t sector = req.sector;
@@ -210,6 +212,7 @@ void VirtIO_BLK::process_queue(uint32_t qsel) {
                 // copy tmp into dram descriptors
                 size_t pos = 0;
                 for (int i = 1; i < status_desc_i && ok; ++i) {
+                    if (!(chain[i].flags & VIRTQ_DESC_F_WRITE)) ok = false;
                     size_t to_copy = std::min<uint64_t>(chain[i].len, data_total - pos);
                     copy_to_dram(chain[i].addr, tmp_buf.data() + pos, to_copy);
                     pos += to_copy;
@@ -219,10 +222,17 @@ void VirtIO_BLK::process_queue(uint32_t qsel) {
                 std::vector<uint8_t> tmp_buf(data_total);
                 size_t pos = 0;
                 for (int i = 1; i < status_desc_i; ++i) {
+                    if (pos + chain[i].len > data_total) {
+                        ok = false;
+                    }
                     size_t to_copy = chain[i].len;
                     copy_from_dram(chain[i].addr, tmp_buf.data() + pos, to_copy);
                     pos += to_copy;
                 }
+                if (data_total % 512 != 0) {
+                    ok = false;
+                }
+                
                 if (!disk_write(req.sector, tmp_buf.data(), data_total)) ok = false;
             } else {
                 // unsupported type -> return I/O error (can be extended to FLUSH etc.)
@@ -252,7 +262,7 @@ void VirtIO_BLK::process_queue(uint32_t qsel) {
 
         // after adding used-element, raise interrupt
         interrupt_status |= 1;
-        raise_interrupt();
+        raise_irq();
     }
 }
 
@@ -364,6 +374,7 @@ void VirtIO_BLK::write(HART* hart, uint64_t addr, uint64_t size, uint64_t val) {
             if (val == 0) {
                 device_status = 0;
                 interrupt_status = 0;
+
                 queue0.ready = false;
                 queue0.size = 0;
                 queue0.desc_addr = queue0.avail_addr = queue0.used_addr = 0;
@@ -372,8 +383,6 @@ void VirtIO_BLK::write(HART* hart, uint64_t addr, uint64_t size, uint64_t val) {
                 device_status |= (uint32_t)val;
 
                 if (device_status & VIRT_STATUS_FEATURES_OK) {
-                    uint64_t negotiated = device_features & driver_features;
-
                     if ((driver_features & ~device_features) != 0) {
                         device_status &= ~VIRT_STATUS_FEATURES_OK;
                     }
@@ -386,8 +395,6 @@ void VirtIO_BLK::write(HART* hart, uint64_t addr, uint64_t size, uint64_t val) {
     }
 }
 
-void VirtIO_BLK::raise_interrupt() {
-    if (plic) {
-        plic->set_pending(irq_num,true);
-    }
+void VirtIO_BLK::raise_irq() {
+    plic->set_pending(irq_num, true);
 }

@@ -166,8 +166,7 @@ private:
     bool disk_write(uint64_t sector, const void* buf, size_t bytes);
 
     // utilities
-    void raise_interrupt();
-    void clear_interrupt(uint32_t bits);
+    void raise_irq();
 
 private:
     PLIC* plic;
@@ -182,6 +181,8 @@ private:
     uint32_t driver_features_sel = 0;
     uint32_t device_status = 0;
     uint32_t interrupt_status = 0;
+
+    uint64_t config_space[128];
 
     uint32_t queue_sel = 0;
     VirtQueueState queue0;

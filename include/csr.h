@@ -356,5 +356,5 @@ union status_t {
         unsigned int SD : 1;
     } fields;
 
-    uint64_t raw;
+    uint64_t raw = 0xa00000000;
 };

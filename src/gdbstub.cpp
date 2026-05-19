@@ -499,12 +499,12 @@ void GDB_parsePacket(const char* buffer) {
             return;
         }
         if(packet.starts_with("P")) {
-            //xml get
+            //xml set
             uint64_t idx = stoul(packet.substr(1),nullptr,16);
             string data = packet.substr(packet.find('=') + 1);
             uint64_t num = 0;
             for(uint64_t i = 0; i < 8; i++) {
-                num = num | (stoul(data.substr(i*2,2),nullptr,16) << i);
+                num = num | (stoul(data.substr(i*2,2),nullptr,16) << i*8);
             }
             if(idx <= 31) {
                 //gpr

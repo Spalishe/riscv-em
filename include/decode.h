@@ -299,7 +299,7 @@ inst_ret exec_CSRRCI(HART *hart, inst_data& inst);
 
 // RV64A
 
-void amo_check_reservation(Machine& cpu, uint64_t va);
+void amo_check_reservation(HART *hart, uint64_t va);
 inst_ret exec_LR_D(HART *hart, inst_data& inst);
 inst_ret exec_SC_D(HART *hart, inst_data& inst);
 inst_ret exec_AMOSWAP_D(HART *hart, inst_data& inst);

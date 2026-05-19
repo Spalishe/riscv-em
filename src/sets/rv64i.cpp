@@ -309,11 +309,11 @@ inst_ret exec_JALR(HART *hart, inst_data& inst) {
 // what
 
 inst_ret exec_LUI(HART *hart, inst_data& inst) {
-	hart->GPR[inst.rd] = (((int64_t) (int32_t) inst.imm) << 12);
+	hart->GPR[inst.rd] = inst.imm;
     return true;
 }
 inst_ret exec_AUIPC(HART *hart, inst_data& inst) {
-    hart->GPR[inst.rd] = hart->pc + ((((int64_t) (int32_t) inst.imm) << 12));
+    hart->GPR[inst.rd] = hart->pc + inst.imm;
     return true;
 }
 

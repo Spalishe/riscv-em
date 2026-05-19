@@ -21,25 +21,25 @@ Copyright 2026 Spalishe
 #include <atomic>
 #include <thread>
 
-#define ACLINT_MSWI_SIZE   0x4000
+#define ACLINT_MSWI_SIZE 0x4000
 #define ACLINT_MTIMER_SIZE 0x8000
-#define ACLINT_FREQ_HZ     10'000'000
+#define ACLINT_FREQ_HZ 50'000'000'0
 
 struct ACLINT : public Device {
-    ACLINT(uint64_t base, Machine& cpu, fdt_node* fdt);
+  ACLINT(uint64_t base, Machine &cpu, fdt_node *fdt);
 
-    // Memory-mapped registers
-    std::vector<uint32_t> msip;      // one per HART, 32-bit
-    std::vector<uint64_t> mtimecmp;  // one per HART, 64-bit
-    uint64_t mtime; // global timer
-    uint16_t tmp;
+  // Memory-mapped registers
+  std::vector<uint32_t> msip;     // one per HART, 32-bit
+  std::vector<uint64_t> mtimecmp; // one per HART, 64-bit
+  uint64_t mtime;                 // global timer
+  uint16_t tmp;
 
-    void tick();
-    uint64_t read(HART* hart, uint64_t addr, uint64_t size);
-    void write(HART* hart, uint64_t addr, uint64_t size, uint64_t value);
-    uint64_t read_mswi(HART* hart, uint64_t offset);
-    uint64_t read_mtimer(HART* hart, uint64_t offset);
-    void write_mswi(HART* hart, uint64_t offset, uint64_t value);
-    void write_mtimer(HART* hart, uint64_t offset, uint64_t value);
-    void update_mip(HART* hart);
+  void tick();
+  uint64_t read(HART *hart, uint64_t addr, uint64_t size);
+  void write(HART *hart, uint64_t addr, uint64_t size, uint64_t value);
+  uint64_t read_mswi(HART *hart, uint64_t offset);
+  uint64_t read_mtimer(HART *hart, uint64_t offset);
+  void write_mswi(HART *hart, uint64_t offset, uint64_t value);
+  void write_mtimer(HART *hart, uint64_t offset, uint64_t value);
+  void update_mip(HART *hart);
 };

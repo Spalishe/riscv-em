@@ -187,16 +187,22 @@ inst_ret hart_execute(HART& h, inst_data& inst) {
 void hart_check_interrupts(HART& h) {
     uint64_t mip = h.ip;
     uint64_t mie = h.ie;
+    uint64_t sip = h.ip & SE_MASK;
+    uint64_t sie = h.ie & SE_MASK;
     uint64_t mideleg = h.csrs[CSR_MIDELEG];
 
-    bool m_global = h.status.fields.MIE;
-    bool s_global = h.status.fields.SIE;
+    bool m_global =
+        (h.mode == PrivilegeMode::Machine)
+            ? h.status.fields.MIE
+            : (h.mode < PrivilegeMode::Machine);
 
-    bool take_m =
-    (h.mode == PrivilegeMode::Machine && m_global) ||
-    (h.mode < PrivilegeMode::Machine);
+    bool s_global =
+        (h.mode == PrivilegeMode::Supervisor)
+            ? h.status.fields.SIE
+            : (h.mode < PrivilegeMode::Supervisor);
+        
 
-    if (take_m) {
+    if (m_global) {
         uint64_t pending = mip & mie & ~mideleg;
 
         if (pending) {
@@ -208,12 +214,9 @@ void hart_check_interrupts(HART& h) {
             }
         }
     }
-    bool take_s =
-    (h.mode == PrivilegeMode::Supervisor && s_global) ||
-    (h.mode < PrivilegeMode::Supervisor);
 
-    if (take_s) {
-        uint64_t pending = (mip & mideleg) & mie;
+    if (s_global) {
+        uint64_t pending = (sip & mideleg) & sie;
         if (pending) {
             for (int irq : irq_priority) {
                 if (pending & (1ULL << irq)) {
@@ -244,6 +247,7 @@ bool hart_have_local_pending(HART& h) {
 
 void hart_trap(HART& h, uint64_t cause, uint64_t tval, bool is_interrupt) {
     h.WFI = false;
+    h.reservation.valid = false;
 
     uint64_t trap_pc = h.pc;
     PrivilegeMode prev_mode = h.mode;
@@ -257,7 +261,7 @@ void hart_trap(HART& h, uint64_t cause, uint64_t tval, bool is_interrupt) {
         else
             delegate_to_s = (medeleg >> cause) & 1ULL;
     }
-    
+
     if(delegate_to_s) {
         // Supervisor
         h.mode = PrivilegeMode::Supervisor;

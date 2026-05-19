@@ -51,7 +51,7 @@ void machine_run(Machine& cpu) {
 			HART* h = cpu.harts[i];
 			h->GPR[0] = 0;
             if(h->WFI) {
-				clock_t now = clock();
+				//clock_t now = clock();
 				/*if(now >= h->wfi_timer){
 					h->aclint->update_mip(h);	
 				}*/
@@ -65,7 +65,7 @@ void machine_run(Machine& cpu) {
             }
             hart_step(*h);
 			h->aclint->update_mip(h);
-            hart_check_interrupts(*h);
+			hart_check_interrupts(*h);
         }
 		
 		#ifdef USE_GDBSTUB

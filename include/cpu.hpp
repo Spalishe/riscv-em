@@ -149,7 +149,7 @@ struct HART {
 
     uint64_t ie;
     uint64_t ip;
-    uint64_t stimecmp;
+    uint64_t stimecmp = UINT64_MAX;
     status_t status;
 };
 

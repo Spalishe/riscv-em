@@ -264,7 +264,7 @@ void PLIC::signal_cpu_interrupt(int hart_id, bool supervisor_mode, bool level) {
     if (supervisor_mode) {
         if (level)
             hart->ip |= SEIP_BIT;
-        else
+        else 
             hart->ip &= ~SEIP_BIT;
     } else {
         if (level)
