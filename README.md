@@ -1,3 +1,5 @@
+# DEPRECATED
+
 # riscv-em
 A software emulator for the RISC-V instruction set architecture (ISA) written in C++. This project aims to provide a functional emulator, capable of running XV6, OpenSBI, U-Boot, and many others.
 The emulator supports RV64IMA ISA, Zicsr, Zifencei, privileged ISA, CSRs, peripheral devices (UART, CLINT, PLIC, Virtio-BLK), and FDT. See the ["Features List" section](https://github.com/Spalishe/riscv-em#features-list) section for the details of features.
