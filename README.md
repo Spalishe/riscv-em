@@ -32,25 +32,25 @@ Running:
 
 The emulator supports the following features:
 - [ ] RV64G ISA
-  - [X] RV64I
-  - [X] RV64M
+  - [ ] RV64I
+  - [ ] RV64M
   - [ ] RV64A (No atomicity for now)
   - [ ] RV64F
   - [ ] RV64D
-  - [X] Zifencei: (`fence.i` does nothing for
+  - [ ] Zifencei: (`fence.i` does nothing for
     now)
-  - [X] Zicsr
+  - [ ] Zicsr
 - [ ] RV64C
-- [X] Privileged ISA
-- [X] Control and status registers (CSRs)
-  - [X] Machine-level CSRs
-  - [X] Supervisor-level CSRs
+- [ ] Privileged ISA
+- [x] Control and status registers (CSRs)
+  - [ ] Machine-level CSRs
+  - [ ] Supervisor-level CSRs
   - [ ] User-level CSRs
-- [x] Devices
-  - [x] UART: universal asynchronous receiver-transmitter
-  - [x] CLINT: core local interruptor
-  - [x] PLIC: platform level interrupt controller
-  - [x] Virtio-BLK: virtual I/O Block Device
+- [ ] Devices
+  - [ ] UART: universal asynchronous receiver-transmitter
+  - [ ] CLINT: core local interruptor
+  - [ ] PLIC: platform level interrupt controller
+  - [ ] Virtio-BLK: virtual I/O Block Device
 - [x] FDT
 
 ## Dependencies
@@ -58,12 +58,12 @@ You can install all required dependencies using:
 
 Arch:
 ```bash
-sudo pacman -S cmake make gcc
+sudo pacman -S make gcc
 ```
 
 Ubuntu:
 ```bash
-sudo apt install cmake make gcc
+sudo apt install make gcc
 ```
 
 ## License
