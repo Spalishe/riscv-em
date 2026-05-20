@@ -93,18 +93,30 @@ CXXFLAGS += $(foreach v,$(USE_VARS),$(if $(filter-out 0,$($(v))),-D$(v)=$($(v)))
 CXXFLAGS += -DRVEM_VERSION='"riscv-em; git-$(GIT_HASH_SHORT)"'
 
 BUILD_DIR := build.$(OS_lower).$(TRIPLET_ARCH)
-OBJ_DIR := $(BUILD_DIR)/obj
+OBJ_DIR_BIN := $(BUILD_DIR)/obj/bin/
+OBJ_DIR_SO := $(BUILD_DIR)/obj/so/
 SRCS := $(shell find src -name '*.cpp')
-OBJS := $(patsubst src/%.cpp,$(OBJ_DIR)/%.o,$(SRCS))
-TARGET := $(BUILD_DIR)/release_$(TRIPLET_ARCH)
+SRCS_SO := $(filter-out src/main.cpp, $(SRCS))
+OBJS_BIN := $(patsubst src/%.cpp,$(OBJ_DIR_BIN)/%.o,$(SRCS))
+OBJS_SO := $(patsubst src/%.cpp,$(OBJ_DIR_SO)/%.o,$(SRCS_SO))
+TARGET_BIN := $(BUILD_DIR)/release_$(TRIPLET_ARCH)
+TARGET_SO := $(BUILD_DIR)/lib_$(TRIPLET_ARCH).so
 
 all:
 	$(call print_info)
 	
 	@mkdir -p $(BUILD_DIR) 
-	@mkdir -p $(OBJ_DIR) 
+	@mkdir -p $(OBJ_DIR_BIN) 
 	
-	@$(MAKE) --no-print-directory $(TARGET)
+	@$(MAKE) --no-print-directory $(TARGET_BIN)
+
+lib:
+	$(call print_info)
+	@mkdir -p $(BUILD_DIR) 
+	@mkdir -p $(OBJ_DIR_SO) 
+
+	@$(MAKE) --no-print-directory $(TARGET_SO)
+
 help:
 	$(call print_info)
 	$(call print_help)
@@ -112,12 +124,23 @@ clean:
 	$(call print_info)
 	@rm -rf $(BUILD_DIR)
 	
-$(OBJ_DIR)/%.o: src/%.cpp
+$(OBJ_DIR_BIN)/%.o: src/%.cpp
 	@mkdir -p $(dir $@)
 	@echo -e "[$(ANSI_GREEN)CXX$(ANSI_RESET)] $<"
 	@$(CXX) $(CXXFLAGS) -c $< -o $@
--include $(OBJS:.o=.d)
 
-$(TARGET): $(OBJS)
+$(OBJ_DIR_SO)/%.o: src/%.cpp
+	@mkdir -p $(dir $@)
+	@echo -e "[$(ANSI_GREEN)CXX$(ANSI_RESET)] $<"
+	@$(CXX) $(CXXFLAGS) -fPIC -c $< -o $@
+
+-include $(OBJS_BIN:.o=.d)
+-include $(OBJS_SO:.o=.d)
+
+$(TARGET_BIN): $(OBJS_BIN)
 	@echo -e "[$(ANSI_BLUE)LD$(ANSI_RESET)] $@"
-	@$(CXX) $(OBJS) -o $@ $(LIBS)
+	@$(CXX) $(OBJS_BIN) -o $@ $(LIBS) $(LDFLAGS)
+
+$(TARGET_SO): $(OBJS_SO)
+	@echo -e "[$(ANSI_BLUE)LD$(ANSI_RESET)] $@"
+	@$(CXX) $(OBJS_SO) -o $@ $(LIBS) -shared

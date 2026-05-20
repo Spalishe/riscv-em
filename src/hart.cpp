@@ -16,7 +16,175 @@ Copyright 2026 Spalishe
 */
 
 #include "../include/hart.hpp"
+#include "../include/defines/csr.hpp"
+#include "../include/defines/traps.hpp"
 
 void Hart::init()
 {
+	csrs[CSR_MISA]	  = (1 << 8); // RVI
+	csrs[CSR_MHARTID] = id;
+}
+
+void Hart::tick()
+{
+	if(WFI)
+	{
+		// We must continue execution even if we has locally pending interruptions
+		if(int_local_pending()) WFI = false;
+
+		return;
+	}
+	check_ints();
+}
+
+bool Hart::int_local_pending()
+{
+	uint64_t sip	 = ip.raw & SE_MASK;
+	uint64_t sie	 = ie.raw & SE_MASK;
+	uint64_t mideleg = csrs[CSR_MIDELEG];
+
+	uint64_t pending   = ip.raw & ie.raw & ~mideleg;
+	uint64_t pending_s = sip & sie & mideleg;
+
+	if(mode > PrivilegeMode::Supervisor) pending_s = 0;
+
+	return pending | pending_s;
+}
+
+void Hart::check_ints()
+{
+	uint64_t sip	 = ip.raw & SE_MASK;
+	uint64_t sie	 = ie.raw & SE_MASK;
+	uint64_t mideleg = csrs[CSR_MIDELEG];
+
+	bool m_global = (mode == PrivilegeMode::Machine)
+						? status.fields.MIE
+						: (mode < PrivilegeMode::Machine);
+
+	bool s_global = (mode == PrivilegeMode::Supervisor)
+						? status.fields.SIE
+						: (mode < PrivilegeMode::Supervisor);
+
+	if(m_global)
+	{
+		uint64_t pending = ip.raw & ie.raw & ~mideleg;
+
+		if(pending)
+		{
+			for(int irq : irq_priority)
+			{
+				if(pending & (1ULL << irq))
+				{
+					trap(irq, 0, true);
+					return;
+				}
+			}
+		}
+	}
+	if(s_global)
+	{
+		uint64_t pending = (sip & mideleg) & sie;
+		if(pending)
+		{
+			for(int irq : irq_priority)
+			{
+				if(pending & (1ULL << irq))
+				{
+					trap(irq, 0, true);
+					return;
+				}
+			}
+		}
+	}
+
+	return;
+}
+
+void Hart::trap(uint64_t cause, uint64_t tval, bool interrupt)
+{
+	WFI						= false;
+	uint64_t trap_pc		= pc;
+	PrivilegeMode prev_mode = mode;
+
+	uint64_t medeleg   = csrs[CSR_MEDELEG];
+	uint64_t mideleg   = csrs[CSR_MIDELEG];
+	bool delegate_to_s = false;
+	if(prev_mode != PrivilegeMode::Machine)
+	{
+		if(interrupt)
+			delegate_to_s = (mideleg >> cause) & 1ULL;
+		else
+			delegate_to_s = (medeleg >> cause) & 1ULL;
+	}
+
+	if(delegate_to_s)
+	{
+		// Supervisor
+		mode			   = PrivilegeMode::Supervisor;
+		uint64_t vector	   = (((csrs[CSR_STVEC] & 1) == 1 && interrupt) ? 4 * cause : 0);
+		pc				   = (csrs[CSR_STVEC] & ~3) + vector;
+		csrs[CSR_SEPC]	   = trap_pc & ~3;
+		csrs[CSR_SCAUSE]   = ((interrupt ? (1ULL << 63) : 0) | cause);
+		csrs[CSR_STVAL]	   = tval;
+		status.fields.SPIE = status.fields.SIE;
+		status.fields.SIE  = 0;
+		status.fields.SPP  = (prev_mode != PrivilegeMode::User);
+	}
+	else
+	{
+		// Machine
+		mode			   = PrivilegeMode::Machine;
+		uint64_t vector	   = (((csrs[CSR_MTVEC] & 1) == 1 && interrupt) ? 4 * cause : 0);
+		pc				   = (csrs[CSR_MTVEC] & ~3) + vector;
+		csrs[CSR_MEPC]	   = trap_pc & ~3;
+		csrs[CSR_MCAUSE]   = ((interrupt ? (1ULL << 63) : 0) | cause);
+		csrs[CSR_MTVAL]	   = tval;
+		status.fields.MPIE = status.fields.MIE;
+		status.fields.MIE  = 0;
+		status.fields.MPP  = (uint8_t)prev_mode;
+	}
+}
+
+void Hart::csr_write(uint16_t csr, uint64_t val)
+{
+	switch(csr)
+	{
+		case CSR_SSTATUS:
+			csrs[CSR_MSTATUS] = (csrs[CSR_MSTATUS] & ~SSTATUS_MASK) | (val & SSTATUS_MASK);
+		case CSR_SIE:
+			ie.raw = (ie.raw & ~SE_MASK) | (val & SE_MASK);
+		case CSR_SIP:
+			ip.raw = (ip.raw & ~SE_MASK) | (val & SE_MASK);
+		case CSR_MIE:
+			ie.raw = val;
+		case CSR_MIP:
+			ip.raw = val;
+
+		case CSR_MVENDORID:
+		case CSR_MARCHID:
+		case CSR_MIMPID:
+			// Read-only
+			(void)csr;
+			(void)val;
+		default:
+			csrs[csr] = val;
+	}
+}
+uint64_t Hart::csr_read(uint16_t csr)
+{
+	switch(csr)
+	{
+		case CSR_SSTATUS:
+			return csrs[CSR_MSTATUS] & SSTATUS_MASK;
+		case CSR_SIE:
+			return csrs[CSR_MIE] & SE_MASK;
+		case CSR_SIP:
+			return csrs[CSR_MIP] & SE_MASK;
+		case CSR_MIP:
+			return ip.raw;
+		case CSR_MIE:
+			return ie.raw;
+		default:
+			return csrs[csr];
+	}
 }

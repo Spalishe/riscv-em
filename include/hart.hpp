@@ -15,7 +15,16 @@ Copyright 2026 Spalishe
 
 */
 
+#include "defines/csr.hpp"
 #include <cstdint>
+
+enum class PrivilegeMode
+{
+	User	   = 0,
+	Supervisor = 1,
+	Hypervisor = 2,
+	Machine	   = 3
+};
 
 struct Hart
 {
@@ -23,6 +32,23 @@ struct Hart
 
 					   };
 	uint8_t id;
+	uint64_t GPR[32];
+	uint64_t csrs[4096];
+
+	uint64_t pc;
+	PrivilegeMode mode;
+
+	status_t status;
+	ie_t ie;
+	ip_t ip;
+
+	bool WFI = false;
 
 	void init();
+	uint64_t csr_read(uint16_t csr);
+	void csr_write(uint16_t csr, uint64_t val);
+	void trap(uint64_t cause, uint64_t tval, bool interrupt);
+	void tick();
+	bool int_local_pending();
+	void check_ints();
 };

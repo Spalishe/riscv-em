@@ -45,6 +45,15 @@ Copyright 2026 Spalishe
 #define IRQ_SEXT				  9
 #define IRQ_MEXT				  11
 
+static const int irq_priority[] = {
+	11, // MEI
+	9,	// SEI
+	3,	// MSI
+	1,	// SSI
+	7,	// MTI
+	5	// STI
+};
+
 struct ExecReturn
 {
 	bool is_success	 = true;

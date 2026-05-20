@@ -23,7 +23,7 @@ Copyright 2026 Spalishe
 #include <thread>
 #include <vector>
 
-enum MachineState
+enum class MachineState
 {
 	Off		= 0,
 	Halted	= 1,

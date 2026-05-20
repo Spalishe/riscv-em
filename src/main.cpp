@@ -22,6 +22,7 @@ Copyright 2026 Spalishe
 #include <unordered_map>
 
 #include "../include/gdbstub.hpp"
+#include "../include/machine.hpp"
 #include "../include/main.hpp"
 #include "fcntl.h"
 #include "termios.h"
@@ -67,28 +68,25 @@ int main(int argc, char* argv[])
 {
 	arp::Argparser parser(argc, argv);
 	parser.setDescription("RISC-V EM");
-	auto bios_var = parser.add<arp::str>(
-		"--bios", "File with Machine level program (bootloader)", arp::required,
-		arp::nopos);
-	auto kernel_var = parser.add<arp::str>("--kernel", "File with Supervisor Level program",
-										   arp::norequired, arp::nopos);
-	auto image_var	= parser.add<arp::str>(
-		"--image", "File with Image file that will put on VirtIO-BLK",
-		arp::norequired, arp::nopos);
+	auto bios_var
+		= parser.add<arp::str>("--bios", "File with Machine level program (bootloader)", arp::required, arp::nopos);
+	auto kernel_var
+		= parser.add<arp::str>("--kernel", "File with Supervisor Level program", arp::norequired, arp::nopos);
+	auto image_var = parser.add<arp::str>("--image", "File with Image file that will put on VirtIO-BLK",
+										  arp::norequired, arp::nopos);
 
-	auto dtb_var = parser.add<arp::str>(
-		"--dtb", "Use specified FDT instead of auto-generated", arp::norequired,
-		arp::nopos);
-	auto dumpdtb_var = parser.add<arp::str>("--dumpdtb", "Dumps auto-generated FDT to file",
-											arp::norequired, arp::nopos);
-	auto append_var	 = parser.add<arp::str>(
-		"--append", "Append command line arguments", arp::norequired, arp::nopos);
+	auto dtb_var
+		= parser.add<arp::str>("--dtb", "Use specified FDT instead of auto-generated", arp::norequired, arp::nopos);
+	auto dumpdtb_var
+		= parser.add<arp::str>("--dumpdtb", "Dumps auto-generated FDT to file", arp::norequired, arp::nopos);
+	auto append_var = parser.add<arp::str>("--append", "Append command line arguments", arp::norequired, arp::nopos);
 #ifdef USE_GDBSTUB
-	auto gdb_var = parser.add<arp::def>("--gdb", "Starts GDB Stub on port 1512",
-										arp::norequired, arp::nopos);
+	auto gdb_var = parser.add<arp::def>("--gdb", "Starts GDB Stub on port 1512", arp::norequired, arp::nopos);
 #endif
-	auto mem_var   = parser.add<arp::str>("--memsize", "Set custom memory size (Default is 512 MB)", arp::norequired, arp::nopos, "-M");
-	auto harts_var = parser.add<arp::uint>("--harts", "Set custom harts count (Default is 1)", arp::norequired, arp::nopos, "-S");
+	auto mem_var = parser.add<arp::str>("--memsize", "Set custom memory size (Default is 512 MB)", arp::norequired,
+										arp::nopos, "-M");
+	auto harts_var
+		= parser.add<arp::uint>("--harts", "Set custom harts count (Default is 1)", arp::norequired, arp::nopos, "-S");
 
 	parser.parse();
 

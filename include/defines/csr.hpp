@@ -326,13 +326,45 @@ Copyright 2026 Spalishe
 #define SSTATUS_MASK	 0x80000003000DE762ULL
 #define SE_MASK			 0x222
 
-static const int irq_priority[] = {
-	11, // MEI
-	9,	// SEI
-	3,	// MSI
-	1,	// SSI
-	7,	// MTI
-	5	// STI
+union ip_t
+{
+	struct
+	{
+		unsigned int : 1;
+		unsigned int SSIP : 1;
+		unsigned int : 1;
+		unsigned int MSIP : 1;
+		unsigned int : 1;
+		unsigned int STIP : 1;
+		unsigned int : 1;
+		unsigned int MTIP : 1;
+		unsigned int : 1;
+		unsigned int SEIP : 1;
+		unsigned int : 1;
+		unsigned int MEIP : 1;
+		unsigned int : 4;
+	} fields;
+	uint16_t raw;
+};
+union ie_t
+{
+	struct
+	{
+		unsigned int : 1;
+		unsigned int SSIE : 1;
+		unsigned int : 1;
+		unsigned int MSIE : 1;
+		unsigned int : 1;
+		unsigned int STIE : 1;
+		unsigned int : 1;
+		unsigned int MTIE : 1;
+		unsigned int : 1;
+		unsigned int SEIE : 1;
+		unsigned int : 1;
+		unsigned int MEIE : 1;
+		unsigned int : 4;
+	} fields;
+	uint16_t raw;
 };
 
 union status_t
