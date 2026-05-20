@@ -14,22 +14,40 @@ Copyright 2026 Spalishe
    limitations under the License.
 
 */
+
 #pragma once
 #include "defines/traps.hpp"
-#include "libfdt.hpp"
-#include "memory_map.hpp"
 #include <cstdint>
+#include <string>
+#include <vector>
 
-struct Device
+struct Hart;
+
+struct InstructionData
 {
-	Device(uint64_t start, uint64_t size, fdt_node* fdt) : start(start), size(size) {
-
-														   };
-	MemoryMap* mmap;
-	uint64_t start;
-	uint64_t size;
-
-	MemoryReturn read(uint64_t addr, uint8_t size);
-	MemoryReturn write(uint64_t addr, uint8_t size, uint64_t val);
-	void tick();
+	uint32_t inst;
+	uint8_t rs1;
+	uint8_t rs2;
+	uint8_t rd;
+	uint64_t imm;
 };
+
+struct Instruction
+{
+	uint32_t mask;
+	uint32_t match;
+	ExecReturn (*func)(Hart& h, InstructionData& data);
+	uint64_t (*imm_decode_func)(uint32_t inst);
+};
+
+struct InstructionCache
+{
+	uint32_t inst_raw = 0;
+	Instruction inst;
+	InstructionData data;
+};
+
+extern std::vector<Instruction> instructions;
+
+extern InstructionCache decode_inst(uint32_t inst);
+extern void register_instr(std::string mask, ExecReturn (*func)(Hart&, InstructionData&));
