@@ -17,12 +17,6 @@ Copyright 2026 Spalishe
 
 #pragma once
 
-#undef HOST_TARGET_X86_64
-#undef HOST_TARGET_AARCH64
-
-#if defined(__x86_64__)
-#define HOST_TARGET_X86_64 1
-#endif
-#if defined(__aarch64__)
-#define HOST_TARGET_AARCH64 1
+#ifndef RVEM_VERSION
+#define RVEM_VERSION "riscv-em"
 #endif

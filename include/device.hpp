@@ -14,15 +14,21 @@ Copyright 2026 Spalishe
    limitations under the License.
 
 */
+#include "defines/traps.hpp"
+#include "libfdt.hpp"
+#include "memory_map.hpp"
+#include <cstdint>
 
-#pragma once
+struct Device
+{
+	Device(uint64_t start, uint64_t size, fdt_node* fdt) : start(start), size(size) {
 
-#undef HOST_TARGET_X86_64
-#undef HOST_TARGET_AARCH64
+														   };
+	MemoryMap* mmap;
+	uint64_t start;
+	uint64_t size;
 
-#if defined(__x86_64__)
-#define HOST_TARGET_X86_64 1
-#endif
-#if defined(__aarch64__)
-#define HOST_TARGET_AARCH64 1
-#endif
+	MemoryReturn read(uint64_t addr, uint8_t size);
+	MemoryReturn write(uint64_t addr, uint8_t size, uint64_t val);
+	void tick();
+};

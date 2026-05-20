@@ -53,6 +53,7 @@ endef
 
 GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 GIT_HASH := $(shell git rev-parse HEAD)
+GIT_HASH_SHORT := $(shell git rev-parse --short HEAD)
 
 ifeq ($(GIT_BRANCH),)
     GIT_BRANCH := unknown
@@ -84,10 +85,12 @@ ifeq ($(shell which $(CXX) 2>/dev/null),)
 endif
 CXX_VERSION := $(shell $(CXX) --version | head -n 1)
 
-LIBS := -latomic
-CXXFLAGS := -std=c++20 -std=gnu++20 $(LIBS) -O3 -march=native -flto -MMD -MP -Iinclude
+LIBS := -latomic -pthread
+CXXFLAGS := -std=c++20 -std=gnu++20 $(LIBS) -g -march=native -flto -MMD -MP -Iinclude
 
 CXXFLAGS += $(foreach v,$(USE_VARS),$(if $(filter-out 0,$($(v))),-D$(v)=$($(v))))
+
+CXXFLAGS += -DRVEM_VERSION='"riscv-em; git-$(GIT_HASH_SHORT)"'
 
 BUILD_DIR := build.$(OS_lower).$(TRIPLET_ARCH)
 OBJ_DIR := $(BUILD_DIR)/obj

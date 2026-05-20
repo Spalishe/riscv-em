@@ -5,7 +5,7 @@ Copyright 2026 Spalishe
    you may not use this file except in compliance with the License.
    You may obtain a copy of the License at
 
-       http://www.apache.org/licenses/LICENSE-2.0
+	   http://www.apache.org/licenses/LICENSE-2.0
 
    Unless required by applicable law or agreed to in writing, software
    distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,63 +16,65 @@ Copyright 2026 Spalishe
 */
 
 #pragma once
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
-#include <memory>
 
 // simple property representation
-struct Prop {
-    std::string name;
-    std::vector<uint8_t> data;
+struct Prop
+{
+	std::string name;
+	std::vector<uint8_t> data;
 };
 
 // forward
 struct Node;
 
 // Node type
-struct Node {
-    std::string name;            // node name, can be empty for root
-    Node* parent = nullptr;      // parent pointer, nullptr for root
-    uint32_t phandle = 0;        // allocated phandle (0 = unassigned)
-    std::vector<Prop> props;
-    std::vector<std::unique_ptr<Node>> children;
+struct Node
+{
+	std::string name;			// node name, can be empty for root
+	Node* parent	 = nullptr; // parent pointer, nullptr for root
+	uint32_t phandle = 0;		// allocated phandle (0 = unassigned)
+	std::vector<Prop> props;
+	std::vector<std::unique_ptr<Node>> children;
 
-    explicit Node(const std::string& name_ = "");
-    // create name like "dev@1000"
-    static std::unique_ptr<Node> create_reg(const std::string& name, uint64_t addr);
+	explicit Node(const std::string& name_ = "");
+	// create name like "dev@1000"
+	static std::unique_ptr<Node> create_reg(const std::string& name, uint64_t addr);
 
-    // attach child (takes ownership)
-    void add_child(std::unique_ptr<Node> child);
+	// attach child (takes ownership)
+	void add_child(std::unique_ptr<Node> child);
 
-    // find child by exact name
-    Node* find(const std::string& name);
+	// find child by exact name
+	Node* find(const std::string& name);
 
-    // find child by name@addr
-    Node* find_reg(const std::string& name, uint64_t addr);
+	// find child by name@addr
+	Node* find_reg(const std::string& name, uint64_t addr);
 
-    // find child by name@* (first matching)
-    Node* find_reg_any(const std::string& name);
+	// find child by name@* (first matching)
+	Node* find_reg_any(const std::string& name);
 
-    // get (and allocate if needed) phandle; returns 0 for root node
-    uint32_t get_phandle();
+	// get (and allocate if needed) phandle; returns 0 for root node
+	uint32_t get_phandle();
 
-    // properties
-    void add_prop(const std::string& name, const void* data, uint32_t len);
-    void add_prop_u32(const std::string& name, uint32_t val);
-    void add_prop_u64(const std::string& name, uint64_t val);
-    void add_prop_cells(const std::string& name, std::vector<uint32_t> cells, uint32_t count);
-    void add_prop_str(const std::string& name, const std::string& val);
-    void add_prop_reg(const std::string& name, uint64_t begin, uint64_t size);
+	// properties
+	void add_prop(const std::string& name, const void* data, uint32_t len);
+	void add_prop_u32(const std::string& name, uint32_t val);
+	void add_prop_u64(const std::string& name, uint64_t val);
+	void add_prop_cells(const std::string& name, std::vector<uint32_t> cells, uint32_t count);
+	void add_prop_str(const std::string& name, const std::string& val);
+	void add_prop_reg(const std::string& name, uint64_t begin, uint64_t size);
 
-    // queries
-    const void* get_prop_data(const std::string& name);
-    size_t get_prop_size(const std::string& name);
-    bool del_prop(const std::string& name);
+	// queries
+	const void* get_prop_data(const std::string& name);
+	size_t get_prop_size(const std::string& name);
+	bool del_prop(const std::string& name);
 
-    // free - unique_ptr handles cleanup; but provide recursive free helper if needed
-    static void free_node(std::unique_ptr<Node>& n);
+	// free - unique_ptr handles cleanup; but provide recursive free helper if needed
+	static void free_node(std::unique_ptr<Node>& n);
 };
 
 // Serialization helpers

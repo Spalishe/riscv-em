@@ -15,14 +15,14 @@ Copyright 2026 Spalishe
 
 */
 
-#pragma once
+#include <cstdint>
 
-#undef HOST_TARGET_X86_64
-#undef HOST_TARGET_AARCH64
+struct Hart
+{
+	Hart(uint8_t id) : id(id) {
 
-#if defined(__x86_64__)
-#define HOST_TARGET_X86_64 1
-#endif
-#if defined(__aarch64__)
-#define HOST_TARGET_AARCH64 1
-#endif
+					   };
+	uint8_t id;
+
+	void init();
+};
