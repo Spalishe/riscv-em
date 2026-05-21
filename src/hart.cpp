@@ -46,7 +46,7 @@ uint32_t Hart::fetch()
 
 ExecReturn Hart::single_inst(uint32_t inst)
 {
-	InstructionCache cache = decode_inst(inst);
+	InstructionCache cache = idec->decode_inst(inst);
 	ExecReturn out		   = cache.inst.func(*this, cache.data);
 	return out;
 }
@@ -85,7 +85,7 @@ void Hart::tick()
 
 		// Push instruction to stack
 
-		current_block.insts[current_block.count] = decode_inst(inst);
+		current_block.insts[current_block.count] = idec->decode_inst(inst);
 		current_block.count++;
 		if(current_block.count == 128 || out.can_change_pc)
 		{

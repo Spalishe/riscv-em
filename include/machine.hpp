@@ -20,6 +20,7 @@ Copyright 2026 Spalishe
 #include "hart.hpp"
 #include "libfdt.hpp"
 #include "memory_map.hpp"
+#include "mmio.hpp"
 #include <thread>
 #include <vector>
 
@@ -38,6 +39,8 @@ struct Machine
 	std::string dtb_dump_path;
 	fdt_node* fdt;
 	MemoryMap* mmap;
+	MMIO* mmio;
+	InstructionDecoder* idec;
 	uint64_t timebase;
 	uint8_t harts_count;
 	std::vector<Hart> harts;

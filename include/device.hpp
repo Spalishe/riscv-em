@@ -20,7 +20,7 @@ Copyright 2026 Spalishe
 #include "memory_map.hpp"
 #include <cstdint>
 
-struct Device
+struct Device : std::enable_shared_from_this<Device>
 {
 	Device(uint64_t start, uint64_t size, fdt_node* fdt) : start(start), size(size) {
 
@@ -32,4 +32,12 @@ struct Device
 	MemoryReturn read(uint64_t addr, uint8_t size);
 	MemoryReturn write(uint64_t addr, uint8_t size, uint64_t val);
 	void tick();
+	static Device auto_init(fdt_node* fdt);
+
+	// Returns device
+	template <typename T>
+	std::shared_ptr<T> get()
+	{
+		return std::dynamic_pointer_cast<T>(shared_from_this());
+	}
 };

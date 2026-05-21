@@ -87,10 +87,7 @@ uint64_t shamt64(uint32_t inst)
 	return (uint32_t)(imm_I(inst) & 0x3f);
 }
 
-InstructionCache cache[8192];
-std::vector<Instruction> instructions;
-
-InstructionCache decode_inst(uint32_t inst)
+InstructionCache InstructionDecoder::decode_inst(uint32_t inst)
 {
 	if(cache[inst & 0x1FFF].inst_raw == inst)
 	{
@@ -123,7 +120,7 @@ InstructionCache decode_inst(uint32_t inst)
 	}
 }
 
-void register_instr(std::string mask, ExecReturn (*func)(Hart&, InstructionData&), uint64_t (*imm_decode_func)(uint32_t inst))
+void InstructionDecoder::register_instr(std::string mask, ExecReturn (*func)(Hart&, InstructionData&), uint64_t (*imm_decode_func)(uint32_t inst))
 {
 	assert(mask.size() == 32 && "Instruction mask size isn't 32 bits, good luck finding this broken instruction.");
 	uint32_t inst_mask	= 0;
@@ -150,7 +147,12 @@ void register_instr(std::string mask, ExecReturn (*func)(Hart&, InstructionData&
 		inst_mask,
 		inst_match,
 		func,
-		imm_decode_func
+		(imm_decode_func == NULL) ? imm_I : imm_decode_func, // default decode func if user dont provide such
 	};
 	instructions.push_back(inst);
+}
+
+void InstructionDecoder::init_all_instrs()
+{
+	init_rv64i();
 }

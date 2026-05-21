@@ -19,6 +19,7 @@ Copyright 2026 Spalishe
 #include "defines/csr.hpp"
 #include "defines/traps.hpp"
 #include "memory_map.hpp"
+#include "mmio.hpp"
 #include <cstdint>
 #include <unordered_map>
 
@@ -29,6 +30,8 @@ enum class PrivilegeMode
 	Hypervisor = 2,
 	Machine	   = 3
 };
+
+struct MMIO;
 
 struct InstructionCache;
 
@@ -47,7 +50,9 @@ struct Hart
 	uint8_t id;
 	uint64_t GPR[32];
 	uint64_t csrs[4096];
+	InstructionDecoder* idec;
 	MemoryMap* mmap;
+	MMIO* mmio;
 
 	uint64_t pc;
 	PrivilegeMode mode;

@@ -20,7 +20,6 @@ Copyright 2026 Spalishe
 #include <cstring>
 #include <ctime>
 #include <format>
-#include <functional>
 #include <sstream>
 #include <vector>
 
@@ -132,6 +131,9 @@ void Machine::init_mmap()
 {
 	mmap = new MemoryMap();
 	mmap->add_region(0x80000000, memory_size);
+	mmio = new MMIO(mmap, memory_size);
+	idec = new InstructionDecoder();
+	idec->init_all_instrs();
 }
 
 void Machine::init_auto_devices()
@@ -145,6 +147,8 @@ void Machine::run()
 	{
 		Hart& h = harts[i];
 		h.mmap	= mmap;
+		h.mmio	= mmio;
+		h.idec	= idec;
 		h.init();
 	}
 

@@ -47,7 +47,14 @@ struct InstructionCache
 	InstructionData data;
 };
 
-extern std::vector<Instruction> instructions;
+struct InstructionDecoder
+{
+	std::vector<Instruction> instructions;
+	InstructionCache cache[16384];
+	InstructionCache decode_inst(uint32_t inst);
+	void register_instr(std::string mask, ExecReturn (*func)(Hart&, InstructionData&), uint64_t (*imm_decode_func)(uint32_t inst) = NULL);
 
-extern InstructionCache decode_inst(uint32_t inst);
-extern void register_instr(std::string mask, ExecReturn (*func)(Hart&, InstructionData&));
+	// This function will call on init, calling all sets functions to initialize
+	void init_all_instrs();
+	void init_rv64i();
+};

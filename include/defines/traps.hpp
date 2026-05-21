@@ -16,6 +16,7 @@ Copyright 2026 Spalishe
 */
 
 #pragma once
+#include <cstdint>
 
 // mcause / scause exception codes (Interrupt bit is set separately)
 #define EXC_INST_ADDR_MISALIGNED  0
@@ -58,11 +59,13 @@ struct ExecReturn
 {
 	bool is_success	   = true;
 	bool can_change_pc = false;
-	char increase_pc   = 0;
-	char cause, tval = 0;
+	char increase_pc   = 4;
+	char cause		   = 0;
+	uint64_t tval	   = 0;
 };
 struct MemoryReturn
 {
 	bool is_success = true;
 	char exc_code	= 0;
+	uint64_t tval	= 0;
 };
