@@ -34,12 +34,19 @@ uint32_t Hart::fetch()
 	}
 	else
 	{
-		fetch_buffer_pc = pc;
 		// Create new fetch buffer
 		for(int i = 0; i < 32; i += 4)
 		{
-			fetch_buffer[i / 4] = mmap->load(pc + i, 32);
+			uint32_t val;
+			MemoryReturn out = mmio->read(*this, pc + i, MemorySize::Int, &val);
+			if(!out.is_success)
+			{
+				trap(EXC_INST_ACCESS_FAULT, out.tval, false);
+				return 0;
+			}
+			fetch_buffer[i / 4] = val;
 		}
+		fetch_buffer_pc = pc;
 		return fetch_buffer[(pc - fetch_buffer_pc) / 4];
 	}
 }
