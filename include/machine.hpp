@@ -47,6 +47,7 @@ struct Machine
 	std::vector<Device> devices;
 	std::thread work_thread;
 	bool work_thread_w;
+	bool work_thread_joined; // manual variable to indicate that thread was joined. You probably want to set it to true if you do work_thread.join();
 
 	MachineState state = MachineState::Off;
 

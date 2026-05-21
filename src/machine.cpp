@@ -17,6 +17,7 @@ Copyright 2026 Spalishe
 
 #include "../include/machine.hpp"
 #include "../include/defines/rvem.hpp"
+#include <cstdio>
 #include <cstring>
 #include <ctime>
 #include <format>
@@ -166,7 +167,7 @@ void Machine::stop()
 	if(work_thread_w)
 	{
 		state = MachineState::Off;
-		work_thread.join();
+		if(!work_thread_joined) work_thread.join();
 	}
 }
 

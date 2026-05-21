@@ -16,6 +16,8 @@ Copyright 2026 Spalishe
 */
 
 #include "argparser.cpp"
+#include <atomic>
+#include <cstdio>
 #include <exception>
 #include <iostream>
 #include <string>
@@ -47,17 +49,45 @@ Copyright 2026 Spalishe
  */
 
 termios oldt;
-bool termios_running = false;
+std::atomic<bool> termios_running = false;
+std::vector<char> combo_sequence  = { 3, 24 }; // Ctrl+C (0x03) -> Ctrl+X (0x18)
+std::vector<char> buffer;
+
+Machine* mach;
 // Thread function for overriding default stdin control keys
 void termios_loop()
 {
+	int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
+	fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
+
 	char ch;
-	while(termios_running)
+	while(termios_running.load(std::memory_order_relaxed))
 	{
-		if(read(STDIN_FILENO, &ch, 1) > 0)
+		ssize_t r = read(STDIN_FILENO, &ch, 1);
+		if(r > 0)
 		{
+			buffer.push_back(ch);
+
+			if(buffer.size() > combo_sequence.size())
+			{
+				buffer.erase(buffer.begin());
+			}
+
+			if(buffer.size() == combo_sequence.size() && buffer == combo_sequence)
+			{
+				mach->stop();
+				buffer.clear();
+				break;
+			}
+
+			// uart->receive_byte(c);
+		}
+		else
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(1)); // dont make our cpu cry
 		}
 	}
+	printf("exit\n");
 }
 void cleanup_terminal()
 {
@@ -155,9 +185,18 @@ int main(int argc, char* argv[])
 		machine.init_fdt();
 	}
 
+	mach = &machine;
+
+	termios_running = true;
+	std::thread term(&termios_loop);
+
 	machine.init_auto_devices();
 	machine.run();
+	machine.work_thread_joined = true;
 	machine.work_thread.join(); // joining it so our program will not exit right after creating machine
+
+	termios_running.store(false, std::memory_order_seq_cst);
+	term.join();
 
 	return 0;
 }
