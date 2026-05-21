@@ -56,8 +56,9 @@ static const int irq_priority[] = {
 
 struct ExecReturn
 {
-	bool is_success	 = true;
-	char increase_pc = 0;
+	bool is_success	   = true;
+	bool can_change_pc = false;
+	char increase_pc   = 0;
 	char cause, tval = 0;
 };
 struct MemoryReturn

@@ -15,8 +15,12 @@ Copyright 2026 Spalishe
 
 */
 
+#include "decode.hpp"
 #include "defines/csr.hpp"
+#include "defines/traps.hpp"
+#include "memory_map.hpp"
 #include <cstdint>
+#include <unordered_map>
 
 enum class PrivilegeMode
 {
@@ -24,6 +28,15 @@ enum class PrivilegeMode
 	Supervisor = 1,
 	Hypervisor = 2,
 	Machine	   = 3
+};
+
+struct InstructionCache;
+
+struct InstructionBlock
+{
+	uint64_t start_pc;
+	uint8_t count;
+	InstructionCache insts[128];
 };
 
 struct Hart
@@ -34,6 +47,7 @@ struct Hart
 	uint8_t id;
 	uint64_t GPR[32];
 	uint64_t csrs[4096];
+	MemoryMap* mmap;
 
 	uint64_t pc;
 	PrivilegeMode mode;
@@ -44,11 +58,23 @@ struct Hart
 
 	bool WFI = false;
 
+	// Block execution
+	InstructionBlock blocks[256];
+	InstructionBlock current_block;
+	std::unordered_map<uint64_t, uint64_t> pc_hits;
+	bool creating_block;
+
+	// Fetch buffer
+	uint32_t fetch_buffer[8];
+	uint64_t fetch_buffer_pc;
+
 	void init();
 	uint64_t csr_read(uint16_t csr);
 	void csr_write(uint16_t csr, uint64_t val);
 	void trap(uint64_t cause, uint64_t tval, bool interrupt);
 	void tick();
+	ExecReturn single_inst(uint32_t inst);
+	uint32_t fetch();
 	bool int_local_pending();
 	void check_ints();
 };

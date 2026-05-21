@@ -16,6 +16,7 @@ Copyright 2026 Spalishe
 */
 
 #include "../include/hart.hpp"
+#include "../include/decode.hpp"
 #include "../include/defines/csr.hpp"
 #include "../include/defines/traps.hpp"
 
@@ -23,6 +24,31 @@ void Hart::init()
 {
 	csrs[CSR_MISA]	  = (1 << 8); // RVI
 	csrs[CSR_MHARTID] = id;
+}
+
+uint32_t Hart::fetch()
+{
+	if(pc >= fetch_buffer_pc && pc <= fetch_buffer_pc + 28)
+	{
+		return fetch_buffer[(pc - fetch_buffer_pc) / 4];
+	}
+	else
+	{
+		fetch_buffer_pc = pc;
+		// Create new fetch buffer
+		for(int i = 0; i < 32; i += 4)
+		{
+			fetch_buffer[i / 4] = mmap->load(pc + i, 32);
+		}
+		return fetch_buffer[(pc - fetch_buffer_pc) / 4];
+	}
+}
+
+ExecReturn Hart::single_inst(uint32_t inst)
+{
+	InstructionCache cache = decode_inst(inst);
+	ExecReturn out		   = cache.inst.func(*this, cache.data);
+	return out;
 }
 
 void Hart::tick()
@@ -35,6 +61,94 @@ void Hart::tick()
 		return;
 	}
 	check_ints();
+
+	uint32_t inst = fetch();
+
+	if(creating_block)
+	{
+		// We gonna run all instructions until we hit any branch/interrupt/exception
+		auto out = single_inst(inst);
+		if(!out.is_success)
+		{
+			// Exception
+			creating_block		   = false;
+			current_block.count	   = 0;
+			current_block.start_pc = 0;
+
+			trap(out.cause, out.tval, false);
+			return;
+		}
+		else
+		{
+			pc += out.increase_pc;
+		}
+
+		// Push instruction to stack
+
+		current_block.insts[current_block.count] = decode_inst(inst);
+		current_block.count++;
+		if(current_block.count == 128 || out.can_change_pc)
+		{
+			// We reached instructions limit / Branch
+			blocks[pc & 0xFF]	   = current_block;
+			creating_block		   = false;
+			current_block.count	   = 0;
+			current_block.start_pc = 0;
+			return;
+		}
+	}
+
+	// Block execution
+	auto& blk = blocks[pc & 0xFF];
+	if(blk.start_pc == pc)
+	{
+		// We have block for this pc
+		for(int i = 0; i < blk.count; i++)
+		{
+			ExecReturn out = blk.insts[i].inst.func(*this, blk.insts[i].data);
+			if(!out.is_success)
+			{
+				// Exception
+				creating_block		   = false;
+				current_block.count	   = 0;
+				current_block.start_pc = 0;
+
+				trap(out.cause, out.tval, false);
+				return;
+			}
+			else
+			{
+				pc += out.increase_pc;
+			}
+		}
+	}
+	else
+	{
+		// We dont have any block for this pc
+		// But we can create this block
+		if(pc_hits[pc] >= 50 && !creating_block)
+		{
+			// If we hit same pc 50 times, then we will begin compiling block
+			pc_hits.erase(pc);
+			creating_block		   = true;
+			current_block.start_pc = pc;
+			current_block.count	   = 0;
+		}
+		else
+		{
+			pc_hits[pc]++;
+		}
+		// Run single instruction
+		auto out = single_inst(inst);
+		if(!out.is_success)
+		{
+			trap(out.cause, out.tval, false);
+		}
+		else
+		{
+			pc += out.increase_pc;
+		}
+	}
 }
 
 bool Hart::int_local_pending()

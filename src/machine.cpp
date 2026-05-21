@@ -144,6 +144,7 @@ void Machine::run()
 	for(int i = 0; i < harts_count; i++)
 	{
 		Hart& h = harts[i];
+		h.mmap	= mmap;
 		h.init();
 	}
 
