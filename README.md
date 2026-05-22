@@ -4,13 +4,6 @@
 A software emulator for the RISC-V instruction set architecture (ISA) written in C++. This project aims to provide a functional emulator, capable of running XV6, OpenSBI, U-Boot, and many others.
 The emulator supports RV64IMA ISA, Zicsr, Zifencei, privileged ISA, CSRs, peripheral devices (UART, CLINT, PLIC, Virtio-BLK), and FDT. See the ["Features List" section](https://github.com/Spalishe/riscv-em#features-list) section for the details of features.
 
-## Build
-```bash
-git clone https://github.com/Spalishe/riscv-em
-cd riscv-em
-make
-```
-Output program will be located in corresponding target and architecture folder(f.e. build.linux.x86_64/)
 ## Running
 Available arguments are:
 ```
@@ -32,7 +25,7 @@ Running:
 
 The emulator supports the following features:
 - [ ] RV64G ISA
-  - [ ] RV64I
+  - [x] RV64I
   - [ ] RV64M
   - [ ] RV64A (No atomicity for now)
   - [ ] RV64F
@@ -41,10 +34,10 @@ The emulator supports the following features:
     now)
   - [ ] Zicsr
 - [ ] RV64C
-- [ ] Privileged ISA
+- [x] Privileged ISA
 - [x] Control and status registers (CSRs)
-  - [ ] Machine-level CSRs
-  - [ ] Supervisor-level CSRs
+  - [x] Machine-level CSRs
+  - [x] Supervisor-level CSRs
   - [ ] User-level CSRs
 - [ ] Devices
   - [ ] UART: universal asynchronous receiver-transmitter
@@ -52,6 +45,20 @@ The emulator supports the following features:
   - [ ] PLIC: platform level interrupt controller
   - [ ] Virtio-BLK: virtual I/O Block Device
 - [x] FDT
+
+## Build
+```bash
+git clone https://github.com/Spalishe/riscv-em
+cd riscv-em
+make
+```
+Output program will be located in corresponding target and architecture folder(f.e. build.linux.x86_64/)
+You can also compile emulator as lib:
+```bash
+git clone https://github.com/Spalishe/riscv-em
+cd riscv-em
+make lib
+```
 
 ## Dependencies
 You can install all required dependencies using:
