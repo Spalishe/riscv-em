@@ -515,42 +515,42 @@ void InstructionDecoder::init_rv64i()
 	register_instr("0000000**********011*****0110011", exec_SLTU);
 
 	// I-Type
-	register_instr("*****************000*****0010011", exec_ADDI);
-	register_instr("*****************100*****0010011", exec_XORI);
-	register_instr("*****************110*****0010011", exec_ORI);
-	register_instr("*****************111*****0010011", exec_ANDI);
-	register_instr("000000***********001*****0010011", exec_SLLI);
-	register_instr("000000***********101*****0010011", exec_SRLI);
-	register_instr("010000***********101*****0010011", exec_SRAI);
-	register_instr("*****************010*****0010011", exec_SLTI);
-	register_instr("*****************011*****0010011", exec_SLTIU);
-	register_instr("*****************000*****0000011", exec_LB);
-	register_instr("*****************001*****0000011", exec_LH);
-	register_instr("*****************010*****0000011", exec_LW);
-	register_instr("*****************011*****0000011", exec_LD);
-	register_instr("*****************100*****0000011", exec_LBU);
-	register_instr("*****************101*****0000011", exec_LHU);
-	register_instr("*****************110*****0000011", exec_LWU);
+	register_instr("*****************000*****0010011", exec_ADDI, imm_I);
+	register_instr("*****************100*****0010011", exec_XORI, imm_I);
+	register_instr("*****************110*****0010011", exec_ORI, imm_I);
+	register_instr("*****************111*****0010011", exec_ANDI, imm_I);
+	register_instr("000000***********001*****0010011", exec_SLLI, shamt64);
+	register_instr("000000***********101*****0010011", exec_SRLI, shamt64);
+	register_instr("010000***********101*****0010011", exec_SRAI, shamt64);
+	register_instr("*****************010*****0010011", exec_SLTI, imm_I);
+	register_instr("*****************011*****0010011", exec_SLTIU, imm_I);
+	register_instr("*****************000*****0000011", exec_LB, imm_I);
+	register_instr("*****************001*****0000011", exec_LH, imm_I);
+	register_instr("*****************010*****0000011", exec_LW, imm_I);
+	register_instr("*****************011*****0000011", exec_LD, imm_I);
+	register_instr("*****************100*****0000011", exec_LBU, imm_I);
+	register_instr("*****************101*****0000011", exec_LHU, imm_I);
+	register_instr("*****************110*****0000011", exec_LWU, imm_I);
 
 	// S-Type
-	register_instr("*****************000*****0100011", exec_SB);
-	register_instr("*****************001*****0100011", exec_SH);
-	register_instr("*****************010*****0100011", exec_SW);
-	register_instr("*****************011*****0100011", exec_SD);
+	register_instr("*****************000*****0100011", exec_SB, imm_S);
+	register_instr("*****************001*****0100011", exec_SH, imm_S);
+	register_instr("*****************010*****0100011", exec_SW, imm_S);
+	register_instr("*****************011*****0100011", exec_SD, imm_S);
 
 	// B-Type
-	register_instr("*****************000*****1100011", exec_BEQ);
-	register_instr("*****************001*****1100011", exec_BNE);
-	register_instr("*****************100*****1100011", exec_BLT);
-	register_instr("*****************101*****1100011", exec_BGE);
-	register_instr("*****************110*****1100011", exec_BLTU);
-	register_instr("*****************111*****1100011", exec_BGEU);
+	register_instr("*****************000*****1100011", exec_BEQ, imm_B);
+	register_instr("*****************001*****1100011", exec_BNE, imm_B);
+	register_instr("*****************100*****1100011", exec_BLT, imm_B);
+	register_instr("*****************101*****1100011", exec_BGE, imm_B);
+	register_instr("*****************110*****1100011", exec_BLTU, imm_B);
+	register_instr("*****************111*****1100011", exec_BGEU, imm_B);
 
 	// what
-	register_instr("*************************1101111", exec_JAL);
-	register_instr("*****************000*****1100111", exec_JALR);
-	register_instr("*************************0110111", exec_LUI);
-	register_instr("*************************0010111", exec_AUIPC);
+	register_instr("*************************1101111", exec_JAL, imm_J);
+	register_instr("*****************000*****1100111", exec_JALR, imm_I);
+	register_instr("*************************0110111", exec_LUI, imm_U);
+	register_instr("*************************0010111", exec_AUIPC, imm_U);
 
 	register_instr("00000000000000000000000001110011", exec_ECALL);
 	register_instr("00000000000100000000000001110011", exec_EBREAK);

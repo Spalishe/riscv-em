@@ -34,10 +34,9 @@ enum class MemorySize
 
 struct MMIO
 {
-	MMIO(MemoryMap* mmap, uint64_t mem_size) : mmap(mmap), memsize(mem_size) {
+	MMIO(MemoryMap* mmap, uint64_t mem_size);
 
-											   };
-
+	uint64_t memsize;
 	std::vector<std::shared_ptr<Device>> devs;
 
 	// Performs write, returns whether write operation was successful
@@ -65,5 +64,4 @@ struct MMIO
 
   private:
 	MemoryMap* mmap;
-	uint64_t memsize;
 };

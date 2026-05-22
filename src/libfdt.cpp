@@ -16,10 +16,8 @@ Copyright 2026 Spalishe
 */
 
 #include "../include/libfdt.hpp"
-#include <algorithm>
 #include <cassert>
 #include <cstring>
-#include <iostream>
 
 // --- internal helpers ----------------------------------------------------
 

@@ -20,8 +20,11 @@ Copyright 2026 Spalishe
 #include <cstdint>
 #include <unistd.h>
 
+struct Hart;
+struct Machine;
+
 #ifdef USE_GDBSTUB
-void GDB_Create(HART* hart, Machine* cpu);
+void GDB_Create(Hart* hart, Machine* cpu);
 void GDB_Stop();
 void GDB_Loop();
 void GDB_EBREAK();

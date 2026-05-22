@@ -175,6 +175,9 @@ int main(int argc, char* argv[])
 	tcsetattr(STDIN_FILENO, TCSANOW, &newt);
 
 	Machine machine = Machine(memsize, harts);
+	machine.init_mmap();
+
+	machine.mmap->load_file(0x80000000, bios_var->val());
 
 	if(dtb_var->defined())
 	{
@@ -190,6 +193,15 @@ int main(int argc, char* argv[])
 	termios_running = true;
 	std::thread term(&termios_loop);
 
+#ifdef USE_GDBSTUB
+	std::thread gdbstub;
+	if(gdb_var->defined())
+	{
+		machine.gdb = true;
+		gdbstub		= std::thread(GDB_Create, &machine.harts[0], &machine);
+	}
+#endif
+
 	machine.init_auto_devices();
 	machine.run();
 	machine.work_thread_joined = true;
@@ -197,6 +209,13 @@ int main(int argc, char* argv[])
 
 	termios_running.store(false, std::memory_order_seq_cst);
 	term.join();
+#ifdef USE_GDBSTUB
+	if(gdb_var->defined())
+	{
+		GDB_Stop();
+		gdbstub.join();
+	}
+#endif
 
 	return 0;
 }

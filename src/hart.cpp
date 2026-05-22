@@ -22,6 +22,7 @@ Copyright 2026 Spalishe
 
 void Hart::init()
 {
+	pc				  = 0x80000000;
 	csrs[CSR_MISA]	  = (1 << 8); // RVI
 	csrs[CSR_MHARTID] = id;
 }
@@ -54,12 +55,17 @@ uint32_t Hart::fetch()
 ExecReturn Hart::single_inst(uint32_t inst)
 {
 	InstructionCache cache = idec->decode_inst(inst);
-	ExecReturn out		   = cache.inst.func(*this, cache.data);
+	if(!cache.valid)
+	{
+		return { false, false, 0, EXC_ILLEGAL_INSTRUCTION, inst };
+	}
+	ExecReturn out = cache.inst.func(*this, cache.data);
 	return out;
 }
 
 void Hart::tick()
 {
+	GPR[0] = 0;
 	if(WFI)
 	{
 		// We must continue execution even if we has locally pending interruptions

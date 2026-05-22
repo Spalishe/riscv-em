@@ -18,14 +18,21 @@ Copyright 2026 Spalishe
 #ifdef USE_GDBSTUB
 
 #include "../include/gdbstub.hpp"
-#include "../include/devices/plic.hpp"
+#include "../include/machine.hpp"
+// #include "../include/devices/plic.hpp"
+#include "../include/defines/csr.hpp"
 #include <algorithm>
+#include <atomic>
 #include <bit>
+#include <fcntl.h>
 #include <format>
+#include <iostream>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <sstream>
 #include <sys/socket.h>
+#include <thread>
+#include <vector>
 
 using namespace std;
 #pragma error disable
@@ -34,7 +41,7 @@ uint32_t gdb_socket;
 uint32_t gdb_recv;
 sockaddr_in gdb_address;
 bool gdb_isR;
-HART* gdb_hart;
+Hart* gdb_hart;
 Machine* gdb_cpu;
 atomic<bool> gdb_exec	= true;
 atomic<bool> gdb_sigint = false;
@@ -190,12 +197,13 @@ vector<tuple<string, uint32_t, char, optional<vector<tuple<string, uint8_t, uint
 		{ "scause", CSR_SCAUSE, 'c', nullopt },
 		{ "stval", CSR_STVAL, 'c', nullopt },
 		{ "stimecmp", CSR_STIMECMP, 'c', nullopt },
-		{ "satp", CSR_SATP, 'c',
-		  vector<tuple<string, uint8_t, uint8_t>>{
-			  { "MODE", SATP_MODE_LOW, SATP_MODE_HIGH },
-			  { "ASID", SATP_ASID_LOW, SATP_ASID_HIGH },
-			  { "PPN", SATP_PPN_LOW, SATP_PPN_HIGH },
-		  } },
+/*{ "satp", CSR_SATP, 'c',
+  vector<tuple<string, uint8_t, uint8_t>>{
+	  { "MODE", SATP_MODE_LOW, SATP_MODE_HIGH },
+	  { "ASID", SATP_ASID_LOW, SATP_ASID_HIGH },
+	  { "PPN", SATP_PPN_LOW, SATP_PPN_HIGH },
+  } },*/
+// mmu
 #ifdef USE_FPU
 		{ "fcsr", CSR_FCSR + 5000, 'c',
 		  vector<tuple<string, uint8_t, uint8_t>>{
@@ -322,7 +330,7 @@ string GDB_CreateXML()
 	return output.str();
 }
 
-void GDB_Create(HART* hart, Machine* cpu)
+void GDB_Create(Hart* hart, Machine* cpu)
 {
 	gdb_socket = socket(AF_INET, SOCK_STREAM, 0);
 	int op	   = 1;
@@ -355,8 +363,10 @@ void GDB_Stop()
 {
 	gdb_isR = false;
 	cout << "[GDB] Disconnecting client" << endl;
-	close(gdb_recv);
+
+	shutdown(gdb_socket, SHUT_RDWR);
 	close(gdb_socket);
+	close(gdb_recv);
 }
 
 uint32_t GDB_send(string buffer, uint32_t flags = 0)
@@ -438,16 +448,18 @@ void GDB_parsePacket(const char* buffer)
 					gdb_execth = thread([]()
 										{
           while (gdb_exec) {
-            if (!gdb_cpu->gdb_single_step) {
-              uint64_t pc = gdb_hart->pc;
-              auto it = find(gdb_bp.begin(), gdb_bp.end(), gdb_hart->pc);
-              if (it != gdb_bp.end()) {
-                gdb_exec = false;
-                break;
-              }
-              gdb_cpu->gdb_single_step = true;
-            }
-          }
+			  if(!gdb_cpu->gdb_single_step)
+			  {
+				  uint64_t pc = gdb_hart->pc;
+				  auto it	  = find(gdb_bp.begin(), gdb_bp.end(), gdb_hart->pc);
+				  if(it != gdb_bp.end())
+				  {
+					  gdb_exec = false;
+					  break;
+				  }
+				  gdb_cpu->gdb_single_step = true;
+			  }
+		  }
           GDB_sendPacket(gdb_sigint ? "S02" : "S05");
           gdb_sigint = false; });
 					gdb_execth.detach();
@@ -468,7 +480,7 @@ void GDB_parsePacket(const char* buffer)
 		{
 			gdb_isR = false;
 			std::cout << "[GDB] Killed by GDB stub" << std::endl;
-			gdb_cpu->state = MachineState::PoweringOff;
+			gdb_cpu->state = MachineState::Off;
 			return;
 		}
 		if(packet.starts_with("c"))
@@ -560,10 +572,10 @@ void GDB_parsePacket(const char* buffer)
 				}
 				else if(idx >= 5000)
 				{
-					GDB_sendPacket(to_little_endian_hex(csr_read(gdb_hart, idx - 5000)));
+					GDB_sendPacket(to_little_endian_hex(gdb_hart->csr_read(idx - 5000)));
 				}
 				else
-					GDB_sendPacket(to_little_endian_hex(csr_read(gdb_hart, idx)));
+					GDB_sendPacket(to_little_endian_hex(gdb_hart->csr_read(idx)));
 			}
 			return;
 		}
@@ -603,7 +615,7 @@ void GDB_parsePacket(const char* buffer)
 				else
 				{
 					// csr
-					csr_write(gdb_hart, idx, num);
+					gdb_hart->csr_write(idx, num);
 				}
 			}
 			GDB_sendPacket("OK");
@@ -652,8 +664,13 @@ void GDB_parsePacket(const char* buffer)
 
 			for(uint64_t i = 0; i < size; i++)
 			{
-				gdb_hart->mmio->store_GDB(gdb_hart, address + i, 8,
-										  stoul(data.substr(i * 2, 2), nullptr, 16));
+				MemoryReturn out = gdb_hart->mmio->write(*gdb_hart, address + i, MemorySize::Byte,
+														 stoul(data.substr(i * 2, 2), nullptr, 16));
+				if(!out.is_success)
+				{
+					GDB_sendPacket("E01");
+					return;
+				}
 			}
 
 			GDB_sendPacket(format("{:x}", size));
@@ -669,17 +686,18 @@ void GDB_parsePacket(const char* buffer)
 
 			for(uint64_t i = 0; i < size; i++)
 			{
-				optional<uint64_t> val = gdb_hart->mmio->load_GDB(gdb_hart, address + i, 8);
+				uint8_t val;
+				MemoryReturn out = gdb_hart->mmio->read(*gdb_hart, address + i, MemorySize::Byte, &val);
 				// if(address == 0x200BFF8) std::cout <<
 				// timer_get(&gdb_hart->aclint->mtime) << std::endl; if(address ==
 				// 0x2004000) std::cout << timecmp_get(&gdb_hart->aclint->mtimecmp[0])
 				// << std::endl;
-				if(!val.has_value())
+				if(!out.is_success)
 				{
 					GDB_sendPacket("E01");
 					return;
 				}
-				resp += format("{:02x}", *val);
+				resp += format("{:02x}", val);
 			}
 
 			GDB_sendPacket(resp);
@@ -740,6 +758,13 @@ void GDB_Loop()
 
 	// accepting connection request
 	gdb_recv = accept(gdb_socket, nullptr, nullptr);
+
+	if(!gdb_isR)
+	{
+		close(gdb_recv);
+		return;
+	}
+
 	int flag = 1;
 	setsockopt(gdb_recv, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(int));
 	std::cout << "[GDB] Got connection" << std::endl;

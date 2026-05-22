@@ -96,11 +96,13 @@ InstructionCache InstructionDecoder::decode_inst(uint32_t inst)
 	else
 	{
 		const Instruction* dinst;
+		bool f = false;
 		for(const auto& ins : instructions)
 		{
 			if((inst & ins.mask) == ins.match)
 			{
 				dinst = &ins;
+				f	  = true;
 				break;
 			}
 		}
@@ -115,6 +117,7 @@ InstructionCache InstructionDecoder::decode_inst(uint32_t inst)
 		inst_cache.inst_raw	 = inst;
 		inst_cache.inst		 = *dinst;
 		inst_cache.data		 = data;
+		inst_cache.valid	 = f;
 		cache[inst & 0x1FFF] = inst_cache;
 		return inst_cache;
 	}

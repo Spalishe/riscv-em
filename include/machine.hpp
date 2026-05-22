@@ -51,6 +51,11 @@ struct Machine
 
 	MachineState state = MachineState::Off;
 
+#ifdef USE_GDBSTUB
+	bool gdb			 = false;
+	bool gdb_single_step = false;
+#endif
+
 	void init_mmap();
 	void init_fdt();
 	void write_fdt();

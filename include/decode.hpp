@@ -21,6 +21,21 @@ Copyright 2026 Spalishe
 #include <string>
 #include <vector>
 
+int32_t sext(uint32_t val, int bits);
+uint32_t get_bits(uint32_t inst, int hi, int lo);
+uint64_t d_rd(uint32_t inst);
+uint64_t d_rs1(uint32_t inst);
+uint64_t d_rs2(uint32_t inst);
+uint64_t d_rs3(uint32_t inst);
+uint64_t imm_Zicsr(uint32_t inst);
+uint64_t imm_I(uint32_t inst);
+uint64_t imm_S(uint32_t inst);
+uint64_t imm_B(uint32_t inst);
+uint64_t imm_U(uint32_t inst);
+uint64_t imm_J(uint32_t inst);
+uint64_t shamt(uint32_t inst);
+uint64_t shamt64(uint32_t inst);
+
 struct Hart;
 
 struct InstructionData
@@ -45,6 +60,7 @@ struct InstructionCache
 	uint32_t inst_raw = 0;
 	Instruction inst;
 	InstructionData data;
+	bool valid = true;
 };
 
 struct InstructionDecoder

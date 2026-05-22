@@ -18,6 +18,8 @@ Copyright 2026 Spalishe
 #include "../include/mmio.hpp"
 #include "../include/hart.hpp"
 
+MMIO::MMIO(MemoryMap* mmap, uint64_t mem_size) : mmap(mmap), memsize(mem_size) {};
+
 MemoryReturn MMIO::write(Hart& h, uint64_t vaddr, MemorySize size, uint64_t val)
 {
 	if(vaddr >= 0x80000000 && vaddr < (0x80000000 + memsize - (int)size)) // We subtracting by size to exclude chance of buffer overflow

@@ -153,8 +153,12 @@ void Machine::run()
 		h.init();
 	}
 
-	// prepare
+// prepare
+#ifdef USE_GDBSTUB
+	state = gdb ? MachineState::Halted : MachineState::Running;
+#else
 	state = MachineState::Running;
+#endif
 
 	// create work thread
 	work_thread	  = std::thread(&Machine::work, this);
@@ -175,5 +179,30 @@ void Machine::work()
 {
 	while(state != MachineState::Off)
 	{
+		if(state == MachineState::Halted)
+		{
+#ifdef USE_GDBSTUB
+			if(gdb_single_step)
+			{
+				state = MachineState::Running;
+			}
+#endif
+			std::this_thread::yield();
+			continue;
+		}
+
+		for(int i = 0; i < harts_count; i++)
+		{
+			Hart& h = harts[i];
+			h.tick();
+		}
+
+#ifdef USE_GDBSTUB
+		if(gdb_single_step)
+		{
+			gdb_single_step = false;
+			state			= MachineState::Halted;
+		}
+#endif
 	}
 }
