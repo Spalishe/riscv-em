@@ -358,7 +358,7 @@ ExecReturn exec_BEQ(Hart& hart, InstructionData& inst)
 		else
 			hart.pc = hart.pc + (int64_t)inst.imm - 4;
 	}
-	return { true, false, 4, 0, 0 };
+	return { true, true, 0, 0, 0 };
 }
 ExecReturn exec_BNE(Hart& hart, InstructionData& inst)
 {
@@ -371,7 +371,7 @@ ExecReturn exec_BNE(Hart& hart, InstructionData& inst)
 		else
 			hart.pc = hart.pc + (int64_t)inst.imm - 4;
 	}
-	return { true, false, 4, 0, 0 };
+	return { true, true, 0, 0, 0 };
 }
 ExecReturn exec_BLT(Hart& hart, InstructionData& inst)
 {
@@ -384,7 +384,7 @@ ExecReturn exec_BLT(Hart& hart, InstructionData& inst)
 		else
 			hart.pc = hart.pc + (int64_t)inst.imm - 4;
 	}
-	return { true, false, 4, 0, 0 };
+	return { true, true, 0, 0, 0 };
 }
 ExecReturn exec_BGE(Hart& hart, InstructionData& inst)
 {
@@ -397,7 +397,7 @@ ExecReturn exec_BGE(Hart& hart, InstructionData& inst)
 		else
 			hart.pc = hart.pc + (int64_t)inst.imm - 4;
 	}
-	return { true, false, 4, 0, 0 };
+	return { true, true, 0, 0, 0 };
 }
 ExecReturn exec_BLTU(Hart& hart, InstructionData& inst)
 {
@@ -410,7 +410,7 @@ ExecReturn exec_BLTU(Hart& hart, InstructionData& inst)
 		else
 			hart.pc = hart.pc + (int64_t)inst.imm - 4;
 	}
-	return { true, false, 4, 0, 0 };
+	return { true, true, 0, 0, 0 };
 }
 ExecReturn exec_BGEU(Hart& hart, InstructionData& inst)
 {
@@ -423,7 +423,7 @@ ExecReturn exec_BGEU(Hart& hart, InstructionData& inst)
 		else
 			hart.pc = hart.pc + (int64_t)inst.imm - 4;
 	}
-	return { true, false, 4, 0, 0 };
+	return { true, true, 0, 0, 0 };
 }
 
 // JUMP
@@ -432,14 +432,14 @@ ExecReturn exec_JAL(Hart& hart, InstructionData& inst)
 	uint64_t tmp = hart.pc;
 	if((hart.pc + (int64_t)inst.imm) % 4 != 0)
 	{
-		return { false, false, 0, EXC_INST_ADDR_MISALIGNED, hart.pc + (int64_t)inst.imm };
+		return { false, true, 0, EXC_INST_ADDR_MISALIGNED, hart.pc + (int64_t)inst.imm };
 	}
 	else
 	{
 		hart.pc			  = hart.pc + (int64_t)inst.imm - 4;
 		hart.GPR[inst.rd] = tmp + 4;
 	}
-	return { true, false, 4, 0, 0 };
+	return { true, true, 0, 0, 0 };
 }
 ExecReturn exec_JALR(Hart& hart, InstructionData& inst)
 {
@@ -447,26 +447,26 @@ ExecReturn exec_JALR(Hart& hart, InstructionData& inst)
 	uint64_t target = (hart.GPR[inst.rs1] + (int64_t)inst.imm) & ~3;
 	if(target % 4 != 0)
 	{
-		return { false, false, 0, EXC_INST_ADDR_MISALIGNED, target };
+		return { false, true, 0, EXC_INST_ADDR_MISALIGNED, target };
 	}
 	else
 	{
 		hart.pc			  = target - 4;
 		hart.GPR[inst.rd] = tmp + 4;
 	}
-	return { true, false, 4, 0, 0 };
+	return { true, true, 0, 0, 0 };
 }
 
 // what
 
 ExecReturn exec_LUI(Hart& hart, InstructionData& inst)
 {
-	hart.GPR[inst.rd] = (((int64_t)(int32_t)inst.imm) << 12);
+	hart.GPR[inst.rd] = (((int64_t)inst.imm) << 12);
 	return { true, false, 4, 0, 0 };
 }
 ExecReturn exec_AUIPC(Hart& hart, InstructionData& inst)
 {
-	hart.GPR[inst.rd] = hart.pc + ((((int64_t)(int32_t)inst.imm) << 12));
+	hart.GPR[inst.rd] = hart.pc + ((((int64_t)inst.imm) << 12));
 	return { true, false, 4, 0, 0 };
 }
 
@@ -476,11 +476,11 @@ ExecReturn exec_ECALL(Hart& hart, InstructionData& inst)
 	switch(hart.mode)
 	{
 		case PrivilegeMode::Machine:
-			return { false, false, 0, EXC_ENV_CALL_FROM_M, 0 };
+			return { false, true, 0, EXC_ENV_CALL_FROM_M, 0 };
 		case PrivilegeMode::Supervisor:
-			return { false, false, 0, EXC_ENV_CALL_FROM_S, 0 };
+			return { false, true, 0, EXC_ENV_CALL_FROM_S, 0 };
 		case PrivilegeMode::User:
-			return { false, false, 0, EXC_ENV_CALL_FROM_U, 0 };
+			return { false, true, 0, EXC_ENV_CALL_FROM_U, 0 };
 		default:
 			// How did we get here?
 			return { true, false, 4, 0, 0 };
@@ -488,7 +488,7 @@ ExecReturn exec_ECALL(Hart& hart, InstructionData& inst)
 }
 ExecReturn exec_EBREAK(Hart& hart, InstructionData& inst)
 {
-	return { false, false, 0, EXC_BREAKPOINT, hart.pc };
+	return { false, true, 0, EXC_BREAKPOINT, hart.pc };
 }
 
 ExecReturn exec_FENCE(Hart& hart, InstructionData& inst)
@@ -504,22 +504,31 @@ void InstructionDecoder::init_rv64i()
 {
 	// R-Type
 	register_instr("0000000**********000*****0110011", exec_ADD);
+	register_instr("0000000**********000*****0111011", exec_ADDW);
 	register_instr("0100000**********000*****0110011", exec_SUB);
+	register_instr("0100000**********000*****0111011", exec_SUBW);
 	register_instr("0000000**********100*****0110011", exec_XOR);
 	register_instr("0000000**********110*****0110011", exec_OR);
 	register_instr("0000000**********111*****0110011", exec_AND);
 	register_instr("0000000**********001*****0110011", exec_SLL);
+	register_instr("0000000**********001*****0111011", exec_SLLW);
 	register_instr("0000000**********101*****0110011", exec_SRL);
+	register_instr("0000000**********101*****0111011", exec_SRLW);
 	register_instr("0100000**********101*****0110011", exec_SRA);
+	register_instr("0100000**********101*****0111011", exec_SRAW);
 	register_instr("0000000**********010*****0110011", exec_SLT);
 	register_instr("0000000**********011*****0110011", exec_SLTU);
 
 	// I-Type
 	register_instr("*****************000*****0010011", exec_ADDI, imm_I);
+	register_instr("*****************000*****0011011", exec_ADDIW, imm_I);
 	register_instr("*****************100*****0010011", exec_XORI, imm_I);
 	register_instr("*****************110*****0010011", exec_ORI, imm_I);
 	register_instr("*****************111*****0010011", exec_ANDI, imm_I);
 	register_instr("000000***********001*****0010011", exec_SLLI, shamt64);
+	register_instr("0000000**********001*****0011011", exec_SLLIW, shamt);
+	register_instr("0000000**********101*****0011011", exec_SRLIW, shamt);
+	register_instr("0100000**********101*****0011011", exec_SRAIW, shamt);
 	register_instr("000000***********101*****0010011", exec_SRLI, shamt64);
 	register_instr("010000***********101*****0010011", exec_SRAI, shamt64);
 	register_instr("*****************010*****0010011", exec_SLTI, imm_I);
@@ -554,4 +563,6 @@ void InstructionDecoder::init_rv64i()
 
 	register_instr("00000000000000000000000001110011", exec_ECALL);
 	register_instr("00000000000100000000000001110011", exec_EBREAK);
+
+	register_instr("0000********00000000000000001111", exec_FENCE, imm_I);
 }

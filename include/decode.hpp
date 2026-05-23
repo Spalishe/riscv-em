@@ -73,4 +73,7 @@ struct InstructionDecoder
 	// This function will call on init, calling all sets functions to initialize
 	void init_all_instrs();
 	void init_rv64i();
+	void init_rv64m();
+	void init_priv();
+	void init_zicsr();
 };

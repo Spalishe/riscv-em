@@ -66,7 +66,7 @@ uint64_t imm_B(uint32_t inst)
 uint64_t imm_U(uint32_t inst)
 {
 	// imm[31:12] = inst[31:12]
-	return (int64_t)(int32_t)(inst & 0xFFFFF000u);
+	return (int64_t)(int32_t)(inst & 0xFFFFF000u) >> 12;
 }
 uint64_t imm_J(uint32_t inst)
 {
@@ -158,4 +158,7 @@ void InstructionDecoder::register_instr(std::string mask, ExecReturn (*func)(Har
 void InstructionDecoder::init_all_instrs()
 {
 	init_rv64i();
+	init_rv64m();
+	init_priv();
+	init_zicsr();
 }

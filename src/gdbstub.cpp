@@ -366,6 +366,7 @@ void GDB_Stop()
 
 	shutdown(gdb_socket, SHUT_RDWR);
 	close(gdb_socket);
+	shutdown(gdb_recv, SHUT_RDWR);
 	close(gdb_recv);
 }
 

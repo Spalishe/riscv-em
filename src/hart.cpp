@@ -23,14 +23,17 @@ Copyright 2026 Spalishe
 void Hart::init()
 {
 	pc				  = 0x80000000;
-	csrs[CSR_MISA]	  = (1 << 8); // RVI
+	mode			  = PrivilegeMode::Machine;
+	csrs[CSR_MISA]	  = (1 << 8) | (1 << 12); // RV64IM
 	csrs[CSR_MHARTID] = id;
 }
 
 uint32_t Hart::fetch()
 {
-	if(pc >= fetch_buffer_pc && pc <= fetch_buffer_pc + 28)
+	printf("fetch pc: 0x%lx fetch_buffer_pc: 0x%lx\n", pc, fetch_buffer_pc);
+	if(pc >= fetch_buffer_pc && pc < fetch_buffer_pc + 28)
 	{
+		printf("return old 0x%x\n", fetch_buffer[(pc - fetch_buffer_pc) / 4]);
 		return fetch_buffer[(pc - fetch_buffer_pc) / 4];
 	}
 	else
@@ -48,6 +51,7 @@ uint32_t Hart::fetch()
 			fetch_buffer[i / 4] = val;
 		}
 		fetch_buffer_pc = pc;
+		printf("return new 0x%x\n", fetch_buffer[(pc - fetch_buffer_pc) / 4]);
 		return fetch_buffer[(pc - fetch_buffer_pc) / 4];
 	}
 }
@@ -103,12 +107,13 @@ void Hart::tick()
 		if(current_block.count == 128 || out.can_change_pc)
 		{
 			// We reached instructions limit / Branch
-			blocks[pc & 0xFF]	   = current_block;
-			creating_block		   = false;
-			current_block.count	   = 0;
-			current_block.start_pc = 0;
+			blocks[current_block.start_pc & 0xFF] = current_block;
+			creating_block						  = false;
+			current_block.count					  = 0;
+			current_block.start_pc				  = 0;
 			return;
 		}
+		return;
 	}
 
 	// Block execution
