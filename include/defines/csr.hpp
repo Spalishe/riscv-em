@@ -18,21 +18,9 @@ Copyright 2026 Spalishe
 #pragma once
 #include <cstdint>
 
-// User Trap Setup
-#define CSR_USTATUS	 0x000 // URW User status register.
-#define CSR_UIE		 0x004 // URW User interrupt-enable register.
-#define CSR_UTVEC	 0x005 // URW User trap handler base address.
-
-// User Trap Handling
-#define CSR_USCRATCH 0x040 // URW Scratch register for user trap handlers.
-#define CSR_UEPC	 0x041 // URW User exception program counter.
-#define CSR_UCAUSE	 0x042 // URW User trap cause.
-#define CSR_UTVAL	 0x043 // URW User bad address or instruction.
-#define CSR_UIP		 0x044 // URW User interrupt pending.
-
 // User Floating-Point CSRs
-#define CSR_FFLAGS	 0x001 // URW Floating-Point Accrued Exceptions.
-#define CSR_FRM		 0x002 // URW Floating-Point Dynamic Rounding Mode.
+#define CSR_FFLAGS 0x001 // URW Floating-Point Accrued Exceptions.
+#define CSR_FRM	   0x002 // URW Floating-Point Dynamic Rounding Mode.
 #define CSR_FCSR \
 	0x003 // URW Floating-Point Control and Status Register (frm + fflags)
 
@@ -40,65 +28,83 @@ Copyright 2026 Spalishe
 #define CSR_CYCLE 0xC00 // URO Cycle counter for RDCYCLE instruction.
 #define CSR_TIME  0xC01 // URO Timer for RDTIME instruction.
 #define CSR_INSTRET \
-	0xC02						// URO Instructions-retired counter for RDINSTRET instruction.
-#define CSR_HPMCOUNTER3	  0xC03 // URO Performance-monitoring counter.
-#define CSR_HPMCOUNTER4	  0xC04 // URO Performance-monitoring counter.
-// ... hpm counter 4-31 (TODO)
-#define CSR_HPMCOUNTER31  0xC1F // URO Performance-monitoring counter.
-#define CSR_CYCLEH		  0xC80 // URO Upper 32 bits of cycle, RV32I only.
-#define CSR_TIMEH		  0xC81 // URO Upper 32 bits of time, RV32I only.
-#define CSR_INSTRETH	  0xC82 // URO Upper 32 bits of instret, RV32I only.
-#define CSR_HPMCOUNTER3H  0xC83 // URO Upper 32 bits of hpmcounter3, RV32I only.
-#define CSR_HPMCOUNTER4H  0xC84 // URO Upper 32 bits of hpmcounter4, RV32I only.
-// ... hpm counter 4-31 (TODO)
-#define CSR_HPMCOUNTER31H 0xC9F URO
+	0xC02					   // URO Instructions-retired counter for RDINSTRET instruction.
+#define CSR_HPMCOUNTER3	 0xC03 // URO Performance-monitoring counter.
+#define CSR_HPMCOUNTER4	 0xC04 // URO Performance-monitoring counter.
+#define CSR_HPMCOUNTER5	 0xC05 // URO Performance-monitoring counter.
+#define CSR_HPMCOUNTER6	 0xC06 // URO Performance-monitoring counter.
+#define CSR_HPMCOUNTER7	 0xC07 // URO Performance-monitoring counter.
+#define CSR_HPMCOUNTER8	 0xC08 // URO Performance-monitoring counter.
+#define CSR_HPMCOUNTER9	 0xC09 // URO Performance-monitoring counter.
+#define CSR_HPMCOUNTER10 0xC0A // URO Performance-monitoring counter.
+#define CSR_HPMCOUNTER11 0xC0B // URO Performance-monitoring counter.
+#define CSR_HPMCOUNTER12 0xC0C // URO Performance-monitoring counter.
+#define CSR_HPMCOUNTER13 0xC0D // URO Performance-monitoring counter.
+#define CSR_HPMCOUNTER14 0xC0E // URO Performance-monitoring counter.
+#define CSR_HPMCOUNTER15 0xC0F // URO Performance-monitoring counter.
+#define CSR_HPMCOUNTER16 0xC10 // URO Performance-monitoring counter.
+#define CSR_HPMCOUNTER17 0xC11 // URO Performance-monitoring counter.
+#define CSR_HPMCOUNTER18 0xC12 // URO Performance-monitoring counter.
+#define CSR_HPMCOUNTER19 0xC13 // URO Performance-monitoring counter.
+#define CSR_HPMCOUNTER20 0xC14 // URO Performance-monitoring counter.
+#define CSR_HPMCOUNTER21 0xC15 // URO Performance-monitoring counter.
+#define CSR_HPMCOUNTER22 0xC16 // URO Performance-monitoring counter.
+#define CSR_HPMCOUNTER23 0xC17 // URO Performance-monitoring counter.
+#define CSR_HPMCOUNTER24 0xC18 // URO Performance-monitoring counter.
+#define CSR_HPMCOUNTER25 0xC19 // URO Performance-monitoring counter.
+#define CSR_HPMCOUNTER26 0xC1A // URO Performance-monitoring counter.
+#define CSR_HPMCOUNTER27 0xC1B // URO Performance-monitoring counter.
+#define CSR_HPMCOUNTER28 0xC1C // URO Performance-monitoring counter.
+#define CSR_HPMCOUNTER29 0xC1D // URO Performance-monitoring counter.
+#define CSR_HPMCOUNTER30 0xC1E // URO Performance-monitoring counter.
+#define CSR_HPMCOUNTER31 0xC1F // URO Performance-monitoring counter.
 
 // Supervisor Trap Setup
-#define CSR_SSTATUS		  0x100 // SRW Supervisor status register.
-#define CSR_SEDELEG		  0x102 // SRW Supervisor exception delegation register.
-#define CSR_SIDELEG		  0x103 // SRW Supervisor interrupt delegation register.
-#define CSR_SIE			  0x104 // SRW Supervisor interrupt-enable register.
-#define CSR_STVEC		  0x105 // SRW Supervisor trap handler base address.
-#define CSR_SCOUNTEREN	  0x106 // SRW Supervisor counter enable.
+#define CSR_SSTATUS		 0x100 // SRW Supervisor status register.
+#define CSR_SEDELEG		 0x102 // SRW Supervisor exception delegation register.
+#define CSR_SIDELEG		 0x103 // SRW Supervisor interrupt delegation register.
+#define CSR_SIE			 0x104 // SRW Supervisor interrupt-enable register.
+#define CSR_STVEC		 0x105 // SRW Supervisor trap handler base address.
+#define CSR_SCOUNTEREN	 0x106 // SRW Supervisor counter enable.
 
 // Supervisor Trap Handling
-#define CSR_SSCRATCH	  0x140 // SRW Scratch register for supervisor trap handlers.
-#define CSR_SEPC		  0x141 // SRW Supervisor exception program counter.
-#define CSR_SCAUSE		  0x142 // SRW Supervisor trap cause.
-#define CSR_STVAL		  0x143 // SRW Supervisor bad address or instruction.
-#define CSR_SIP			  0x144 // SRW Supervisor interrupt pending.
+#define CSR_SSCRATCH	 0x140 // SRW Scratch register for supervisor trap handlers.
+#define CSR_SEPC		 0x141 // SRW Supervisor exception program counter.
+#define CSR_SCAUSE		 0x142 // SRW Supervisor trap cause.
+#define CSR_STVAL		 0x143 // SRW Supervisor bad address or instruction.
+#define CSR_SIP			 0x144 // SRW Supervisor interrupt pending.
 
 // https://lists.riscv.org/g/tech-privileged/topic/fast_track_stimecmp/78649672
-#define CSR_STIMECMP	  0x14D // SRW Supervisor timer compare
-#define CSR_STIMECMPH	  0x15D // SRW Supervisor timer compare high
+#define CSR_STIMECMP	 0x14D // SRW Supervisor timer compare
+#define CSR_STIMECMPH	 0x15D // SRW Supervisor timer compare high
 
 // Supervisor Protection and Translation
-#define CSR_SATP		  0x180 // SRW Supervisor address translation and protection.
+#define CSR_SATP		 0x180 // SRW Supervisor address translation and protection.
 
 // Machine Information Registers
-#define CSR_MVENDORID	  0xF11 // MRO Vendor ID.
-#define CSR_MARCHID		  0xF12 // MRO Architecture ID.
-#define CSR_MIMPID		  0xF13 // MRO Implementation ID.
-#define CSR_MHARTID		  0xF14 // MRO Hardware thread ID.
+#define CSR_MVENDORID	 0xF11 // MRO Vendor ID.
+#define CSR_MARCHID		 0xF12 // MRO Architecture ID.
+#define CSR_MIMPID		 0xF13 // MRO Implementation ID.
+#define CSR_MHARTID		 0xF14 // MRO Hardware thread ID.
 
 // Machine Trap Setup
-#define CSR_MSTATUS		  0x300 // MRW Machine status register.
-#define CSR_MISA		  0x301 // MRW ISA and extensions
-#define CSR_MEDELEG		  0x302 // MRW Machine exception delegation register.
-#define CSR_MIDELEG		  0x303 // MRW Machine interrupt delegation register.
-#define CSR_MIE			  0x304 // MRW Machine interrupt-enable register.
-#define CSR_MTVEC		  0x305 // MRW Machine trap-handler base address.
-#define CSR_MCOUNTEREN	  0x306 // MRW Machine counter enable.
+#define CSR_MSTATUS		 0x300 // MRW Machine status register.
+#define CSR_MISA		 0x301 // MRW ISA and extensions
+#define CSR_MEDELEG		 0x302 // MRW Machine exception delegation register.
+#define CSR_MIDELEG		 0x303 // MRW Machine interrupt delegation register.
+#define CSR_MIE			 0x304 // MRW Machine interrupt-enable register.
+#define CSR_MTVEC		 0x305 // MRW Machine trap-handler base address.
+#define CSR_MCOUNTEREN	 0x306 // MRW Machine counter enable.
 
 // Machine Trap Handling
-#define CSR_MSCRATCH	  0x340 // MRW Scratch register for machine trap handlers.
-#define CSR_MEPC		  0x341 // MRW Machine exception program counter.
-#define CSR_MCAUSE		  0x342 // MRW Machine trap cause.
-#define CSR_MTVAL		  0x343 // MRW Machine bad address or instruction.
-#define CSR_MIP			  0x344 // MRW Machine interrupt pending.
+#define CSR_MSCRATCH	 0x340 // MRW Scratch register for machine trap handlers.
+#define CSR_MEPC		 0x341 // MRW Machine exception program counter.
+#define CSR_MCAUSE		 0x342 // MRW Machine trap cause.
+#define CSR_MTVAL		 0x343 // MRW Machine bad address or instruction.
+#define CSR_MIP			 0x344 // MRW Machine interrupt pending.
 
 // Machine Memory Protection
-#define CSR_PMPCFG0		  0x3A0 // MRW Physical memory protection configuration.
+#define CSR_PMPCFG0		 0x3A0 // MRW Physical memory protection configuration.
 #define CSR_PMPCFG1 \
 	0x3A1				  // MRW Physical memory protection configuration, RV32 only.
 #define CSR_PMPCFG2 0x3A2 // MRW Physical memory protection configuration.
@@ -193,17 +199,33 @@ Copyright 2026 Spalishe
 #define CSR_MINSTRET	  0xB02 // MRW Machine instructions-retired counter.
 #define CSR_MHPMCOUNTER3  0xB03 // MRW Machine performance-monitoring counter.
 #define CSR_MHPMCOUNTER4  0xB04 // MRW Machine performance-monitoring counter.
-// #define ...
+#define CSR_MHPMCOUNTER5  0xB05 // MRW Machine performance-monitoring counter.
+#define CSR_MHPMCOUNTER6  0xB06 // MRW Machine performance-monitoring counter.
+#define CSR_MHPMCOUNTER7  0xB07 // MRW Machine performance-monitoring counter.
+#define CSR_MHPMCOUNTER8  0xB08 // MRW Machine performance-monitoring counter.
+#define CSR_MHPMCOUNTER9  0xB09 // MRW Machine performance-monitoring counter.
+#define CSR_MHPMCOUNTER10 0xB0A // MRW Machine performance-monitoring counter.
+#define CSR_MHPMCOUNTER11 0xB0B // MRW Machine performance-monitoring counter.
+#define CSR_MHPMCOUNTER12 0xB0C // MRW Machine performance-monitoring counter.
+#define CSR_MHPMCOUNTER13 0xB0D // MRW Machine performance-monitoring counter.
+#define CSR_MHPMCOUNTER14 0xB0E // MRW Machine performance-monitoring counter.
+#define CSR_MHPMCOUNTER15 0xB0F // MRW Machine performance-monitoring counter.
+#define CSR_MHPMCOUNTER16 0xB10 // MRW Machine performance-monitoring counter.
+#define CSR_MHPMCOUNTER17 0xB11 // MRW Machine performance-monitoring counter.
+#define CSR_MHPMCOUNTER18 0xB12 // MRW Machine performance-monitoring counter.
+#define CSR_MHPMCOUNTER19 0xB13 // MRW Machine performance-monitoring counter.
+#define CSR_MHPMCOUNTER20 0xB14 // MRW Machine performance-monitoring counter.
+#define CSR_MHPMCOUNTER21 0xB15 // MRW Machine performance-monitoring counter.
+#define CSR_MHPMCOUNTER22 0xB16 // MRW Machine performance-monitoring counter.
+#define CSR_MHPMCOUNTER23 0xB17 // MRW Machine performance-monitoring counter.
+#define CSR_MHPMCOUNTER24 0xB18 // MRW Machine performance-monitoring counter.
+#define CSR_MHPMCOUNTER25 0xB19 // MRW Machine performance-monitoring counter.
+#define CSR_MHPMCOUNTER26 0xB1A // MRW Machine performance-monitoring counter.
+#define CSR_MHPMCOUNTER27 0xB1B // MRW Machine performance-monitoring counter.
+#define CSR_MHPMCOUNTER28 0xB1C // MRW Machine performance-monitoring counter.
+#define CSR_MHPMCOUNTER29 0xB1D // MRW Machine performance-monitoring counter.
+#define CSR_MHPMCOUNTER30 0xB1E // MRW Machine performance-monitoring counter.
 #define CSR_MHPMCOUNTER31 0xB1F // MRW Machine performance-monitoring counter.
-#define CSR_MCYCLEH		  0xB80 // MRW Upper 32 bits of mcycle, RV32I only.
-#define CSR_MINSTRETH	  0xB82 // MRW Upper 32 bits of minstret, RV32I only.
-#define CSR_MHPMCOUNTER3H \
-	0xB83 // MRW Upper 32 bits of mhpmcounter3, RV32I only.
-#define CSR_MHPMCOUNTER4H \
-	0xB84 // MRW Upper 32 bits of mhpmcounter4, RV32I only.
-// ...
-#define CSR_MHPMCOUNTER31H \
-	0xB9F // MRW Upper 32 bits of mhpmcounter31, RV32I only.
 
 // Machine Counter Setup
 #define CSR_MCOUNTINHIBIT 0x320 // MRW Machine counter-inhibit register.

@@ -69,24 +69,41 @@ bool csr_accessible(uint16_t csr_addr, PrivilegeMode current_priv, bool write)
 	   || csr_addr == 0xF13
 	   || csr_addr == 0xF14
 	   || csr_addr == 0xF15
-	   || csr_addr == 0xC00
-	   || csr_addr == 0xC01
-	   || csr_addr == 0xC02
-	   || (csr_addr >= 0xC03 && csr_addr <= 0xC1F)
-	   || csr_addr == 0xC80
-	   || csr_addr == 0xC81
-	   || csr_addr == 0xC82
-	   || (csr_addr >= 0xC83 && csr_addr <= 0xC9F))
+	   || (csr_addr >= 0xC00 && csr_addr <= 0xC1F))
 	{
 		return !write; // RO
 	}
 
 	return true;
 }
+
+bool counter_enabled(uint16_t addr, Hart& hart)
+{
+	PrivilegeMode mode	 = hart.mode;
+	uint64_t mcounteren	 = hart.csr_read(CSR_MCOUNTEREN);
+	uint64_t scounteren	 = hart.csr_read(CSR_SCOUNTEREN);
+	uint64_t addr_offset = 1ULL << (addr - 0xC00); // start of user counter's
+	switch(mode)
+	{
+		case PrivilegeMode::Machine:
+			return true;
+		case PrivilegeMode::Supervisor:
+			return (mcounteren & addr_offset) == addr_offset;
+		case PrivilegeMode::User:
+			return (mcounteren & addr_offset) == addr_offset && (scounteren & addr_offset) == addr_offset;
+		default:
+			return true;
+	}
+}
+
 ExecReturn exec_CSRRW(Hart& hart, InstructionData& inst)
 {
 	bool tvm = hart.status.fields.TVM;
 	if(hart.mode == PrivilegeMode::Supervisor && tvm && inst.imm == CSR_SATP)
+	{
+		return { false, false, 0, EXC_ILLEGAL_INSTRUCTION, inst.inst };
+	}
+	if(!counter_enabled(inst.imm, hart))
 	{
 		return { false, false, 0, EXC_ILLEGAL_INSTRUCTION, inst.inst };
 	}
@@ -113,6 +130,10 @@ ExecReturn exec_CSRRS(Hart& hart, InstructionData& inst)
 	{
 		return { false, false, 0, EXC_ILLEGAL_INSTRUCTION, inst.inst };
 	}
+	if(!counter_enabled(inst.imm, hart))
+	{
+		return { false, false, 0, EXC_ILLEGAL_INSTRUCTION, inst.inst };
+	}
 	if(!csr_accessible(inst.imm, hart.mode, (inst.rs1 != 0)))
 	{
 		return { false, false, 0, EXC_ILLEGAL_INSTRUCTION, inst.inst };
@@ -131,6 +152,10 @@ ExecReturn exec_CSRRC(Hart& hart, InstructionData& inst)
 {
 	bool tvm = hart.status.fields.TVM;
 	if(hart.mode == PrivilegeMode::Supervisor && tvm && inst.imm == CSR_SATP)
+	{
+		return { false, false, 0, EXC_ILLEGAL_INSTRUCTION, inst.inst };
+	}
+	if(!counter_enabled(inst.imm, hart))
 	{
 		return { false, false, 0, EXC_ILLEGAL_INSTRUCTION, inst.inst };
 	}
@@ -156,6 +181,10 @@ ExecReturn exec_CSRRWI(Hart& hart, InstructionData& inst)
 	{
 		return { false, false, 0, EXC_ILLEGAL_INSTRUCTION, inst.inst };
 	}
+	if(!counter_enabled(inst.imm, hart))
+	{
+		return { false, false, 0, EXC_ILLEGAL_INSTRUCTION, inst.inst };
+	}
 	if(!csr_accessible(inst.imm, hart.mode, inst.rs1 != 0))
 	{
 		return { false, false, 0, EXC_ILLEGAL_INSTRUCTION, inst.inst };
@@ -172,6 +201,10 @@ ExecReturn exec_CSRRSI(Hart& hart, InstructionData& inst)
 {
 	bool tvm = hart.status.fields.TVM;
 	if(hart.mode == PrivilegeMode::Supervisor && tvm && inst.imm == CSR_SATP)
+	{
+		return { false, false, 0, EXC_ILLEGAL_INSTRUCTION, inst.inst };
+	}
+	if(!counter_enabled(inst.imm, hart))
 	{
 		return { false, false, 0, EXC_ILLEGAL_INSTRUCTION, inst.inst };
 	}
@@ -193,6 +226,10 @@ ExecReturn exec_CSRRCI(Hart& hart, InstructionData& inst)
 {
 	bool tvm = hart.status.fields.TVM;
 	if(hart.mode == PrivilegeMode::Supervisor && tvm && inst.imm == CSR_SATP)
+	{
+		return { false, false, 0, EXC_ILLEGAL_INSTRUCTION, inst.inst };
+	}
+	if(!counter_enabled(inst.imm, hart))
 	{
 		return { false, false, 0, EXC_ILLEGAL_INSTRUCTION, inst.inst };
 	}

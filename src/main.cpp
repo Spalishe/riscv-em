@@ -32,12 +32,7 @@ Copyright 2026 Spalishe
 
 /*
  *		   TODO:
- *		    -CSRs
- *          -EXC
- *          -RV64I
- *          -RV64M
  *          -RV64A
- *          -Zicsr
  *          -ZiFenceI
  *          -Device:
  *            1. PLIC
@@ -45,7 +40,6 @@ Copyright 2026 Spalishe
  *            3. VirtIO-BLK
  *            4. ACLINT
  *            5. RTC GoldFish
- *			-Counters
  */
 
 termios oldt;

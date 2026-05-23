@@ -70,6 +70,7 @@ ExecReturn Hart::single_inst(uint32_t inst)
 void Hart::tick()
 {
 	GPR[0] = 0;
+	csrs[CSR_MCYCLE]++;
 	if(WFI)
 	{
 		// We must continue execution even if we has locally pending interruptions
@@ -97,6 +98,7 @@ void Hart::tick()
 		}
 		else
 		{
+			csrs[CSR_MINSTRET]++;
 			pc += out.increase_pc;
 		}
 
@@ -136,6 +138,7 @@ void Hart::tick()
 			}
 			else
 			{
+				csrs[CSR_MINSTRET]++;
 				pc += out.increase_pc;
 			}
 		}
@@ -164,6 +167,7 @@ void Hart::tick()
 		}
 		else
 		{
+			csrs[CSR_MINSTRET]++;
 			pc += out.increase_pc;
 		}
 	}
@@ -316,6 +320,12 @@ uint64_t Hart::csr_read(uint16_t csr)
 			return ip.raw;
 		case CSR_MIE:
 			return ie.raw;
+		case CSR_CYCLE:
+			return csrs[CSR_MCYCLE];
+		case CSR_INSTRET:
+			return csrs[CSR_MINSTRET];
+		case CSR_HPMCOUNTER3 ... CSR_HPMCOUNTER31:
+			return csrs[csr - 0x100]; // get M versions
 		default:
 			return csrs[csr];
 	}
