@@ -356,9 +356,10 @@ ExecReturn exec_BEQ(Hart& hart, InstructionData& inst)
 			return { false, false, 0, EXC_INST_ADDR_MISALIGNED, hart.pc + (int64_t)inst.imm };
 		}
 		else
-			hart.pc = hart.pc + (int64_t)inst.imm - 4;
+			hart.pc = hart.pc + (int64_t)inst.imm;
+		return { true, true, 0, 0, 0 };
 	}
-	return { true, true, 0, 0, 0 };
+	return { true, false, 4, 0, 0 };
 }
 ExecReturn exec_BNE(Hart& hart, InstructionData& inst)
 {
@@ -369,9 +370,10 @@ ExecReturn exec_BNE(Hart& hart, InstructionData& inst)
 			return { false, false, 0, EXC_INST_ADDR_MISALIGNED, hart.pc + (int64_t)inst.imm };
 		}
 		else
-			hart.pc = hart.pc + (int64_t)inst.imm - 4;
+			hart.pc = hart.pc + (int64_t)inst.imm;
+		return { true, true, 0, 0, 0 };
 	}
-	return { true, true, 0, 0, 0 };
+	return { true, false, 4, 0, 0 };
 }
 ExecReturn exec_BLT(Hart& hart, InstructionData& inst)
 {
@@ -382,9 +384,10 @@ ExecReturn exec_BLT(Hart& hart, InstructionData& inst)
 			return { false, false, 0, EXC_INST_ADDR_MISALIGNED, hart.pc + (int64_t)inst.imm };
 		}
 		else
-			hart.pc = hart.pc + (int64_t)inst.imm - 4;
+			hart.pc = hart.pc + (int64_t)inst.imm;
+		return { true, true, 0, 0, 0 };
 	}
-	return { true, true, 0, 0, 0 };
+	return { true, false, 4, 0, 0 };
 }
 ExecReturn exec_BGE(Hart& hart, InstructionData& inst)
 {
@@ -395,9 +398,10 @@ ExecReturn exec_BGE(Hart& hart, InstructionData& inst)
 			return { false, false, 0, EXC_INST_ADDR_MISALIGNED, hart.pc + (int64_t)inst.imm };
 		}
 		else
-			hart.pc = hart.pc + (int64_t)inst.imm - 4;
+			hart.pc = hart.pc + (int64_t)inst.imm;
+		return { true, true, 0, 0, 0 };
 	}
-	return { true, true, 0, 0, 0 };
+	return { true, false, 4, 0, 0 };
 }
 ExecReturn exec_BLTU(Hart& hart, InstructionData& inst)
 {
@@ -408,9 +412,11 @@ ExecReturn exec_BLTU(Hart& hart, InstructionData& inst)
 			return { false, false, 0, EXC_INST_ADDR_MISALIGNED, hart.pc + (int64_t)inst.imm };
 		}
 		else
-			hart.pc = hart.pc + (int64_t)inst.imm - 4;
+			hart.pc = hart.pc + (int64_t)inst.imm;
+
+		return { true, true, 0, 0, 0 };
 	}
-	return { true, true, 0, 0, 0 };
+	return { true, false, 4, 0, 0 };
 }
 ExecReturn exec_BGEU(Hart& hart, InstructionData& inst)
 {
@@ -421,9 +427,11 @@ ExecReturn exec_BGEU(Hart& hart, InstructionData& inst)
 			return { false, false, 0, EXC_INST_ADDR_MISALIGNED, hart.pc + (int64_t)inst.imm };
 		}
 		else
-			hart.pc = hart.pc + (int64_t)inst.imm - 4;
+			hart.pc = hart.pc + (int64_t)inst.imm;
+
+		return { true, true, 0, 0, 0 };
 	}
-	return { true, true, 0, 0, 0 };
+	return { true, false, 4, 0, 0 };
 }
 
 // JUMP
@@ -436,7 +444,7 @@ ExecReturn exec_JAL(Hart& hart, InstructionData& inst)
 	}
 	else
 	{
-		hart.pc			  = hart.pc + (int64_t)inst.imm - 4;
+		hart.pc			  = hart.pc + (int64_t)inst.imm;
 		hart.GPR[inst.rd] = tmp + 4;
 	}
 	return { true, true, 0, 0, 0 };
@@ -445,13 +453,14 @@ ExecReturn exec_JALR(Hart& hart, InstructionData& inst)
 {
 	uint64_t tmp	= hart.pc;
 	uint64_t target = (hart.GPR[inst.rs1] + (int64_t)inst.imm) & ~3;
+	printf("target: 0x%lx", target);
 	if(target % 4 != 0)
 	{
 		return { false, true, 0, EXC_INST_ADDR_MISALIGNED, target };
 	}
 	else
 	{
-		hart.pc			  = target - 4;
+		hart.pc			  = target;
 		hart.GPR[inst.rd] = tmp + 4;
 	}
 	return { true, true, 0, 0, 0 };

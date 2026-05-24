@@ -42,6 +42,13 @@ struct InstructionBlock
 	InstructionCache insts[128];
 };
 
+struct Reservation
+{
+	uint64_t vaddr;
+	MemorySize size;
+	bool valid;
+};
+
 struct Hart
 {
 	Hart(uint8_t id) : id(id) {
@@ -72,6 +79,8 @@ struct Hart
 	// Fetch buffer
 	uint32_t fetch_buffer[8];
 	uint64_t fetch_buffer_pc;
+
+	Reservation reservation;
 
 	void init();
 	uint64_t csr_read(uint16_t csr);

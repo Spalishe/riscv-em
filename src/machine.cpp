@@ -80,7 +80,7 @@ void Machine::init_fdt()
 		fdt_node_add_prop_str(cpu, "device_type", "cpu");
 		fdt_node_add_prop_u32(cpu, "reg", hart.id);
 		fdt_node_add_prop_str(cpu, "compatible", "riscv");
-		fdt_node_add_prop_str(cpu, "riscv,isa", "rv64i");
+		fdt_node_add_prop_str(cpu, "riscv,isa", "rv64ima_zicsr_zifencei");
 		fdt_node_add_prop_str(cpu, "mmu-type", "riscv,none");
 		fdt_node_add_prop_str(cpu, "status", "okay");
 		fdt_node_get_phandle(cpu);

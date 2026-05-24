@@ -74,6 +74,8 @@ struct InstructionDecoder
 	void init_all_instrs();
 	void init_rv64i();
 	void init_rv64m();
+	void init_rv64a();
 	void init_priv();
 	void init_zicsr();
+	void init_zifencei();
 };

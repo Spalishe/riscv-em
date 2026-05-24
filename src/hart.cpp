@@ -24,16 +24,14 @@ void Hart::init()
 {
 	pc				  = 0x80000000;
 	mode			  = PrivilegeMode::Machine;
-	csrs[CSR_MISA]	  = (1 << 8) | (1 << 12); // RV64IM
+	csrs[CSR_MISA]	  = (1 << 8) | (1 << 12) | (1 << 0); // RV64IMA
 	csrs[CSR_MHARTID] = id;
 }
 
 uint32_t Hart::fetch()
 {
-	printf("fetch pc: 0x%lx fetch_buffer_pc: 0x%lx\n", pc, fetch_buffer_pc);
 	if(pc >= fetch_buffer_pc && pc < fetch_buffer_pc + 28)
 	{
-		printf("return old 0x%x\n", fetch_buffer[(pc - fetch_buffer_pc) / 4]);
 		return fetch_buffer[(pc - fetch_buffer_pc) / 4];
 	}
 	else
@@ -51,7 +49,6 @@ uint32_t Hart::fetch()
 			fetch_buffer[i / 4] = val;
 		}
 		fetch_buffer_pc = pc;
-		printf("return new 0x%x\n", fetch_buffer[(pc - fetch_buffer_pc) / 4]);
 		return fetch_buffer[(pc - fetch_buffer_pc) / 4];
 	}
 }

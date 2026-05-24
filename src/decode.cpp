@@ -17,6 +17,7 @@ Copyright 2026 Spalishe
 
 #include "../include/decode.hpp"
 #include <assert.h>
+#include <cstdio>
 
 int32_t sext(uint32_t val, int bits)
 {
@@ -89,7 +90,7 @@ uint64_t shamt64(uint32_t inst)
 
 InstructionCache InstructionDecoder::decode_inst(uint32_t inst)
 {
-	if(cache[inst & 0x1FFF].inst_raw == inst)
+	if(cache[inst & 0x1FFF].inst_raw == inst && cache[inst & 0x1FFF].valid)
 	{
 		return cache[inst & 0x1FFF];
 	}
@@ -119,6 +120,7 @@ InstructionCache InstructionDecoder::decode_inst(uint32_t inst)
 		inst_cache.data		 = data;
 		inst_cache.valid	 = f;
 		cache[inst & 0x1FFF] = inst_cache;
+		printf("inst=0x%lx match=0x%lx mask=0x%lx func=%p\n", inst, dinst->match, dinst->mask, dinst->func);
 		return inst_cache;
 	}
 }
@@ -152,6 +154,7 @@ void InstructionDecoder::register_instr(std::string mask, ExecReturn (*func)(Har
 		func,
 		(imm_decode_func == NULL) ? imm_I : imm_decode_func, // default decode func if user dont provide such
 	};
+	// printf("Registered instr mask=0x%dx match=0x%dx with func=%p, imm_decode_func=%p\n", inst_mask, inst_match, func, imm_decode_func);
 	instructions.push_back(inst);
 }
 
@@ -159,6 +162,8 @@ void InstructionDecoder::init_all_instrs()
 {
 	init_rv64i();
 	init_rv64m();
+	init_rv64a();
 	init_priv();
 	init_zicsr();
+	init_zifencei();
 }

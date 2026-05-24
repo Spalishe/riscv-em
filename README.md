@@ -27,18 +27,17 @@ The emulator supports the following features:
 - [ ] RV64G ISA
   - [x] RV64I
   - [x] RV64M
-  - [ ] RV64A (No atomicity for now)
+  - [x] RV64A (No atomicity for now)
   - [ ] RV64F
   - [ ] RV64D
-  - [ ] Zifencei: (`fence.i` does nothing for
-    now)
+  - [x] Zifencei
   - [x] Zicsr
 - [ ] RV64C
 - [x] Privileged ISA
 - [x] Control and status registers (CSRs)
   - [x] Machine-level CSRs
   - [x] Supervisor-level CSRs
-  - [ ] User-level CSRs
+  - [x] User-level CSRs
 - [ ] Devices
   - [ ] UART: universal asynchronous receiver-transmitter
   - [ ] CLINT: core local interruptor
