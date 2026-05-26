@@ -20,19 +20,20 @@ Copyright 2026 Spalishe
 #include "memory_map.hpp"
 #include <cstdint>
 
+struct Machine;
+
 struct Device : std::enable_shared_from_this<Device>
 {
-	Device(uint64_t start, uint64_t size, fdt_node* fdt) : start(start), size(size) {
+	Device(uint64_t start, uint64_t size, fdt_node* fdt, MemoryMap* mmap) : start(start), size(size), mmap(mmap) {
 
-														   };
+																			};
 	MemoryMap* mmap;
 	uint64_t start;
 	uint64_t size;
 
-	MemoryReturn read(uint64_t addr, uint8_t size);
-	MemoryReturn write(uint64_t addr, uint8_t size, uint64_t val);
-	void tick();
-	static Device auto_init(fdt_node* fdt);
+	virtual uint64_t read(uint64_t addr, MemorySize size) { return 0; }
+	virtual void write(uint64_t addr, MemorySize size, uint64_t val) {}
+	virtual void tick() {}
 
 	// Returns device
 	template <typename T>

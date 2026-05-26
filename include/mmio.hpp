@@ -17,20 +17,15 @@ Copyright 2026 Spalishe
 
 #pragma once
 
+#include "defines/traps.hpp"
 #include "device.hpp"
 #include "memory_map.hpp"
 #include <cstdint>
+#include <memory>
 #include <vector>
 
 struct Hart;
-
-enum class MemorySize
-{
-	Byte  = 1,
-	Short = 2,
-	Int	  = 4,
-	Long  = 8
-};
+struct Machine;
 
 struct MMIO
 {
@@ -49,6 +44,14 @@ struct MMIO
 	std::shared_ptr<T> create_device(Args&&... args)
 	{
 		auto new_device = std::make_shared<T>(std::forward<Args>(args)...);
+		devs.push_back(new_device);
+		return new_device;
+	}
+	// Creates new device calling it auto function
+	template <typename T>
+	std::shared_ptr<T> create_device_auto(Machine& cpu)
+	{
+		auto new_device = T::init_auto(cpu);
 		devs.push_back(new_device);
 		return new_device;
 	}

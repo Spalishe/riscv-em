@@ -17,6 +17,7 @@ Copyright 2026 Spalishe
 
 #include "../include/machine.hpp"
 #include "../include/defines/rvem.hpp"
+#include "../include/devices/plic.hpp"
 #include <cstdio>
 #include <cstring>
 #include <ctime>
@@ -139,6 +140,7 @@ void Machine::init_mmap()
 
 void Machine::init_auto_devices()
 {
+	mmio->create_device_auto<PLIC>(*this);
 }
 
 void Machine::run()
@@ -191,6 +193,9 @@ void Machine::work()
 			continue;
 		}
 
+		// Update devices
+		mmio->tick_all();
+		// Update harts
 		for(int i = 0; i < harts_count; i++)
 		{
 			Hart& h = harts[i];

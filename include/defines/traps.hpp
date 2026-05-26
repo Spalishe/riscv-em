@@ -63,6 +63,13 @@ struct ExecReturn
 	char cause		   = 0;
 	uint64_t tval	   = 0;
 };
+enum class MemorySize
+{
+	Byte  = 1,
+	Short = 2,
+	Int	  = 4,
+	Long  = 8
+};
 struct MemoryReturn
 {
 	bool is_success = true;

@@ -120,7 +120,7 @@ InstructionCache InstructionDecoder::decode_inst(uint32_t inst)
 		inst_cache.data		 = data;
 		inst_cache.valid	 = f;
 		cache[inst & 0x1FFF] = inst_cache;
-		printf("inst=0x%lx match=0x%lx mask=0x%lx func=%p\n", inst, dinst->match, dinst->mask, dinst->func);
+		// printf("inst=0x%lx match=0x%lx mask=0x%lx func=%p\n", inst, dinst->match, dinst->mask, dinst->func);
 		return inst_cache;
 	}
 }
