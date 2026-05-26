@@ -32,6 +32,8 @@ PLIC::PLIC(uint64_t start, uint64_t size, Machine& cpu, uint32_t max_sources, fd
 	  max_sources(max_sources),
 	  cpu(cpu)
 {
+	cpu.mmap->add_region(start, size);
+
 	pending_words_count = (max_sources + 31) / 32;
 	enable_words_count	= pending_words_count;
 
@@ -94,6 +96,13 @@ PLIC::PLIC(uint64_t start, uint64_t size, Machine& cpu, uint32_t max_sources, fd
 std::shared_ptr<PLIC> PLIC::init_auto(Machine& cpu)
 {
 	return std::make_shared<PLIC>(0x0C000000, 0x400000, cpu, 64, cpu.fdt);
+}
+
+int PLIC::acquire_irq()
+{
+	uint32_t val = last_irq_registered;
+	last_irq_registered++;
+	return val;
 }
 
 void PLIC::set_pending(uint32_t source_id, bool pending)

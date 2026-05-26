@@ -557,6 +557,11 @@ void GDB_parsePacket(const char* buffer)
 			}
 			else if(idx > 32 && idx < 64)
 			{
+				if(idx == 33)
+				{
+					// priv
+					GDB_sendPacket(to_little_endian_hex((uint8_t)gdb_hart->mode));
+				}
 // fpu
 #ifdef USE_FPU
 				GDB_sendPacket(to_little_endian_hex(
@@ -566,12 +571,7 @@ void GDB_parsePacket(const char* buffer)
 			else if(idx >= 64)
 			{
 				// csr
-				if(idx == 65)
-				{
-					// priv
-					GDB_sendPacket(to_little_endian_hex((uint8_t)gdb_hart->mode));
-				}
-				else if(idx >= 5000)
+				if(idx >= 5000)
 				{
 					GDB_sendPacket(to_little_endian_hex(gdb_hart->csr_read(idx - 5000)));
 				}
@@ -602,22 +602,19 @@ void GDB_parsePacket(const char* buffer)
 			}
 			else if(idx > 32 && idx < 64)
 			{
+				if(idx == 33)
+				{
+					// priv
+					gdb_hart->mode = (PrivilegeMode)num;
+				}
 #ifdef USE_FPU
 				gdb_hart->FPR[idx - 33] = (double)num;
 #endif
 			}
 			else if(idx >= 64)
 			{
-				if(idx == 33)
-				{
-					// priv
-					gdb_hart->mode = (PrivilegeMode)num;
-				}
-				else
-				{
-					// csr
-					gdb_hart->csr_write(idx, num);
-				}
+				// csr
+				gdb_hart->csr_write(idx, num);
 			}
 			GDB_sendPacket("OK");
 			return;

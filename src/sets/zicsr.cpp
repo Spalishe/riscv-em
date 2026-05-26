@@ -79,6 +79,7 @@ bool csr_accessible(uint16_t csr_addr, PrivilegeMode current_priv, bool write)
 
 bool counter_enabled(uint16_t addr, Hart& hart)
 {
+	if(addr < 0xC00 || addr > 0xC1F) return true;
 	PrivilegeMode mode	 = hart.mode;
 	uint64_t mcounteren	 = hart.csr_read(CSR_MCOUNTEREN);
 	uint64_t scounteren	 = hart.csr_read(CSR_SCOUNTEREN);
@@ -250,10 +251,10 @@ ExecReturn exec_CSRRCI(Hart& hart, InstructionData& inst)
 
 void InstructionDecoder::init_zicsr()
 {
-	register_instr("*****************001*****1110011", exec_CSRRW);
-	register_instr("*****************010*****1110011", exec_CSRRS);
-	register_instr("*****************011*****1110011", exec_CSRRC);
-	register_instr("*****************101*****1110011", exec_CSRRWI);
-	register_instr("*****************110*****1110011", exec_CSRRSI);
-	register_instr("*****************111*****1110011", exec_CSRRCI);
+	register_instr("*****************001*****1110011", exec_CSRRW, imm_Zicsr);
+	register_instr("*****************010*****1110011", exec_CSRRS, imm_Zicsr);
+	register_instr("*****************011*****1110011", exec_CSRRC, imm_Zicsr);
+	register_instr("*****************101*****1110011", exec_CSRRWI, imm_Zicsr);
+	register_instr("*****************110*****1110011", exec_CSRRSI, imm_Zicsr);
+	register_instr("*****************111*****1110011", exec_CSRRCI, imm_Zicsr);
 }

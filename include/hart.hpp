@@ -71,8 +71,8 @@ struct Hart
 	bool WFI = false;
 
 	// Block execution
-	InstructionBlock blocks[256];
-	InstructionBlock current_block;
+	InstructionBlock blocks[256]   = {};
+	InstructionBlock current_block = {};
 	std::unordered_map<uint64_t, uint64_t> pc_hits;
 	bool creating_block;
 
@@ -82,7 +82,7 @@ struct Hart
 
 	Reservation reservation;
 
-	void init();
+	void init(uint64_t dtb_pos_at_memory);
 	uint64_t csr_read(uint16_t csr);
 	void csr_write(uint16_t csr, uint64_t val);
 	void trap(uint64_t cause, uint64_t tval, bool interrupt);

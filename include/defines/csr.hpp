@@ -352,19 +352,19 @@ union ip_t
 {
 	struct
 	{
-		unsigned int : 1;
-		unsigned int SSIP : 1;
-		unsigned int : 1;
-		unsigned int MSIP : 1;
-		unsigned int : 1;
-		unsigned int STIP : 1;
-		unsigned int : 1;
-		unsigned int MTIP : 1;
-		unsigned int : 1;
-		unsigned int SEIP : 1;
-		unsigned int : 1;
-		unsigned int MEIP : 1;
-		unsigned int : 4;
+		uint16_t : 1;
+		uint16_t SSIP : 1;
+		uint16_t : 1;
+		uint16_t MSIP : 1;
+		uint16_t : 1;
+		uint16_t STIP : 1;
+		uint16_t : 1;
+		uint16_t MTIP : 1;
+		uint16_t : 1;
+		uint16_t SEIP : 1;
+		uint16_t : 1;
+		uint16_t MEIP : 1;
+		uint16_t : 4;
 	} fields;
 	uint16_t raw;
 };
@@ -372,53 +372,55 @@ union ie_t
 {
 	struct
 	{
-		unsigned int : 1;
-		unsigned int SSIE : 1;
-		unsigned int : 1;
-		unsigned int MSIE : 1;
-		unsigned int : 1;
-		unsigned int STIE : 1;
-		unsigned int : 1;
-		unsigned int MTIE : 1;
-		unsigned int : 1;
-		unsigned int SEIE : 1;
-		unsigned int : 1;
-		unsigned int MEIE : 1;
-		unsigned int : 4;
+		uint16_t : 1;
+		uint16_t SSIE : 1;
+		uint16_t : 1;
+		uint16_t MSIE : 1;
+		uint16_t : 1;
+		uint16_t STIE : 1;
+		uint16_t : 1;
+		uint16_t MTIE : 1;
+		uint16_t : 1;
+		uint16_t SEIE : 1;
+		uint16_t : 1;
+		uint16_t MEIE : 1;
+		uint16_t : 4;
 	} fields;
 	uint16_t raw;
 };
+
+#define MSTATUS_RO_MASK 0xF00000000ULL
 
 union status_t
 {
 	struct
 	{
-		unsigned int : 1;
-		unsigned int SIE : 1;
-		unsigned int : 1;
-		unsigned int MIE : 1;
-		unsigned int : 1;
-		unsigned int SPIE : 1;
-		unsigned int UBE : 1;
-		unsigned int MPIE : 1;
-		unsigned int SPP : 1;
-		unsigned int VS : 2;
-		unsigned int MPP : 2;
-		unsigned int FS : 2;
-		unsigned int XS : 2;
-		unsigned int MPRV : 1;
-		unsigned int SUM : 1;
-		unsigned int MXR : 1;
-		unsigned int TVM : 1;
-		unsigned int TW : 1;
-		unsigned int TSR : 1;
-		unsigned int : 9;
-		unsigned int UXL : 2;
-		unsigned int SXL : 2;
-		unsigned int SBE : 1;
-		unsigned int MBE : 1;
-		unsigned int : 25;
-		unsigned int SD : 1;
+		uint64_t : 1;
+		uint64_t SIE : 1;
+		uint64_t : 1;
+		uint64_t MIE : 1;
+		uint64_t : 1;
+		uint64_t SPIE : 1;
+		uint64_t UBE : 1;
+		uint64_t MPIE : 1;
+		uint64_t SPP : 1;
+		uint64_t VS : 2;
+		uint64_t MPP : 2;
+		uint64_t FS : 2;
+		uint64_t XS : 2;
+		uint64_t MPRV : 1;
+		uint64_t SUM : 1;
+		uint64_t MXR : 1;
+		uint64_t TVM : 1;
+		uint64_t TW : 1;
+		uint64_t TSR : 1;
+		uint64_t : 9;
+		uint64_t UXL : 2;
+		uint64_t SXL : 2;
+		uint64_t SBE : 1;
+		uint64_t MBE : 1;
+		uint64_t : 25;
+		uint64_t SD : 1;
 	} fields;
 
 	uint64_t raw;

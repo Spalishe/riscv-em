@@ -18,6 +18,7 @@ Copyright 2026 Spalishe
 #include "../include/machine.hpp"
 #include "../include/defines/rvem.hpp"
 #include "../include/devices/plic.hpp"
+#include "../include/devices/uart.hpp"
 #include <cstdio>
 #include <cstring>
 #include <ctime>
@@ -70,7 +71,7 @@ void Machine::init_fdt()
 	fdt_node_add_child(fdt, memory);
 
 	// cpus
-	fdt_node* cpus = fdt_node_create(NULL);
+	fdt_node* cpus = fdt_node_create("cpus");
 	fdt_node_add_prop_u32(cpus, "#address-cells", 1);
 	fdt_node_add_prop_u32(cpus, "#size-cells", 0);
 	fdt_node_add_prop_u32(cpus, "timebase-frequency", timebase);
@@ -84,13 +85,19 @@ void Machine::init_fdt()
 		fdt_node_add_prop_str(cpu, "riscv,isa", "rv64ima_zicsr_zifencei");
 		fdt_node_add_prop_str(cpu, "mmu-type", "riscv,none");
 		fdt_node_add_prop_str(cpu, "status", "okay");
-		fdt_node_get_phandle(cpu);
 
 		fdt_node* intc = fdt_node_create("interrupt-controller");
 		fdt_node_add_prop_u32(intc, "#interrupt-cells", 0x1);
 		fdt_node_add_prop(intc, "interrupt-controller", NULL, 0);
 		fdt_node_add_prop_str(intc, "compatible", "riscv,cpu-intc");
 		fdt_node_get_phandle(intc);
+
+		fdt_node_add_child(cpu, intc);
+		fdt_node_add_child(cpus, cpu);
+
+		// Add phandles
+		fdt_node_get_phandle(fdt_node_find_reg(fdt_node_find(fdt, "cpus"), "cpu", i));
+		fdt_node_get_phandle(fdt_node_find(fdt_node_find_reg(fdt_node_find(fdt, "cpus"), "cpu", i), "interrupt-controller"));
 	}
 	fdt_node_add_child(fdt, cpus);
 
@@ -141,10 +148,12 @@ void Machine::init_mmap()
 void Machine::init_auto_devices()
 {
 	mmio->create_device_auto<PLIC>(*this);
+	mmio->create_device_auto<UART>(*this);
 }
 
 void Machine::run()
 {
+	uint64_t dtb_path_in_memory = 0x80000000 + memory_size - 0x20000;
 	// init all harts
 	for(int i = 0; i < harts_count; i++)
 	{
@@ -152,7 +161,7 @@ void Machine::run()
 		h.mmap	= mmap;
 		h.mmio	= mmio;
 		h.idec	= idec;
-		h.init();
+		h.init(dtb_path_in_memory);
 	}
 
 // prepare

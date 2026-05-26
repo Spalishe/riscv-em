@@ -33,6 +33,7 @@ class PLIC : public Device
 	void write(uint64_t addr, MemorySize size, uint64_t val);
 	void tick();
 	static std::shared_ptr<PLIC> init_auto(Machine& cpu);
+	int acquire_irq();
 
   private:
 	struct Context
@@ -50,6 +51,7 @@ class PLIC : public Device
 	uint32_t pending_words_count;
 	uint32_t enable_words_count;
 	Machine& cpu;
+	uint32_t last_irq_registered = 1;
 
 	std::vector<uint32_t> priorities; // indexes 0..max_sources, 0 not used
 	std::vector<uint32_t> pending_words;

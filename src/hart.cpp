@@ -19,13 +19,18 @@ Copyright 2026 Spalishe
 #include "../include/decode.hpp"
 #include "../include/defines/csr.hpp"
 #include "../include/defines/traps.hpp"
+#include <assert.h>
 
-void Hart::init()
+void Hart::init(uint64_t dtb_pos_at_memory)
 {
 	pc				  = 0x80000000;
 	mode			  = PrivilegeMode::Machine;
-	csrs[CSR_MISA]	  = (1 << 8) | (1 << 12) | (1 << 0); // RV64IMA
+	GPR[10]			  = id;
+	GPR[11]			  = dtb_pos_at_memory;
+	csrs[CSR_MISA]	  = (1ULL << 63) | (1ULL << 8) | (1ULL << 12) | (1ULL << 0) | (1ULL << 18) | (1ULL << 20); // RV64IMASU
 	csrs[CSR_MHARTID] = id;
+	status.fields.SXL = 2;
+	status.fields.UXL = 2;
 }
 
 uint32_t Hart::fetch()
@@ -101,6 +106,7 @@ void Hart::tick()
 
 		// Push instruction to stack
 
+		assert(current_block.count <= 128);
 		current_block.insts[current_block.count] = idec->decode_inst(inst);
 		current_block.count++;
 		if(current_block.count == 128 || out.can_change_pc)
@@ -108,13 +114,10 @@ void Hart::tick()
 			// We reached instructions limit / Branch
 			blocks[current_block.start_pc & 0xFF] = current_block;
 			creating_block						  = false;
-			current_block.count					  = 0;
-			current_block.start_pc				  = 0;
-			return;
+			memset(&current_block, 0, sizeof(current_block));
 		}
 		return;
 	}
-
 	// Block execution
 	auto& blk = blocks[pc & 0xFF];
 	if(blk.start_pc == pc)
@@ -126,10 +129,6 @@ void Hart::tick()
 			if(!out.is_success)
 			{
 				// Exception
-				creating_block		   = false;
-				current_block.count	   = 0;
-				current_block.start_pc = 0;
-
 				trap(out.cause, out.tval, false);
 				return;
 			}
@@ -138,24 +137,13 @@ void Hart::tick()
 				csrs[CSR_MINSTRET]++;
 				pc += out.increase_pc;
 			}
+			if(out.can_change_pc) break;
 		}
 	}
 	else
 	{
 		// We dont have any block for this pc
-		// But we can create this block
-		if(pc_hits[pc] >= 50 && !creating_block)
-		{
-			// If we hit same pc 50 times, then we will begin compiling block
-			pc_hits.erase(pc);
-			creating_block		   = true;
-			current_block.start_pc = pc;
-			current_block.count	   = 0;
-		}
-		else
-		{
-			pc_hits[pc]++;
-		}
+
 		// Run single instruction
 		auto out = single_inst(inst);
 		if(!out.is_success)
@@ -166,6 +154,23 @@ void Hart::tick()
 		{
 			csrs[CSR_MINSTRET]++;
 			pc += out.increase_pc;
+		}
+		// But we can create this block
+		if(pc_hits[pc] >= 50 && !creating_block && !out.can_change_pc)
+		{
+			// If we hit same pc 50 times, then we will begin compiling block
+			pc_hits.erase(pc);
+			memset(&current_block, 0, sizeof(current_block));
+			creating_block		   = true;
+			current_block.start_pc = pc - out.increase_pc;
+			current_block.count	   = 0;
+
+			current_block.insts[current_block.count] = idec->decode_inst(inst);
+			current_block.count++;
+		}
+		else
+		{
+			pc_hits[pc]++;
 		}
 	}
 }
@@ -282,16 +287,24 @@ void Hart::csr_write(uint16_t csr, uint64_t val)
 {
 	switch(csr)
 	{
+		case CSR_MSTATUS:
+			status.raw = (status.raw & MSTATUS_RO_MASK) | (val & ~MSTATUS_RO_MASK);
+			break;
 		case CSR_SSTATUS:
-			csrs[CSR_MSTATUS] = (csrs[CSR_MSTATUS] & ~SSTATUS_MASK) | (val & SSTATUS_MASK);
+			status.raw = (status.raw & ~SSTATUS_MASK) | (val & SSTATUS_MASK);
+			break;
 		case CSR_SIE:
 			ie.raw = (ie.raw & ~SE_MASK) | (val & SE_MASK);
+			break;
 		case CSR_SIP:
 			ip.raw = (ip.raw & ~SE_MASK) | (val & SE_MASK);
+			break;
 		case CSR_MIE:
 			ie.raw = val;
+			break;
 		case CSR_MIP:
 			ip.raw = val;
+			break;
 
 		case CSR_MVENDORID:
 		case CSR_MARCHID:
@@ -299,6 +312,7 @@ void Hart::csr_write(uint16_t csr, uint64_t val)
 			// Read-only
 			(void)csr;
 			(void)val;
+			break;
 		default:
 			csrs[csr] = val;
 	}
@@ -307,6 +321,8 @@ uint64_t Hart::csr_read(uint16_t csr)
 {
 	switch(csr)
 	{
+		case CSR_MSTATUS:
+			return status.raw;
 		case CSR_SSTATUS:
 			return csrs[CSR_MSTATUS] & SSTATUS_MASK;
 		case CSR_SIE:

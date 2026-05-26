@@ -173,12 +173,18 @@ int main(int argc, char* argv[])
 
 	machine.mmap->load_file(0x80000000, bios_var->val());
 
+	if(kernel_var->defined())
+	{
+		machine.mmap->load_file(0x80200000, kernel_var->val());
+	}
+
 	if(dtb_var->defined())
 	{
 		machine.load_fdt(dtb_var->val());
 	}
 	else
 	{
+		if(dumpdtb_var->defined()) machine.dtb_dump_path = dumpdtb_var->val();
 		machine.init_fdt();
 	}
 
@@ -197,6 +203,7 @@ int main(int argc, char* argv[])
 #endif
 
 	machine.init_auto_devices();
+	machine.write_fdt();
 	machine.run();
 	machine.work_thread_joined = true;
 	machine.work_thread.join(); // joining it so our program will not exit right after creating machine

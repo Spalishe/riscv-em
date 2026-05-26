@@ -65,6 +65,20 @@ struct MMIO
 		}
 	}
 
+	// Returns device
+	template <typename T>
+	std::shared_ptr<T> get()
+	{
+		for(const auto& dev : devs)
+		{
+			if(auto sel = std::dynamic_pointer_cast<T>(dev))
+			{
+				return sel;
+			}
+		}
+		return NULL;
+	}
+
   private:
 	MemoryMap* mmap;
 };

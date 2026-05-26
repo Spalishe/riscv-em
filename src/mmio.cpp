@@ -34,7 +34,8 @@ MemoryReturn MMIO::write(Hart& h, uint64_t vaddr, MemorySize size, uint64_t val)
 		if(vaddr >= dev->start && vaddr < (dev->start + dev->size - (int)size))
 		{
 			// found a device
-			mmap->store(vaddr, (int)size * 8, val);
+			// mmap->store(vaddr, (int)size * 8, val); // unnecessary
+			dev->write(vaddr, size, val);
 			return { true, 0, 0 };
 		}
 	}
@@ -58,7 +59,8 @@ MemoryReturn MMIO::read(Hart& h, uint64_t vaddr, MemorySize size, void* val)
 		if(vaddr >= dev->start && vaddr < (dev->start + dev->size - (int)size + 1))
 		{
 			// found a device
-			out = mmap->load(vaddr, (int)size * 8);
+			// out = mmap->load(vaddr, (int)size * 8); // unnecessary
+			out = dev->read(vaddr, size);
 			goto success;
 		}
 	}
