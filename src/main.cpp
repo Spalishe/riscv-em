@@ -23,6 +23,7 @@ Copyright 2026 Spalishe
 #include <string>
 #include <unordered_map>
 
+#include "../include/devices/uart.hpp"
 #include "../include/gdbstub.hpp"
 #include "../include/machine.hpp"
 #include "../include/main.hpp"
@@ -32,20 +33,19 @@ Copyright 2026 Spalishe
 
 /*
  *		   TODO:
- *          -RV64A
- *          -ZiFenceI
+ *		    - RV64F
+ *		    - RV64D
  *          -Device:
- *            1. PLIC
- *            2. UART
- *            3. VirtIO-BLK
- *            4. ACLINT
- *            5. RTC GoldFish
+ *            1. VirtIO-BLK
+ *            2. ACLINT
+ *            3. RTC GoldFish
  */
 
 termios oldt;
 std::atomic<bool> termios_running = false;
 std::vector<char> combo_sequence  = { 3, 24 }; // Ctrl+C (0x03) -> Ctrl+X (0x18)
 std::vector<char> buffer;
+std::shared_ptr<UART> uart;
 
 Machine* mach;
 // Thread function for overriding default stdin control keys
@@ -74,7 +74,7 @@ void termios_loop()
 				break;
 			}
 
-			// uart->receive_byte(c);
+			uart->receive_byte(ch);
 		}
 		else
 		{
@@ -203,6 +203,7 @@ int main(int argc, char* argv[])
 #endif
 
 	machine.init_auto_devices();
+	uart = machine.mmio->get<UART>();
 	machine.write_fdt();
 	machine.run();
 	machine.work_thread_joined = true;

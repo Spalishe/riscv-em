@@ -39,9 +39,9 @@ The emulator supports the following features:
   - [x] Supervisor-level CSRs
   - [x] User-level CSRs
 - [ ] Devices
-  - [ ] UART: universal asynchronous receiver-transmitter
+  - [x] UART: universal asynchronous receiver-transmitter
   - [ ] CLINT: core local interruptor
-  - [ ] PLIC: platform level interrupt controller
+  - [x] PLIC: platform level interrupt controller
   - [ ] Virtio-BLK: virtual I/O Block Device
 - [x] FDT
 
