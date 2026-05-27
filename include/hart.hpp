@@ -67,8 +67,8 @@ struct Hart
 	status_t status;
 	ie_t ie;
 	ip_t ip;
-
-	bool WFI = false;
+	uint64_t stimecmp = UINT64_MAX;
+	bool WFI		  = false;
 
 	// Block execution
 	InstructionBlock blocks[256]   = {};

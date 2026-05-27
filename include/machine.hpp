@@ -41,7 +41,7 @@ struct Machine
 	MemoryMap* mmap;
 	MMIO* mmio;
 	InstructionDecoder* idec;
-	uint64_t timebase;
+	uint64_t timebase = 3'500'000ULL;
 	uint8_t harts_count;
 	std::vector<Hart> harts;
 	std::vector<Device> devices;

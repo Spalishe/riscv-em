@@ -37,8 +37,7 @@ Copyright 2026 Spalishe
  *		    - RV64D
  *          -Device:
  *            1. VirtIO-BLK
- *            2. ACLINT
- *            3. RTC GoldFish
+ *            2. RTC GoldFish
  */
 
 termios oldt;

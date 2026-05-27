@@ -17,6 +17,7 @@ Copyright 2026 Spalishe
 
 #include "../include/machine.hpp"
 #include "../include/defines/rvem.hpp"
+#include "../include/devices/aclint.hpp"
 #include "../include/devices/plic.hpp"
 #include "../include/devices/uart.hpp"
 #include <cstdio>
@@ -149,6 +150,7 @@ void Machine::init_auto_devices()
 {
 	mmio->create_device_auto<PLIC>(*this);
 	mmio->create_device_auto<UART>(*this);
+	mmio->create_device_auto<ACLINT>(*this);
 }
 
 void Machine::run()
