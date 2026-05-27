@@ -81,6 +81,13 @@ struct Hart
 	uint64_t fetch_buffer_pc;
 
 	Reservation reservation;
+	inline void amo_check_reservation(uint64_t va)
+	{
+		if(reservation.valid && reservation.vaddr >= va && va <= reservation.vaddr + (int)reservation.size)
+		{
+			reservation.valid = false;
+		}
+	}
 
 	void init(uint64_t dtb_pos_at_memory);
 	uint64_t csr_read(uint16_t csr);

@@ -25,6 +25,7 @@ MemoryReturn MMIO::write(Hart& h, uint64_t vaddr, MemorySize size, uint64_t val)
 	if(vaddr >= 0x80000000 && vaddr < (0x80000000 + memsize - (int)size)) // We subtracting by size to exclude chance of buffer overflow
 	{
 		// DRAM
+		h.amo_check_reservation(vaddr);
 		mmap->store(vaddr, (int)size * 8, val);
 		return { true, 0, 0 };
 	}
@@ -35,6 +36,7 @@ MemoryReturn MMIO::write(Hart& h, uint64_t vaddr, MemorySize size, uint64_t val)
 		{
 			// found a device
 			// mmap->store(vaddr, (int)size * 8, val); // unnecessary
+			h.amo_check_reservation(vaddr);
 			dev->write(vaddr, size, val);
 			return { true, 0, 0 };
 		}

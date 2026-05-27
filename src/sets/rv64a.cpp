@@ -18,14 +18,6 @@ Copyright 2026 Spalishe
 #include "../../include/decode.hpp"
 #include "../../include/hart.hpp"
 
-void amo_check_reservation(Hart& h, uint64_t va)
-{
-	if(h.reservation.valid && h.reservation.vaddr == va)
-	{
-		h.reservation.valid = false;
-	}
-}
-
 MemoryReturn AMO_SC(Hart& hart, uint64_t va, MemorySize size, uint64_t val, void* out_val)
 {
 	if(hart.reservation.valid && hart.reservation.vaddr == va && hart.reservation.size == size)
@@ -54,6 +46,7 @@ MemoryReturn AMO_LR(Hart& hart, uint64_t va, MemorySize size, void* val)
 	hart.reservation.valid = true;
 	hart.reservation.size  = size;
 	hart.reservation.vaddr = va;
+	std::memcpy(val, &value, (int)size);
 	return p;
 }
 

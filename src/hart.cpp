@@ -324,11 +324,11 @@ uint64_t Hart::csr_read(uint16_t csr)
 		case CSR_MSTATUS:
 			return status.raw;
 		case CSR_SSTATUS:
-			return csrs[CSR_MSTATUS] & SSTATUS_MASK;
+			return status.raw & SSTATUS_MASK;
 		case CSR_SIE:
-			return csrs[CSR_MIE] & SE_MASK;
+			return ie.raw & SE_MASK;
 		case CSR_SIP:
-			return csrs[CSR_MIP] & SE_MASK;
+			return ip.raw & SE_MASK;
 		case CSR_MIP:
 			return ip.raw;
 		case CSR_MIE:
