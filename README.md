@@ -38,11 +38,11 @@ The emulator supports the following features:
   - [x] Machine-level CSRs
   - [x] Supervisor-level CSRs
   - [x] User-level CSRs
-- [ ] Devices
+- [x] Devices
   - [x] UART: universal asynchronous receiver-transmitter
   - [x] CLINT: core local interruptor
   - [x] PLIC: platform level interrupt controller
-  - [ ] Virtio-BLK: virtual I/O Block Device
+  - [x] Virtio-BLK: virtual I/O Block Device
 - [x] FDT
 
 ## Build

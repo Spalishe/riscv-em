@@ -26,9 +26,10 @@ Copyright 2026 Spalishe
 
 enum class MachineState
 {
-	Off		= 0,
-	Halted	= 1,
-	Running = 2,
+	Off		  = 0,
+	Halted	  = 1,
+	Running	  = 2,
+	Resetting = 3,
 };
 
 struct Machine
@@ -37,6 +38,12 @@ struct Machine
 	uint64_t memory_size;
 	std::string append;
 	std::string dtb_dump_path;
+	// File, located on that path will be automatically loaded as Block device.
+	std::string image_path	= "";
+	// File, located on that path will be automatically loaded as Firmware on 0x80000000
+	std::string bios_path	= "";
+	// File, located on that path will be automatically loaded as Kernel on 0x80200000
+	std::string kernel_path = "";
 	fdt_node* fdt;
 	MemoryMap* mmap;
 	MMIO* mmio;
@@ -44,12 +51,11 @@ struct Machine
 	uint64_t timebase = 3'500'000ULL;
 	uint8_t harts_count;
 	std::vector<Hart> harts;
-	std::vector<Device> devices;
 	std::thread work_thread;
 	bool work_thread_w;
 	bool work_thread_joined; // manual variable to indicate that thread was joined. You probably want to set it to true if you do work_thread.join();
 
-	MachineState state = MachineState::Off;
+	std::atomic<MachineState> state = MachineState::Off;
 
 #ifdef USE_GDBSTUB
 	bool gdb			 = false;
@@ -61,8 +67,12 @@ struct Machine
 	void write_fdt();
 	void load_fdt(const std::string&);
 	void init_auto_devices();
+	void destroy_harts();
+	void destroy_devices();
+	void destroy_mmap();
+	void reset_memory();
 	void run();
-
+	void reset();
 	void work();
 	void stop();
 };

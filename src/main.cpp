@@ -33,11 +33,16 @@ Copyright 2026 Spalishe
 
 /*
  *		   TODO:
- *		    - RV64F
- *		    - RV64D
+ *		    -ZBA
+ *		    -ZBB
+ *		    -ZBC
+ *		    -ZBS
+ *		    -RV64F
+ *		    -RV64D
  *          -Device:
- *            1. VirtIO-BLK
+ *			  1. Framebuffer
  *            2. RTC GoldFish
+ *            3. VirtIO-GPU
  */
 
 termios oldt;
@@ -170,11 +175,17 @@ int main(int argc, char* argv[])
 	Machine machine = Machine(memsize, harts);
 	machine.init_mmap();
 
-	machine.mmap->load_file(0x80000000, bios_var->val());
+	// machine.mmap->load_file(0x80000000, bios_var->val());
+	machine.bios_path = bios_var->val();
 
 	if(kernel_var->defined())
 	{
-		machine.mmap->load_file(0x80200000, kernel_var->val());
+		// machine.mmap->load_file(0x80200000, kernel_var->val());
+		machine.kernel_path = kernel_var->val();
+	}
+	if(image_var->defined())
+	{
+		machine.image_path = image_var->val();
 	}
 
 	if(dtb_var->defined())

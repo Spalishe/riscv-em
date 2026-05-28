@@ -19,7 +19,11 @@ Copyright 2026 Spalishe
 #include "../include/defines/rvem.hpp"
 #include "../include/devices/aclint.hpp"
 #include "../include/devices/plic.hpp"
+#include "../include/devices/syscon.hpp"
 #include "../include/devices/uart.hpp"
+#include "../include/devices/virtio_blk.hpp"
+
+#include <atomic>
 #include <cstdio>
 #include <cstring>
 #include <ctime>
@@ -151,10 +155,18 @@ void Machine::init_auto_devices()
 	mmio->create_device_auto<PLIC>(*this);
 	mmio->create_device_auto<UART>(*this);
 	mmio->create_device_auto<ACLINT>(*this);
+	mmio->create_device_auto<SYSCON>(*this);
+	if(image_path != "")
+	{
+		mmio->create_device_auto<VirtIO_BLK>(*this);
+	}
 }
 
 void Machine::run()
 {
+	mmap->load_file(0x80000000, bios_path);
+	if(kernel_path != "") mmap->load_file(0x80200000, kernel_path);
+
 	uint64_t dtb_path_in_memory = 0x80000000 + memory_size - 0x20000;
 	// init all harts
 	for(int i = 0; i < harts_count; i++)
@@ -178,21 +190,43 @@ void Machine::run()
 	work_thread_w = true;
 }
 
-void Machine::stop()
-{
-	// stop work thread if it exists
-	if(work_thread_w)
-	{
-		state = MachineState::Off;
-		if(!work_thread_joined) work_thread.join();
-	}
-}
-
 void Machine::work()
 {
-	while(state != MachineState::Off)
+	while(state.load(std::memory_order_acquire) != MachineState::Off)
 	{
-		if(state == MachineState::Halted)
+		if(state.load(std::memory_order_acquire) == MachineState::Resetting)
+		{
+			// Total machine reset
+
+			destroy_harts();
+			reset_memory();
+
+			mmap->load_file(0x80000000, bios_path);
+			if(kernel_path != "") mmap->load_file(0x80200000, kernel_path);
+
+			write_fdt();
+
+			// Init harts
+			uint64_t dtb_path_in_memory = 0x80000000 + memory_size - 0x20000;
+			for(int i = 0; i < harts_count; i++)
+			{
+				Hart hart = Hart(i);
+				hart.mmap = mmap;
+				hart.mmio = mmio;
+				hart.idec = idec;
+				hart.init(dtb_path_in_memory);
+				harts.push_back(hart);
+			}
+
+// prepare
+#ifdef USE_GDBSTUB
+			state.store(gdb ? MachineState::Halted : MachineState::Running, std::memory_order_release);
+#else
+			state.store(MachineState::Running, std::memory_order_release);
+#endif
+			continue;
+		}
+		if(state.load(std::memory_order_acquire) == MachineState::Halted)
 		{
 #ifdef USE_GDBSTUB
 			if(gdb_single_step)
@@ -221,4 +255,49 @@ void Machine::work()
 		}
 #endif
 	}
+	destroy_harts();
+	destroy_devices();
+	destroy_mmap();
+}
+
+void Machine::stop()
+{
+	// stop work thread if it exists
+	if(work_thread_w)
+	{
+		state.store(MachineState::Off, std::memory_order_release);
+		if(!work_thread_joined) work_thread.join();
+	}
+}
+
+void Machine::reset()
+{
+	state.store(MachineState::Resetting, std::memory_order_release);
+}
+
+void Machine::reset_memory()
+{
+	for(auto* reg : mmap->regions)
+	{
+		memset(reg->data, 0, reg->size);
+	}
+}
+
+void Machine::destroy_harts()
+{
+	harts.clear();
+}
+void Machine::destroy_devices()
+{
+	// If you think this will not remove actual objects from heap - it will
+	mmio->devs.clear();
+}
+void Machine::destroy_mmap()
+{
+	for(auto* reg : mmap->regions)
+	{
+		delete reg;
+	}
+	mmap->regions.clear();
+	delete mmap;
 }
