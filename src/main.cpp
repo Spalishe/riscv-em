@@ -118,13 +118,6 @@ int main(int argc, char* argv[])
 
 	parser.parse();
 
-	std::string cmdline_append;
-	if(append_var->defined())
-	{
-		cmdline_append = append_var->val();
-		std::cout << "Custom cmdargs defined: " << cmdline_append << std::endl;
-	}
-
 	uint64_t memsize = 1024 * 1024 * 512; // 512 MB
 	if(mem_var->defined())
 	{
@@ -195,6 +188,7 @@ int main(int argc, char* argv[])
 	else
 	{
 		if(dumpdtb_var->defined()) machine.dtb_dump_path = dumpdtb_var->val();
+		if(append_var->defined()) machine.append = append_var->val();
 		machine.init_fdt();
 	}
 

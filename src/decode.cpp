@@ -166,4 +166,8 @@ void InstructionDecoder::init_all_instrs()
 	init_priv();
 	init_zicsr();
 	init_zifencei();
+	init_zba();
+	init_zbb();
+	init_zbc();
+	init_zbs();
 }

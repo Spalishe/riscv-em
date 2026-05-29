@@ -22,7 +22,7 @@ Copyright 2026 Spalishe
 
 ExecReturn exec_MRET(Hart& hart, InstructionData& inst)
 {
-	hart.pc = hart.csrs[CSR_MEPC] - 4;
+	hart.pc = hart.csrs[CSR_MEPC];
 	switch(hart.status.fields.MPP)
 	{
 		case 0b00:
@@ -42,7 +42,7 @@ ExecReturn exec_MRET(Hart& hart, InstructionData& inst)
 	hart.status.fields.MIE	= hart.status.fields.MPIE;
 	hart.status.fields.MPIE = 1;
 	hart.status.fields.MPP	= (char)PrivilegeMode::User;
-	return { true, true, 4, 0, 0 };
+	return { true, true, 0, 0, 0 };
 }
 ExecReturn exec_SRET(Hart& hart, InstructionData& inst)
 {
@@ -50,7 +50,7 @@ ExecReturn exec_SRET(Hart& hart, InstructionData& inst)
 	{
 		return { false, false, 0, EXC_ILLEGAL_INSTRUCTION, inst.inst };
 	}
-	hart.pc = hart.csrs[CSR_SEPC] - 4;
+	hart.pc = hart.csrs[CSR_SEPC];
 	switch(hart.status.fields.SPP)
 	{
 		case 0b0:
@@ -66,7 +66,7 @@ ExecReturn exec_SRET(Hart& hart, InstructionData& inst)
 	hart.status.fields.SIE	= hart.status.fields.SPIE;
 	hart.status.fields.SPIE = 1;
 	hart.status.fields.SPP	= (char)PrivilegeMode::User;
-	return { true, true, 4, 0, 0 };
+	return { true, true, 0, 0, 0 };
 }
 ExecReturn exec_SFENCE_VMA(Hart& hart, InstructionData& inst)
 {

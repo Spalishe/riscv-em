@@ -80,7 +80,6 @@ void Hart::tick()
 
 		return;
 	}
-	check_ints();
 
 	uint32_t inst = fetch();
 
@@ -101,6 +100,7 @@ void Hart::tick()
 		else
 		{
 			csrs[CSR_MINSTRET]++;
+			if(check_ints()) return;
 			pc += out.increase_pc;
 		}
 
@@ -135,6 +135,7 @@ void Hart::tick()
 			else
 			{
 				csrs[CSR_MINSTRET]++;
+				if(check_ints()) return;
 				pc += out.increase_pc;
 			}
 			if(out.can_change_pc) break;
@@ -153,6 +154,7 @@ void Hart::tick()
 		else
 		{
 			csrs[CSR_MINSTRET]++;
+			if(check_ints()) return;
 			pc += out.increase_pc;
 		}
 		// But we can create this block
@@ -189,7 +191,7 @@ bool Hart::int_local_pending()
 	return pending | pending_s;
 }
 
-void Hart::check_ints()
+bool Hart::check_ints()
 {
 	uint64_t sip	 = ip.raw & SE_MASK;
 	uint64_t sie	 = ie.raw & SE_MASK;
@@ -214,7 +216,7 @@ void Hart::check_ints()
 				if(pending & (1ULL << irq))
 				{
 					trap(irq, 0, true);
-					return;
+					return true;
 				}
 			}
 		}
@@ -229,13 +231,13 @@ void Hart::check_ints()
 				if(pending & (1ULL << irq))
 				{
 					trap(irq, 0, true);
-					return;
+					return true;
 				}
 			}
 		}
 	}
 
-	return;
+	return false;
 }
 
 void Hart::trap(uint64_t cause, uint64_t tval, bool interrupt)
@@ -258,10 +260,11 @@ void Hart::trap(uint64_t cause, uint64_t tval, bool interrupt)
 	if(delegate_to_s)
 	{
 		// Supervisor
-		mode			   = PrivilegeMode::Supervisor;
-		uint64_t vector	   = (((csrs[CSR_STVEC] & 1) == 1 && interrupt) ? 4 * cause : 0);
-		pc				   = (csrs[CSR_STVEC] & ~3) + vector;
-		csrs[CSR_SEPC]	   = trap_pc & ~3;
+		mode			= PrivilegeMode::Supervisor;
+		uint64_t vector = (((csrs[CSR_STVEC] & 1) == 1 && interrupt) ? 4 * cause : 0);
+		pc				= (csrs[CSR_STVEC] & ~3) + vector;
+		csrs[CSR_SEPC]	= (trap_pc & ~3) + (interrupt and 4 or 0);
+		;
 		csrs[CSR_SCAUSE]   = ((interrupt ? (1ULL << 63) : 0) | cause);
 		csrs[CSR_STVAL]	   = tval;
 		status.fields.SPIE = status.fields.SIE;
@@ -274,7 +277,7 @@ void Hart::trap(uint64_t cause, uint64_t tval, bool interrupt)
 		mode			   = PrivilegeMode::Machine;
 		uint64_t vector	   = (((csrs[CSR_MTVEC] & 1) == 1 && interrupt) ? 4 * cause : 0);
 		pc				   = (csrs[CSR_MTVEC] & ~3) + vector;
-		csrs[CSR_MEPC]	   = trap_pc & ~3;
+		csrs[CSR_MEPC]	   = (trap_pc & ~3) + (interrupt and 4 or 0);
 		csrs[CSR_MCAUSE]   = ((interrupt ? (1ULL << 63) : 0) | cause);
 		csrs[CSR_MTVAL]	   = tval;
 		status.fields.MPIE = status.fields.MIE;

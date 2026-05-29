@@ -97,5 +97,5 @@ struct Hart
 	ExecReturn single_inst(uint32_t inst);
 	uint32_t fetch();
 	bool int_local_pending();
-	void check_ints();
+	bool check_ints();
 };

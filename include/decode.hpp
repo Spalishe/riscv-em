@@ -78,4 +78,8 @@ struct InstructionDecoder
 	void init_priv();
 	void init_zicsr();
 	void init_zifencei();
+	void init_zba();
+	void init_zbb();
+	void init_zbc();
+	void init_zbs();
 };
