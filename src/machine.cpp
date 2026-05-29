@@ -164,8 +164,10 @@ void Machine::init_auto_devices()
 
 void Machine::run()
 {
-	mmap->load_file(0x80000000, bios_path);
-	if(kernel_path != "") mmap->load_file(0x80200000, kernel_path);
+	bool out = mmap->load_file(0x80000000, bios_path, &entry_pc);
+	if(!out) return;
+	if(kernel_path != "") out = mmap->load_file(0x80200000, kernel_path);
+	if(!out) return;
 
 	uint64_t dtb_path_in_memory = 0x80000000 + memory_size - 0x20000;
 	// init all harts
@@ -175,7 +177,7 @@ void Machine::run()
 		h.mmap	= mmap;
 		h.mmio	= mmio;
 		h.idec	= idec;
-		h.init(dtb_path_in_memory);
+		h.init(dtb_path_in_memory, entry_pc);
 	}
 
 // prepare
@@ -214,7 +216,7 @@ void Machine::work()
 				hart.mmap = mmap;
 				hart.mmio = mmio;
 				hart.idec = idec;
-				hart.init(dtb_path_in_memory);
+				hart.init(dtb_path_in_memory, entry_pc);
 				harts.push_back(hart);
 			}
 

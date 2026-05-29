@@ -48,11 +48,12 @@ struct Machine
 	MemoryMap* mmap;
 	MMIO* mmio;
 	InstructionDecoder* idec;
+	uint64_t entry_pc = 0x80000000;
 	uint64_t timebase = 3'500'000ULL;
 	uint8_t harts_count;
 	std::vector<Hart> harts;
 	std::thread work_thread;
-	bool work_thread_w;
+	bool work_thread_w = false;
 	bool work_thread_joined; // manual variable to indicate that thread was joined. You probably want to set it to true if you do work_thread.join();
 
 	std::atomic<MachineState> state = MachineState::Off;

@@ -16,6 +16,7 @@ Copyright 2026 Spalishe
 */
 
 #pragma once
+#include "elfparser.hpp"
 #include <cstdint>
 #include <cstring>
 #include <format>
@@ -59,6 +60,7 @@ struct MemoryRegion
 struct MemoryMap
 {
 	std::vector<MemoryRegion*> regions;
+	ELFParser elf = ELFParser(this);
 	// std::unordered_map<uint64_t,MemoryRegion*> cache;
 
 	~MemoryMap()
@@ -72,14 +74,14 @@ struct MemoryMap
 		regions.push_back(new MemoryRegion(base, size));
 	}
 
-	void load_file(uint64_t memory_path, std::string path = "")
+	bool load_file(uint64_t memory_path, std::string path = "", uint64_t* entry_pc = NULL)
 	{
 		std::ifstream file(path, std::ios::binary | std::ios::ate);
 		if(!file.is_open())
 		{
 			// error
-			std::cout << "[RISCV-EM] FDT file loading error! " << std::strerror(errno) << std::endl;
-			exit(1);
+			std::cout << "[RISCV-EM] File loading error! " << std::strerror(errno) << std::endl;
+			return false;
 		}
 
 		std::streamsize size = file.tellg();
@@ -87,9 +89,20 @@ struct MemoryMap
 		std::vector<char> buffer(size);
 		file.read(buffer.data(), size);
 
-		auto region	 = find_region(memory_path);
-		uint8_t* ptr = region->ptr(memory_path);
-		memcpy(ptr, buffer.data(), size);
+		bool isElf = *(uint32_t*)buffer.data() == ELF_MAGIC;
+
+		if(isElf)
+		{
+			return elf.parse(path, entry_pc);
+		}
+		else
+		{
+			// binary
+			auto region	 = find_region(memory_path);
+			uint8_t* ptr = region->ptr(memory_path);
+			memcpy(ptr, buffer.data(), size);
+			return true;
+		}
 	}
 
 	void load_buffer(uint64_t memory_path, char* buffer, uint64_t size)

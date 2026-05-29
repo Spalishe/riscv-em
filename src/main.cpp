@@ -210,8 +210,11 @@ int main(int argc, char* argv[])
 	uart = machine.mmio->get<UART>();
 	machine.write_fdt();
 	machine.run();
-	machine.work_thread_joined = true;
-	machine.work_thread.join(); // joining it so our program will not exit right after creating machine
+	if(machine.work_thread_w)
+	{
+		machine.work_thread_joined = true;
+		machine.work_thread.join(); // joining it so our program will not exit right after creating machine
+	}
 
 	termios_running.store(false, std::memory_order_seq_cst);
 	term.join();

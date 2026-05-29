@@ -89,7 +89,7 @@ struct Hart
 		}
 	}
 
-	void init(uint64_t dtb_pos_at_memory);
+	void init(uint64_t dtb_pos_at_memory, uint64_t entry_pc);
 	uint64_t csr_read(uint16_t csr);
 	void csr_write(uint16_t csr, uint64_t val);
 	void trap(uint64_t cause, uint64_t tval, bool interrupt);

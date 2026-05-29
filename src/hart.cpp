@@ -21,9 +21,9 @@ Copyright 2026 Spalishe
 #include "../include/defines/traps.hpp"
 #include <assert.h>
 
-void Hart::init(uint64_t dtb_pos_at_memory)
+void Hart::init(uint64_t dtb_pos_at_memory, uint64_t entry_pc)
 {
-	pc				  = 0x80000000;
+	pc				  = entry_pc;
 	mode			  = PrivilegeMode::Machine;
 	GPR[10]			  = id;
 	GPR[11]			  = dtb_pos_at_memory;
