@@ -100,7 +100,6 @@ void Hart::tick()
 		else
 		{
 			csrs[CSR_MINSTRET]++;
-			if(check_ints()) return;
 			pc += out.increase_pc;
 		}
 
@@ -135,7 +134,6 @@ void Hart::tick()
 			else
 			{
 				csrs[CSR_MINSTRET]++;
-				if(check_ints()) return;
 				pc += out.increase_pc;
 			}
 			if(out.can_change_pc) break;
@@ -154,7 +152,6 @@ void Hart::tick()
 		else
 		{
 			csrs[CSR_MINSTRET]++;
-			if(check_ints()) return;
 			pc += out.increase_pc;
 		}
 		// But we can create this block
@@ -175,6 +172,8 @@ void Hart::tick()
 			pc_hits[pc]++;
 		}
 	}
+
+	check_ints();
 }
 
 bool Hart::int_local_pending()
@@ -260,11 +259,10 @@ void Hart::trap(uint64_t cause, uint64_t tval, bool interrupt)
 	if(delegate_to_s)
 	{
 		// Supervisor
-		mode			= PrivilegeMode::Supervisor;
-		uint64_t vector = (((csrs[CSR_STVEC] & 1) == 1 && interrupt) ? 4 * cause : 0);
-		pc				= (csrs[CSR_STVEC] & ~3) + vector;
-		csrs[CSR_SEPC]	= (trap_pc & ~3) + (interrupt and 4 or 0);
-		;
+		mode			   = PrivilegeMode::Supervisor;
+		uint64_t vector	   = (((csrs[CSR_STVEC] & 1) == 1 && interrupt) ? 4 * cause : 0);
+		pc				   = (csrs[CSR_STVEC] & ~3) + vector;
+		csrs[CSR_SEPC]	   = trap_pc;
 		csrs[CSR_SCAUSE]   = ((interrupt ? (1ULL << 63) : 0) | cause);
 		csrs[CSR_STVAL]	   = tval;
 		status.fields.SPIE = status.fields.SIE;
@@ -277,7 +275,7 @@ void Hart::trap(uint64_t cause, uint64_t tval, bool interrupt)
 		mode			   = PrivilegeMode::Machine;
 		uint64_t vector	   = (((csrs[CSR_MTVEC] & 1) == 1 && interrupt) ? 4 * cause : 0);
 		pc				   = (csrs[CSR_MTVEC] & ~3) + vector;
-		csrs[CSR_MEPC]	   = (trap_pc & ~3) + (interrupt and 4 or 0);
+		csrs[CSR_MEPC]	   = trap_pc;
 		csrs[CSR_MCAUSE]   = ((interrupt ? (1ULL << 63) : 0) | cause);
 		csrs[CSR_MTVAL]	   = tval;
 		status.fields.MPIE = status.fields.MIE;
@@ -307,6 +305,9 @@ void Hart::csr_write(uint16_t csr, uint64_t val)
 			break;
 		case CSR_MIP:
 			ip.raw = val;
+			break;
+		case CSR_STIMECMP:
+			stimecmp = val;
 			break;
 
 		case CSR_MVENDORID:
@@ -342,6 +343,8 @@ uint64_t Hart::csr_read(uint16_t csr)
 			return csrs[CSR_MINSTRET];
 		case CSR_HPMCOUNTER3 ... CSR_HPMCOUNTER31:
 			return csrs[csr - 0x100]; // get M versions
+		case CSR_STIMECMP:
+			return stimecmp;
 		default:
 			return csrs[csr];
 	}

@@ -22,7 +22,8 @@ MMIO::MMIO(MemoryMap* mmap, uint64_t mem_size) : mmap(mmap), memsize(mem_size) {
 
 MemoryReturn MMIO::write(Hart& h, uint64_t vaddr, MemorySize size, uint64_t val)
 {
-	if(vaddr >= 0x80000000 && vaddr < (0x80000000 + memsize - (int)size)) // We subtracting by size to exclude chance of buffer overflow
+	uint64_t end = 0x80000000ULL + memsize;
+	if(vaddr >= 0x80000000ULL && (vaddr + (uint64_t)size) <= end) // We subtracting by size to exclude chance of buffer overflow
 	{
 		// DRAM
 		h.amo_check_reservation(vaddr);
@@ -49,7 +50,9 @@ MemoryReturn MMIO::write(Hart& h, uint64_t vaddr, MemorySize size, uint64_t val)
 MemoryReturn MMIO::read(Hart& h, uint64_t vaddr, MemorySize size, void* val)
 {
 	uint64_t out;
-	if(vaddr >= 0x80000000 && vaddr < (0x80000000 + memsize - (int)size + 1)) // We subtracting by size to exclude chance of buffer overflow
+
+	uint64_t end = 0x80000000ULL + memsize;
+	if(vaddr >= 0x80000000ULL && (vaddr + (uint64_t)size) <= end) // We subtracting by size to exclude chance of buffer overflow
 	{
 		// DRAM
 		out = mmap->load(vaddr, (int)size * 8);

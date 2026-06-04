@@ -19,6 +19,7 @@ Copyright 2026 Spalishe
 #include "../../include/machine.hpp"
 
 #include <cassert>
+#include <cstdio>
 #include <iostream>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -26,7 +27,7 @@ Copyright 2026 Spalishe
 VirtIO_BLK::VirtIO_BLK(uint64_t base, uint64_t size, Machine& cpu, fdt_node* fdt, std::string image_path)
 	: Device(base, size, fdt, cpu.mmap), plic(cpu.mmio->get<PLIC>().get()), irq_num(plic->acquire_irq()), image_path(image_path)
 {
-	cpu.mmap->add_region(start, size);
+	cpu.mmap->add_region(base, size);
 
 	fdt_node* virtio_blk_node = fdt_node_create_reg("virtio_mmio", base);
 	fdt_node_add_prop(virtio_blk_node, "compatible", "virtio,mmio\0", 12);
