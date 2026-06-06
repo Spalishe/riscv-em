@@ -126,10 +126,7 @@ ExecReturn exec_CSRRW(Hart& hart, InstructionData& inst)
 	}
 
 	uint64_t init_val = hart.csr_read(inst.imm);
-	if(inst.rs1 != 0)
-	{
-		hart.csr_write(inst.imm, hart.GPR[inst.rs1]);
-	}
+	hart.csr_write(inst.imm, hart.GPR[inst.rs1]);
 	if(inst.rd != 0)
 	{
 		hart.GPR[inst.rd] = init_val;
