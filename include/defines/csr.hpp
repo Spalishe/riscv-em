@@ -66,6 +66,13 @@ Copyright 2026 Spalishe
 #define CSR_SIE			 0x104 // SRW Supervisor interrupt-enable register.
 #define CSR_STVEC		 0x105 // SRW Supervisor trap handler base address.
 #define CSR_SCOUNTEREN	 0x106 // SRW Supervisor counter enable.
+#define CSR_SCOUNTOVF    0xDA0 // SRW Supervisor counter overflow register
+
+// Ssstateen
+#define CSR_SSTATEEN0	 0x10C // SRW Supervisor state enable register
+#define CSR_SSTATEEN1	 0x10D // SRW Supervisor state enable register
+#define CSR_SSTATEEN2	 0x10E // SRW Supervisor state enable register
+#define CSR_SSTATEEN3	 0x10F // SRW Supervisor state enable register
 
 // Supervisor Trap Handling
 #define CSR_SSCRATCH	 0x140 // SRW Scratch register for supervisor trap handlers.
@@ -95,6 +102,16 @@ Copyright 2026 Spalishe
 #define CSR_MIE			 0x304 // MRW Machine interrupt-enable register.
 #define CSR_MTVEC		 0x305 // MRW Machine trap-handler base address.
 #define CSR_MCOUNTEREN	 0x306 // MRW Machine counter enable.
+
+// Smstateen
+#define CSR_MSTATEEN0	 0x30C // MRW Machine state enable register
+#define CSR_MSTATEEN1	 0x30D // MRW Machine state enable register
+#define CSR_MSTATEEN2	 0x30E // MRW Machine state enable register
+#define CSR_MSTATEEN3	 0x30F // MRW Machine state enable register
+
+// Machine cycle and instret privilege mode filtering (Smcntrpmf)
+#define CSR_MCYCLECFG	 0x321 // MRW Machine privilege mode filtering for the cycle counter.
+#define CSR_MINSTRETCFG  0x322 // MRW Machine privilege mode filtering for the instret counter.
 
 // Machine Trap Handling
 #define CSR_MSCRATCH	 0x340 // MRW Scratch register for machine trap handlers.
@@ -299,6 +316,9 @@ Copyright 2026 Spalishe
 #define CSR_DPC			 0x7B1 // DRW Debug PC.
 #define CSR_DSCRATCH0	 0x7B2 // DRW Debug scratch register 0.
 #define CSR_DSCRATCH1	 0x7B3 // DRW Debug scratch register 1.
+
+// MMAIA
+#define CSR_MTOPI		 0xFB0 // MRW Top allowed and pending interrupt register
 
 // SSTATUS bits (these are aliases typically)
 #define SSTATUS_SIE_BIT	 1

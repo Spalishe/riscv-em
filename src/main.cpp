@@ -43,6 +43,12 @@ Copyright 2026 Spalishe
  *			  1. Framebuffer
  *            2. RTC GoldFish
  *            3. VirtIO-GPU
+ * 			-Smcntrpmf
+ * 			-Scountovf
+ * 			-Smstateen
+ * 			-Ssstateen
+ * 			-Mmaia
+ * 			-Smaia
  */
 
 termios oldt;
