@@ -49,7 +49,7 @@ struct Machine
 	MMIO* mmio;
 	InstructionDecoder* idec;
 	uint64_t entry_pc = 0x80000000;
-	uint64_t timebase = 3'500'000ULL;
+	uint64_t timebase = 5'000'000ULL;
 	uint8_t harts_count;
 	std::vector<Hart> harts;
 	std::thread work_thread;

@@ -25,7 +25,6 @@ ExecReturn exec_FENCE_I(Hart& hart, InstructionData& inst)
 		// if (hart->instr_cache[i] == NULL) continue;
 		hart.idec->cache[i].valid = false;
 	}
-	memset(hart.blocks, 0, sizeof(hart.blocks));
 	return { true, false, 4, 0, 0 };
 }
 

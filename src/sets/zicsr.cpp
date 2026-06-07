@@ -64,17 +64,18 @@ bool csr_accessible(uint16_t csr_addr, PrivilegeMode current_priv, bool write)
 		return false;
 	}
 
-	if(csr_addr == CSR_SCOUNTOVF 
+	if(csr_addr == CSR_SCOUNTOVF
 	   || (csr_addr >= CSR_SSTATEEN0 && csr_addr <= CSR_SSTATEEN3)
 	   || (csr_addr >= CSR_MSTATEEN0 && csr_addr <= CSR_MSTATEEN3)
 	   || csr_addr == CSR_MTOPI
 	   || csr_addr == CSR_TSELECT
 	   || (csr_addr >= CSR_TDATA1 && csr_addr <= CSR_TDATA3)
 	   || csr_addr == CSR_MCYCLECFG
-	   || csr_addr == CSR_MINSTRET) {
+	   || csr_addr == CSR_MINSTRET)
+	{
 		// Unimplemented
 		return false;
-	   }
+	}
 
 	if(csr_addr == 0xF11
 	   || csr_addr == 0xF12

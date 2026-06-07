@@ -22,49 +22,49 @@ Copyright 2026 Spalishe
 
 ExecReturn exec_ADDW(Hart& hart, InstructionData& inst)
 {
-	hart.GPR[inst.rd] = (int32_t)((uint32_t)hart.GPR[inst.rs1] + (uint32_t)hart.GPR[inst.rs2]);
+	hart.GPR[inst.rd] = (int64_t)(int32_t)((uint32_t)hart.GPR[inst.rs1] + (uint32_t)hart.GPR[inst.rs2]);
 	return { true, false, 4, 0, 0 };
 }
 ExecReturn exec_SUBW(Hart& hart, InstructionData& inst)
 {
-	hart.GPR[inst.rd] = (int32_t)((uint32_t)hart.GPR[inst.rs1] - (uint32_t)hart.GPR[inst.rs2]);
+	hart.GPR[inst.rd] = (int64_t)(int32_t)((uint32_t)hart.GPR[inst.rs1] - (uint32_t)hart.GPR[inst.rs2]);
 	return { true, false, 4, 0, 0 };
 }
 ExecReturn exec_SLLW(Hart& hart, InstructionData& inst)
 {
-	hart.GPR[inst.rd] = (int32_t)((uint32_t)hart.GPR[inst.rs1] << ((uint32_t)hart.GPR[inst.rs2] & 0x1F));
+	hart.GPR[inst.rd] = (int64_t)(int32_t)((uint32_t)hart.GPR[inst.rs1] << ((uint32_t)hart.GPR[inst.rs2] & 0x1F));
 	return { true, false, 4, 0, 0 };
 }
 ExecReturn exec_SRLW(Hart& hart, InstructionData& inst)
 {
-	hart.GPR[inst.rd] = (int32_t)((uint32_t)hart.GPR[inst.rs1] >> ((uint32_t)hart.GPR[inst.rs2] & 0x1F));
+	hart.GPR[inst.rd] = (int64_t)(int32_t)((uint32_t)hart.GPR[inst.rs1] >> ((uint32_t)hart.GPR[inst.rs2] & 0x1F));
 	return { true, false, 4, 0, 0 };
 }
 ExecReturn exec_SRAW(Hart& hart, InstructionData& inst)
 {
-	hart.GPR[inst.rd] = (int32_t)(((int32_t)hart.GPR[inst.rs1]) >> ((uint32_t)hart.GPR[inst.rs2] & 0x1F));
+	hart.GPR[inst.rd] = (int64_t)(int32_t)(((int32_t)hart.GPR[inst.rs1]) >> ((uint32_t)hart.GPR[inst.rs2] & 0x1F));
 	return { true, false, 4, 0, 0 };
 }
 
 // I-Type
 ExecReturn exec_ADDIW(Hart& hart, InstructionData& inst)
 {
-	hart.GPR[inst.rd] = (int32_t)((uint32_t)hart.GPR[inst.rs1] + inst.imm);
+	hart.GPR[inst.rd] = (int64_t)(int32_t)((uint32_t)hart.GPR[inst.rs1] + inst.imm);
 	return { true, false, 4, 0, 0 };
 }
 ExecReturn exec_SLLIW(Hart& hart, InstructionData& inst)
 {
-	hart.GPR[inst.rd] = (int32_t)((uint32_t)hart.GPR[inst.rs1] << inst.imm);
+	hart.GPR[inst.rd] = (int64_t)(int32_t)((uint32_t)hart.GPR[inst.rs1] << inst.imm);
 	return { true, false, 4, 0, 0 };
 }
 ExecReturn exec_SRLIW(Hart& hart, InstructionData& inst)
 {
-	hart.GPR[inst.rd] = (int32_t)((uint32_t)hart.GPR[inst.rs1] >> inst.imm);
+	hart.GPR[inst.rd] = (int64_t)(int32_t)((uint32_t)hart.GPR[inst.rs1] >> inst.imm);
 	return { true, false, 4, 0, 0 };
 }
 ExecReturn exec_SRAIW(Hart& hart, InstructionData& inst)
 {
-	hart.GPR[inst.rd] = ((int32_t)hart.GPR[inst.rs1]) >> inst.imm;
+	hart.GPR[inst.rd] = (int64_t)(((int32_t)hart.GPR[inst.rs1]) >> inst.imm);
 	return { true, false, 4, 0, 0 };
 }
 
@@ -471,12 +471,12 @@ ExecReturn exec_JALR(Hart& hart, InstructionData& inst)
 
 ExecReturn exec_LUI(Hart& hart, InstructionData& inst)
 {
-	hart.GPR[inst.rd] = (((int64_t)inst.imm) << 12);
+	hart.GPR[inst.rd] = (int64_t)((uint64_t)inst.imm << 12);
 	return { true, false, 4, 0, 0 };
 }
 ExecReturn exec_AUIPC(Hart& hart, InstructionData& inst)
 {
-	hart.GPR[inst.rd] = hart.pc + ((((int64_t)inst.imm) << 12));
+	hart.GPR[inst.rd] = hart.pc + (int64_t)((uint64_t)inst.imm << 12);
 	return { true, false, 4, 0, 0 };
 }
 

@@ -35,13 +35,6 @@ struct MMIO;
 
 struct InstructionCache;
 
-struct InstructionBlock
-{
-	uint64_t start_pc;
-	uint8_t count;
-	InstructionCache insts[128];
-};
-
 struct Reservation
 {
 	uint64_t vaddr;
@@ -69,12 +62,6 @@ struct Hart
 	ip_t ip;
 	uint64_t stimecmp = UINT64_MAX;
 	bool WFI		  = false;
-
-	// Block execution
-	InstructionBlock blocks[256]   = {};
-	InstructionBlock current_block = {};
-	std::unordered_map<uint64_t, uint64_t> pc_hits;
-	bool creating_block;
 
 	// Fetch buffer
 	uint32_t fetch_buffer[8];

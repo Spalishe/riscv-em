@@ -161,7 +161,7 @@ ExecReturn exec_LR_W(Hart& hart, InstructionData& inst)
 	uint32_t val;
 	MemoryReturn out = AMO_LR(hart, hart.GPR[inst.rs1], MemorySize::Int, &val);
 	if(!out.is_success) return { false, false, 0, out.exc_code, out.tval };
-	hart.GPR[inst.rd] = val;
+	hart.GPR[inst.rd] = (int64_t)(int32_t)val;
 	return { true, false, 4, 0, 0 };
 }
 ExecReturn exec_SC_W(Hart& hart, InstructionData& inst)

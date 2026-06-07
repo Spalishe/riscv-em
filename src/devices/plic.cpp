@@ -247,8 +247,8 @@ uint32_t PLIC::find_highest_pending_enabled(uint32_t ctx_idx)
 
 	for(uint32_t id = 1; id <= max_sources; ++id)
 	{
-		uint32_t word = (id - 1) / 32;
-		uint32_t bit  = (id - 1) % 32;
+		uint32_t word = id / 32;
+		uint32_t bit  = id % 32;
 
 		if(!(pending_words[word] & (1U << bit))) continue;
 		if(!(ctx.enables[word] & (1U << bit))) continue;
@@ -271,8 +271,8 @@ uint32_t PLIC::claim_interrupt(uint32_t ctx_idx)
 	uint32_t id = find_highest_pending_enabled(ctx_idx);
 	if(id != 0)
 	{
-		uint32_t word = (id - 1) / 32;
-		uint32_t bit  = (id - 1) % 32;
+		uint32_t word = id / 32;
+		uint32_t bit  = id % 32;
 		pending_words[word] &= ~(1U << bit);
 		update_context(ctx_idx);
 	}
@@ -282,8 +282,8 @@ uint32_t PLIC::claim_interrupt(uint32_t ctx_idx)
 void PLIC::complete_interrupt(uint32_t ctx_idx, uint32_t id)
 {
 	if(id == 0 || id > max_sources) return;
-	uint32_t word = (id - 1) / 32;
-	uint32_t bit  = (id - 1) % 32;
+	uint32_t word = id / 32;
+	uint32_t bit  = id % 32;
 	pending_words[word] &= ~(1U << bit);
 	update_context(ctx_idx);
 }

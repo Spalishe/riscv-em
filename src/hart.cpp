@@ -75,6 +75,7 @@ void Hart::tick()
 	csrs[CSR_MCYCLE]++;
 	if(WFI)
 	{
+		check_ints();
 		// We must continue execution even if we has locally pending interruptions
 		if(int_local_pending()) WFI = false;
 
@@ -83,94 +84,16 @@ void Hart::tick()
 
 	uint32_t inst = fetch();
 
-	if(creating_block)
+	// Run single instruction
+	auto out = single_inst(inst);
+	if(!out.is_success)
 	{
-		// We gonna run all instructions until we hit any branch/interrupt/exception
-		auto out = single_inst(inst);
-		if(!out.is_success)
-		{
-			// Exception
-			creating_block		   = false;
-			current_block.count	   = 0;
-			current_block.start_pc = 0;
-
-			trap(out.cause, out.tval, false);
-			return;
-		}
-		else
-		{
-			csrs[CSR_MINSTRET]++;
-			pc += out.increase_pc;
-		}
-
-		// Push instruction to stack
-
-		assert(current_block.count <= 128);
-		current_block.insts[current_block.count] = idec->decode_inst(inst);
-		current_block.count++;
-		if(current_block.count == 128 || out.can_change_pc)
-		{
-			// We reached instructions limit / Branch
-			blocks[current_block.start_pc & 0xFF] = current_block;
-			creating_block						  = false;
-			memset(&current_block, 0, sizeof(current_block));
-		}
-		return;
-	}
-	// Block execution
-	auto& blk = blocks[pc & 0xFF];
-	if(blk.start_pc == pc)
-	{
-		// We have block for this pc
-		for(int i = 0; i < blk.count; i++)
-		{
-			ExecReturn out = blk.insts[i].inst.func(*this, blk.insts[i].data);
-			if(!out.is_success)
-			{
-				// Exception
-				trap(out.cause, out.tval, false);
-				return;
-			}
-			else
-			{
-				csrs[CSR_MINSTRET]++;
-				pc += out.increase_pc;
-			}
-			if(out.can_change_pc) break;
-		}
+		trap(out.cause, out.tval, false);
 	}
 	else
 	{
-		// We dont have any block for this pc
-
-		// Run single instruction
-		auto out = single_inst(inst);
-		if(!out.is_success)
-		{
-			trap(out.cause, out.tval, false);
-		}
-		else
-		{
-			csrs[CSR_MINSTRET]++;
-			pc += out.increase_pc;
-		}
-		// But we can create this block
-		if(pc_hits[pc] >= 50 && !creating_block && !out.can_change_pc)
-		{
-			// If we hit same pc 50 times, then we will begin compiling block
-			pc_hits.erase(pc);
-			memset(&current_block, 0, sizeof(current_block));
-			creating_block		   = true;
-			current_block.start_pc = pc - out.increase_pc;
-			current_block.count	   = 0;
-
-			current_block.insts[current_block.count] = idec->decode_inst(inst);
-			current_block.count++;
-		}
-		else
-		{
-			pc_hits[pc]++;
-		}
+		csrs[CSR_MINSTRET]++;
+		pc += out.increase_pc;
 	}
 
 	check_ints();
