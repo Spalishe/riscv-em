@@ -58,6 +58,12 @@ git clone https://github.com/Spalishe/riscv-em
 cd riscv-em
 make lib
 ```
+And static lib as well:
+```bash
+git clone https://github.com/Spalishe/riscv-em
+cd riscv-em
+make slib
+```
 
 ## Dependencies
 You can install all required dependencies using:

@@ -37,6 +37,7 @@ define print_info
 	@echo -e "Target arch: $(ANSI_GREEN)$(TRIPLET_ARCH)$(ANSI_RESET)"
 	@echo -e "Detected OS: $(ANSI_GREEN)$(OS)$(ANSI_RESET)"
 	@echo -e "Detected CXX: $(ANSI_GREEN)$(CXX_VERSION)$(ANSI_RESET)"
+	@echo -e "Detected AR: $(ANSI_GREEN)$(AR_VERSION)$(ANSI_RESET)"
 	@echo
 endef
 
@@ -47,6 +48,8 @@ define print_help
 	@echo
 	@echo -e "[$(ANSI_BLUE)INFO$(ANSI_RESET)] Available commands:"
 	@echo -e "  $(ANSI_GREEN)all$(ANSI_RESET)			Build target"
+	@echo -e "  $(ANSI_GREEN)lib$(ANSI_RESET)           Build target to dynamic library"
+	@echo -e "  $(ANSI_GREEN)slib$(ANSI_RESET)           Build target to static library"
 	@echo -e "  $(ANSI_GREEN)help$(ANSI_RESET)			Shows this menu"
 	@echo -e "  $(ANSI_GREEN)clean$(ANSI_RESET)			Clean the build directory"
 endef
@@ -67,6 +70,7 @@ ifdef CROSS_COMPILE
 endif
 
 CXX ?= g++
+AR = $(patsubst %g++,%ar,$(CXX))
 
 TRIPLET := $(shell $(CXX) -dumpmachine)
 
@@ -84,9 +88,10 @@ ifeq ($(shell which $(CXX) 2>/dev/null),)
     $(error [FATAL] Compiler '$(CXX)' not found.)
 endif
 CXX_VERSION := $(shell $(CXX) --version | head -n 1)
+AR_VERSION := $(shell $(AR) --version | head -n 1)
 
-LIBS := -latomic -pthread
-CXXFLAGS := -std=c++20 -std=gnu++20 $(LIBS) -O3 -march=native -flto -MMD -MP -Iinclude
+LIBS := -latomic -pthread -static
+CXXFLAGS := -std=c++20 -std=gnu++20 $(LIBS) -O3 -march=native -flto -MMD -MP -Iinclude -static
 
 CXXFLAGS += $(foreach v,$(USE_VARS),$(if $(filter-out 0,$($(v))),-D$(v)=$($(v))))
 
@@ -95,23 +100,29 @@ CXXFLAGS += -DRVEM_VERSION='"riscv-em; git-$(GIT_HASH_SHORT)"'
 ifneq ($(findstring mingw,$(TRIPLET_WORDS)),)
     EXE_EXT := .exe
     LIB_EXT := .dll
+	STATIC_EXT := .lib
 else ifneq ($(findstring darwin,$(TRIPLET_WORDS)),)
     EXE_EXT :=
     LIB_EXT := .dylib
+	STATIC_EXT := .a
 else
     EXE_EXT :=
     LIB_EXT := .so
+	STATIC_EXT := .a
 endif
 
 BUILD_DIR := build.$(TRIPLET_3).$(TRIPLET_ARCH)
 OBJ_DIR_BIN := $(BUILD_DIR)/obj/bin/
 OBJ_DIR_SO := $(BUILD_DIR)/obj/so/
+OBJ_DIR_A := $(BUILD_DIR)/obj/a/
 SRCS := $(shell find src -name '*.cpp')
-SRCS_SO := $(filter-out src/main.cpp, $(SRCS))
+SRCS_LIB := $(filter-out src/main.cpp, $(SRCS))
 OBJS_BIN := $(patsubst src/%.cpp,$(OBJ_DIR_BIN)/%.o,$(SRCS))
-OBJS_SO := $(patsubst src/%.cpp,$(OBJ_DIR_SO)/%.o,$(SRCS_SO))
+OBJS_SO := $(patsubst src/%.cpp,$(OBJ_DIR_SO)/%.o,$(SRCS_LIB))
+OBJS_A := $(patsubst src/%.cpp,$(OBJ_DIR_A)/%.o,$(SRCS_LIB))
 TARGET_BIN := $(BUILD_DIR)/release_$(TRIPLET_ARCH)$(EXE_EXT)
 TARGET_SO := $(BUILD_DIR)/lib_$(TRIPLET_ARCH)$(LIB_EXT)
+TARGET_A := $(BUILD_DIR)/slib_$(TRIPLET_ARCH)$(STATIC_EXT)
 
 all:
 	$(call print_info)
@@ -127,6 +138,14 @@ lib:
 	@mkdir -p $(OBJ_DIR_SO) 
 
 	@$(MAKE) --no-print-directory $(TARGET_SO)
+
+slib:
+	@echo -e $(AR)
+	$(call print_info)
+	@mkdir -p $(BUILD_DIR) 
+	@mkdir -p $(OBJ_DIR_SO) 
+
+	@$(MAKE) --no-print-directory $(TARGET_A)
 
 help:
 	$(call print_info)
@@ -144,9 +163,15 @@ $(OBJ_DIR_SO)/%.o: src/%.cpp
 	@mkdir -p $(dir $@)
 	@echo -e "[$(ANSI_GREEN)CXX$(ANSI_RESET)] $<"
 	@$(CXX) $(CXXFLAGS) -fPIC -c $< -o $@
+	
+$(OBJ_DIR_A)/%.o: src/%.cpp
+	@mkdir -p $(dir $@)
+	@echo -e "[$(ANSI_GREEN)CXX$(ANSI_RESET)] $<"
+	@$(CXX) $(CXXFLAGS) -c $< -o $@
 
 -include $(OBJS_BIN:.o=.d)
 -include $(OBJS_SO:.o=.d)
+-include $(OBJS_A:.o=.d)
 
 $(TARGET_BIN): $(OBJS_BIN)
 	@echo -e "[$(ANSI_BLUE)LD$(ANSI_RESET)] $@"
@@ -155,3 +180,7 @@ $(TARGET_BIN): $(OBJS_BIN)
 $(TARGET_SO): $(OBJS_SO)
 	@echo -e "[$(ANSI_BLUE)LD$(ANSI_RESET)] $@"
 	@$(CXX) $(OBJS_SO) -o $@ $(LIBS) -shared
+	
+$(TARGET_A): $(OBJS_A)
+	@echo -e "[$(ANSI_BLUE)AR$(ANSI_RESET)] $@"
+	@$(AR) rcs  $@ $(OBJS_A) 
