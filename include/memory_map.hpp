@@ -105,11 +105,20 @@ struct MemoryMap
 		}
 	}
 
-	void load_buffer(uint64_t memory_path, char* buffer, uint64_t size)
+	bool load_buffer(uint64_t memory_path, char* buffer, uint64_t size, uint64_t* entry_pc = NULL)
 	{
-		auto region	 = find_region(memory_path);
-		uint8_t* ptr = region->ptr(memory_path);
-		memcpy(ptr, buffer, size);
+		bool isElf = *(uint32_t*)buffer == ELF_MAGIC;
+		if(isElf)
+		{
+			return elf.parse(buffer, size, entry_pc);
+		}
+		else
+		{
+			auto region	 = find_region(memory_path);
+			uint8_t* ptr = region->ptr(memory_path);
+			memcpy(ptr, buffer, size);
+			return true;
+		}
 	}
 
 	uint64_t load(uint64_t addr, uint64_t size)

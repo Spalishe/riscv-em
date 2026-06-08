@@ -171,21 +171,31 @@ int main(int argc, char* argv[])
 	machine.init_mmap();
 
 	// machine.mmap->load_file(0x80000000, bios_var->val());
-	machine.bios_path = bios_var->val();
+	machine.bios_file = fopen(bios_var->val().c_str(), "rb");
 
 	if(kernel_var->defined())
 	{
 		// machine.mmap->load_file(0x80200000, kernel_var->val());
-		machine.kernel_path = kernel_var->val();
+		machine.kernel_file = fopen(kernel_var->val().c_str(), "rb");
 	}
 	if(image_var->defined())
 	{
-		machine.image_path = image_var->val();
+		machine.image_file = fopen(image_var->val().c_str(), "r+b");
 	}
 
 	if(dtb_var->defined())
 	{
-		machine.load_fdt(dtb_var->val());
+		FILE* dtb_file = fopen(dtb_var->val().c_str(), "rb");
+		fseek(dtb_file, 0, SEEK_END);
+		long sz = ftell(dtb_file);
+		fseek(dtb_file, 0, SEEK_SET);
+
+		rewind(dtb_file);
+		char* buffer = new char[sz + 1];
+		fread(buffer, 1, sz, dtb_file);
+		buffer[sz] = '\0';
+
+		machine.load_fdt(buffer, sz);
 	}
 	else
 	{

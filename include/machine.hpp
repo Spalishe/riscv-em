@@ -38,12 +38,12 @@ struct Machine
 	uint64_t memory_size;
 	std::string append;
 	std::string dtb_dump_path;
-	// File, located on that path will be automatically loaded as Block device.
-	std::string image_path	= "";
-	// File, located on that path will be automatically loaded as Firmware on 0x80000000
-	std::string bios_path	= "";
-	// File, located on that path will be automatically loaded as Kernel on 0x80200000
-	std::string kernel_path = "";
+	// File, that will be used to automatically load as Block device.
+	FILE* image_file;
+	// File, that will be automatically loaded as Firmware on 0x80000000
+	FILE* bios_file;
+	// File, that will be automatically loaded as Kernel on 0x80200000
+	FILE* kernel_file;
 	fdt_node* fdt;
 	MemoryMap* mmap;
 	MMIO* mmio;
@@ -66,7 +66,7 @@ struct Machine
 	void init_mmap();
 	void init_fdt();
 	void write_fdt();
-	void load_fdt(const std::string&);
+	void load_fdt(char* buffer, size_t size);
 	void init_auto_devices();
 	void destroy_harts();
 	void destroy_devices();

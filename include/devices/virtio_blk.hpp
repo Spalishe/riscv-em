@@ -139,7 +139,7 @@ struct VirtQueueState
 
 struct VirtIO_BLK : public Device
 {
-	VirtIO_BLK(uint64_t base, uint64_t size, Machine& cpu, fdt_node* fdt, std::string image_path);
+	VirtIO_BLK(uint64_t base, uint64_t size, Machine& cpu, fdt_node* fdt, FILE* image);
 
 	uint64_t read(uint64_t addr, MemorySize size);
 	void write(uint64_t addr, MemorySize size, uint64_t val);
@@ -164,7 +164,7 @@ struct VirtIO_BLK : public Device
 	PLIC* plic;
 	uint8_t irq_num;
 	std::string image_path;
-	std::fstream disk; // image file
+	FILE* disk = nullptr; // image file
 
 	// device state
 	uint64_t device_features	 = 0;

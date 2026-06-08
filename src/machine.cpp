@@ -24,6 +24,7 @@ Copyright 2026 Spalishe
 #include "../include/devices/virtio_blk.hpp"
 
 #include <atomic>
+#include <cstddef>
 #include <cstdio>
 #include <cstring>
 #include <ctime>
@@ -135,10 +136,10 @@ void Machine::write_fdt()
 	free(buffer);
 }
 
-void Machine::load_fdt(const std::string& file_path)
+void Machine::load_fdt(char* buffer, size_t size)
 {
 	uint64_t dtb_path_in_memory = 0x80000000 + memory_size - 0x20000;
-	mmap->load_file(dtb_path_in_memory, file_path);
+	mmap->load_buffer(dtb_path_in_memory, buffer, size);
 }
 
 void Machine::init_mmap()
@@ -156,7 +157,7 @@ void Machine::init_auto_devices()
 	mmio->create_device_auto<UART>(*this);
 	mmio->create_device_auto<ACLINT>(*this);
 	mmio->create_device_auto<SYSCON>(*this);
-	if(image_path != "")
+	if(image_file != nullptr)
 	{
 		mmio->create_device_auto<VirtIO_BLK>(*this);
 	}
@@ -164,9 +165,24 @@ void Machine::init_auto_devices()
 
 void Machine::run()
 {
-	bool out = mmap->load_file(0x80000000, bios_path, &entry_pc);
+	fseek(bios_file, 0, SEEK_END);
+	long size = ftell(bios_file);
+	rewind(bios_file);
+	char* buffer = new char[size + 1];
+	fread(buffer, 1, size, bios_file);
+	buffer[size] = '\0';
+	bool out	 = mmap->load_buffer(0x80000000, buffer, size, &entry_pc);
 	if(!out) return;
-	if(kernel_path != "") out = mmap->load_file(0x80200000, kernel_path);
+	if(kernel_file != nullptr)
+	{
+		fseek(kernel_file, 0, SEEK_END);
+		long size = ftell(kernel_file);
+		rewind(kernel_file);
+		char* buffer = new char[size + 1];
+		fread(buffer, 1, size, kernel_file);
+		buffer[size] = '\0';
+		out			 = mmap->load_buffer(0x80200000, buffer, size);
+	}
 	if(!out) return;
 
 	uint64_t dtb_path_in_memory = 0x80000000 + memory_size - 0x20000;
@@ -203,8 +219,23 @@ void Machine::work()
 			destroy_harts();
 			reset_memory();
 
-			mmap->load_file(0x80000000, bios_path);
-			if(kernel_path != "") mmap->load_file(0x80200000, kernel_path);
+			fseek(bios_file, 0, SEEK_END);
+			long size = ftell(bios_file);
+			rewind(bios_file);
+			char* buffer = new char[size + 1];
+			fread(buffer, 1, size, bios_file);
+			buffer[size] = '\0';
+			mmap->load_buffer(0x80000000, buffer, size);
+			if(kernel_file != nullptr)
+			{
+				fseek(kernel_file, 0, SEEK_END);
+				long size = ftell(kernel_file);
+				rewind(kernel_file);
+				char* buffer = new char[size + 1];
+				fread(buffer, 1, size, kernel_file);
+				buffer[size] = '\0';
+				mmap->load_buffer(0x80200000, buffer, size);
+			}
 
 			write_fdt();
 

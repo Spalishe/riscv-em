@@ -76,6 +76,7 @@ struct ELFParser
 	MemoryMap* mmap;
 
 	bool parse(std::string file, uint64_t* entry_pc);
+	bool parse(char* buffer, size_t size, uint64_t* entry_pc);
 
 	template <typename T>
 	T read_from_buffer(const char* data, size_t* offset)

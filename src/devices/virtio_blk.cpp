@@ -20,12 +20,13 @@ Copyright 2026 Spalishe
 
 #include <cassert>
 #include <cstdio>
+#include <fcntl.h>
 #include <iostream>
 #include <sys/stat.h>
 #include <unistd.h>
 
-VirtIO_BLK::VirtIO_BLK(uint64_t base, uint64_t size, Machine& cpu, fdt_node* fdt, std::string image_path)
-	: Device(base, size, fdt, cpu.mmap), plic(cpu.mmio->get<PLIC>().get()), irq_num(plic->acquire_irq()), image_path(image_path)
+VirtIO_BLK::VirtIO_BLK(uint64_t base, uint64_t size, Machine& cpu, fdt_node* fdt, FILE* image)
+	: Device(base, size, fdt, cpu.mmap), plic(cpu.mmio->get<PLIC>().get()), irq_num(plic->acquire_irq()), disk(image)
 {
 	cpu.mmap->add_region(base, size);
 
@@ -39,25 +40,27 @@ VirtIO_BLK::VirtIO_BLK(uint64_t base, uint64_t size, Machine& cpu, fdt_node* fdt
 	// Device features
 	device_features = VIRTIO_F_VERSION_1;
 
-	// open disk image (create if missing) - use binary read/write
-	disk.open(image_path, std::ios::in | std::ios::out | std::ios::binary);
-	if(!disk.is_open())
+	int fd = fileno(disk);
+	if(fd == -1)
 	{
-		// try to create
-		disk.open(image_path, std::ios::out | std::ios::binary);
-		disk.close();
-		disk.open(image_path, std::ios::in | std::ios::out | std::ios::binary);
+		printf("virtio_blk: cant read fileno\n");
 	}
-	if(!disk.is_open())
+	int flags = fcntl(fd, F_GETFL);
+	if(flags == -1)
+	{
+		printf("virtio_blk: cant read flags\n");
+	}
+	int access_mode = flags & O_ACCMODE;
+	if((flags & O_ACCMODE) != O_RDWR)
 	{
 		// can't open image -> device will return IO errors on ops
-		printf("virtio_blk: failed to open image %s\n", image_path.c_str());
+		printf("virtio_blk: image is not RW\n");
 	}
 	else
 	{
 		// determine capacity
-		disk.seekg(0, std::ios::end);
-		std::streamoff sz = disk.tellg();
+		fseek(disk, 0, SEEK_END);
+		long sz = ftell(disk);
 		if(sz < 0) sz = 0;
 		capacity_sectors = static_cast<uint64_t>(sz / SECTOR_SIZE);
 		printf("virtio_blk: capacity_sectors: %ld; sz: %ld\n", capacity_sectors, sz);
@@ -83,7 +86,7 @@ VirtIO_BLK::VirtIO_BLK(uint64_t base, uint64_t size, Machine& cpu, fdt_node* fdt
 
 std::shared_ptr<VirtIO_BLK> VirtIO_BLK::init_auto(Machine& cpu)
 {
-	return std::make_shared<VirtIO_BLK>(0x10001000, 0x1000, cpu, cpu.fdt, cpu.image_path);
+	return std::make_shared<VirtIO_BLK>(0x10001000, 0x1000, cpu, cpu.fdt, cpu.image_file);
 }
 
 // DRAM memory helpers
@@ -108,29 +111,39 @@ void VirtIO_BLK::copy_to_dram(uint64_t gpa, const void* src, uint64_t len)
 // Disk I/O
 bool VirtIO_BLK::disk_read(uint64_t sector, void* buf, size_t bytes)
 {
-	if(!disk.is_open()) return false;
+	if(!disk) return false;
+
 	uint64_t offset = sector * SECTOR_SIZE;
-	disk.seekg(offset, std::ios::beg);
-	if(!disk.good()) return false;
-	disk.read(reinterpret_cast<char*>(buf), bytes);
-	if(!disk)
+
+	if(fseek(disk, offset, SEEK_SET) != 0)
+		return false;
+
+	size_t n = fread(buf, 1, bytes, disk);
+
+	if(n < bytes)
 	{
-		// if short read: zero remainder
-		std::streamsize got = disk.gcount();
-		if(got < 0) got = 0;
-		memset(reinterpret_cast<uint8_t*>(buf) + got, 0, bytes - got);
+		memset(reinterpret_cast<uint8_t*>(buf) + n, 0, bytes - n);
 	}
+
 	return true;
 }
 
 bool VirtIO_BLK::disk_write(uint64_t sector, const void* buf, size_t bytes)
 {
-	if(!disk.is_open()) return false;
+	if(!disk) return false;
+
 	uint64_t offset = sector * SECTOR_SIZE;
-	disk.seekp(offset, std::ios::beg);
-	if(!disk.good()) return false;
-	disk.write(reinterpret_cast<const char*>(buf), bytes);
-	disk.flush();
+
+	if(fseek(disk, offset, SEEK_SET) != 0)
+		return false;
+
+	size_t n = fwrite(buf, 1, bytes, disk);
+
+	if(n != bytes)
+		return false;
+
+	fflush(disk);
+
 	return true;
 }
 

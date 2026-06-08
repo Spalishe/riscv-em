@@ -17,28 +17,14 @@ Copyright 2026 Spalishe
 
 #include "../include/elfparser.hpp"
 #include "../include/memory_map.hpp"
-#include <type_traits>
 #include <vector>
 
 ELFParser::ELFParser(MemoryMap* mmap) : mmap(mmap) {
 
 										};
 
-bool ELFParser::parse(std::string file_path, uint64_t* entry_pc)
+bool ELFParser::parse(char* buffer, size_t size, uint64_t* entry_pc)
 {
-	std::ifstream file(file_path, std::ios::binary | std::ios::ate);
-	if(!file.is_open())
-	{
-		// error
-		printf("[RISCV-EM] File loading error! %s\n", std::strerror(errno));
-		return false;
-	}
-
-	std::streamsize size = file.tellg();
-	file.seekg(0, std::ios::beg);
-	char* buffer = (char*)malloc(size);
-	file.read(buffer, size);
-
 	uint64_t offset;
 
 	ELF_Header header = read_from_buffer<ELF_Header>(buffer, &offset);
@@ -99,4 +85,21 @@ bool ELFParser::parse(std::string file_path, uint64_t* entry_pc)
 	}
 
 	return true;
+}
+
+bool ELFParser::parse(std::string file_path, uint64_t* entry_pc)
+{
+	std::ifstream file(file_path, std::ios::binary | std::ios::ate);
+	if(!file.is_open())
+	{
+		// error
+		printf("[RISCV-EM] File loading error! %s\n", std::strerror(errno));
+		return false;
+	}
+
+	std::streamsize size = file.tellg();
+	file.seekg(0, std::ios::beg);
+	char* buffer = (char*)malloc(size);
+	file.read(buffer, size);
+	return parse(buffer, size, entry_pc);
 }
