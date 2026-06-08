@@ -28,6 +28,7 @@ Copyright 2026 Spalishe
 #define LSR_DATA_READY	 0x01
 #define LSR_THR_EMPTY	 0x20
 #define LSR_TEMT		 0x40
+#define LSR_OE			 0x02
 
 struct PLIC;
 
@@ -48,6 +49,10 @@ struct UART : public Device
 	// Divisor latch registers (when LCR[7] = 1)
 	uint8_t dll = 0; // Divisor Latch Low
 	uint8_t dlm = 0; // Divisor Latch High
+
+	uint8_t overrun_error = 0;
+	bool rx_irq_pending	  = false;
+	bool tx_irq_pending	  = false;
 
 	PLIC* plic;
 	int irq_num;

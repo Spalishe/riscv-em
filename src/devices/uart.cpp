@@ -18,9 +18,28 @@ Copyright 2026 Spalishe
 #include "../../include/devices/uart.hpp"
 #include "../../include/devices/plic.hpp"
 #include "../../include/machine.hpp"
+#include <cstdio>
+#include <queue>
 
 UART::UART(uint64_t start, uint64_t size, Machine& cpu, fdt_node* fdt)
-	: Device(start, size, fdt, cpu.mmap), plic(cpu.mmio->get<PLIC>().get()), irq_num(plic->acquire_irq())
+	: Device(start, size, fdt, cpu.mmap), plic(cpu.mmio->get<PLIC>().get()), irq_num(plic->acquire_irq()),
+	  dlab(false),
+	  dll(0),
+	  dlm(0),
+	  ier(0),
+	  iir(0x01), // IIR_NO_INT по спецификации
+	  fcr(0),
+	  fifo_enabled(false),
+	  lcr(0),
+	  mcr(0),
+	  lsr(LSR_THR_EMPTY | LSR_TEMT), // изначально буфер пуст
+	  msr(0),
+	  scr(0),
+	  thr(0),
+	  rhr(0),
+	  tx_irq_pending(false),
+	  rx_irq_pending(false),
+	  overrun_error(0)
 {
 	cpu.mmap->add_region(start, size);
 
@@ -55,30 +74,37 @@ void UART::clear_irq()
 
 uint8_t UART::calc_iir_locked()
 {
-	// choose RX priority over TX
+	// Приоритет: 1 = RX timeout (не эмулируем) -> 2 = RX data available -> 3 = TX empty
 	if((ier & 0x01) && (lsr & LSR_DATA_READY))
-	{
-		// received data available
 		return IIR_RX_AVAILABLE;
-	}
 	if((ier & 0x02) && (lsr & LSR_THR_EMPTY))
-	{
-		// THR empty
 		return IIR_THR_EMPTY;
-	}
 	return IIR_NO_INT;
 }
 
 void UART::update_iir()
 {
-	iir = calc_iir_locked();
-	if(iir != IIR_NO_INT)
-	{
+	uint8_t new_iir = calc_iir_locked();
+	iir				= new_iir;
+
+	bool irq_active = (new_iir != IIR_NO_INT);
+	if(irq_active)
 		trigger_irq();
+	else
+		clear_irq();
+
+	// Запоминаем тип активного прерывания для последующего сброса при чтении IIR
+	if(irq_active)
+	{
+		if(new_iir == IIR_RX_AVAILABLE)
+			rx_irq_pending = true;
+		else if(new_iir == IIR_THR_EMPTY)
+			tx_irq_pending = true;
 	}
 	else
 	{
-		clear_irq();
+		rx_irq_pending = false;
+		tx_irq_pending = false;
 	}
 }
 
@@ -87,79 +113,82 @@ uint64_t UART::read(uint64_t addr, MemorySize size)
 	uint64_t offset = addr - start;
 	uint8_t reg		= offset;
 	uint64_t value	= 0;
+
 	switch(reg)
 	{
 		case 0: // RHR (read) or DLL (if DLAB=1)
 			if(dlab)
-			{
 				value = dll;
-			}
 			else
 			{
 				if(fifo_enabled)
 				{
-					value = fifo_buffer.front();
-					fifo_buffer.pop();
-					if(fifo_buffer.size() == 0) lsr &= ~0x01;
+					if(!fifo_buffer.empty())
+					{
+						value = fifo_buffer.front();
+						fifo_buffer.pop();
+						if(fifo_buffer.empty())
+							lsr &= ~LSR_DATA_READY;
+					}
+					else
+						value = 0; // нет данных
 				}
 				else
 				{
 					value = rhr;
-					lsr &= ~0x01; // Clear data ready flag after read
+					lsr &= ~LSR_DATA_READY;
 				}
+				// Сброс overrun error после чтения (спецификация)
+				if(lsr & LSR_OE)
+					lsr &= ~LSR_OE;
+
 				update_iir();
 			}
 			break;
 
 		case 1: // IER (read) or DLM (if DLAB=1)
 			if(dlab)
-			{
 				value = dlm;
-			}
 			else
-			{
 				value = ier;
-			}
 			break;
 
-		case 2: // IIR (read)
+		case 2: // IIR (read) – чтение сбрасывает активное прерывание
 			value = iir;
-			// Reading IIR clears highest priority interrupt
-			if(iir == 0x02)
-			{				  // TX interrupt
-				lsr &= ~0x20; // Clear THR empty flag temporarily
+			// Сброс прерывания в соответствии с прочитанным кодом
+			if(value == IIR_RX_AVAILABLE && rx_irq_pending)
+			{
+				rx_irq_pending = false;
+				// Если больше нет причин для прерывания, обновляем IIR
+				if(calc_iir_locked() == IIR_NO_INT)
+					update_iir();
 			}
-			else if(iir == 0x04)
-			{				  // RX interrupt
-				lsr &= ~0x01; // Clear data ready flag
+			else if(value == IIR_THR_EMPTY && tx_irq_pending)
+			{
+				tx_irq_pending = false;
+				if(calc_iir_locked() == IIR_NO_INT)
+					update_iir();
 			}
-			update_iir();
 			break;
 
-		case 3: // LCR (read)
+		case 3: // LCR
 			value = lcr;
 			break;
-
-		case 4: // MCR (read)
+		case 4: // MCR
 			value = mcr;
 			break;
-
-		case 5: // LSR (read)
+		case 5: // LSR
 			value = lsr;
 			break;
-
-		case 6: // MSR (read)
+		case 6: // MSR
 			value = msr;
 			break;
-
-		case 7: // SCR (read)
+		case 7: // SCR
 			value = scr;
 			break;
-
 		default:
 			break;
 	}
-
 	return value;
 }
 
@@ -171,122 +200,125 @@ void UART::write(uint64_t addr, MemorySize size, uint64_t value)
 
 	switch(reg)
 	{
-		case 0: // THR write
+		case 0: // THR (write) or DLL (if DLAB=1)
 			if(dlab)
-			{
 				dll = byte_value;
-			}
 			else
 			{
 				thr = byte_value;
-
 				std::putchar(thr);
 				std::fflush(stdout);
 
-				lsr |= LSR_THR_EMPTY; // THR empty
-				lsr |= LSR_TEMT;	  // Transmitter empty
-
-				if(ier & 0x02)
+				if((ier & 0x02) && !tx_irq_pending)
 				{
-					trigger_irq();
+					update_iir();
 				}
-
-				update_iir();
+				else
+				{
+					update_iir();
+				}
 			}
 			break;
 
 		case 1: // IER (write) or DLM (if DLAB=1)
 			if(dlab)
-			{
 				dlm = byte_value;
-			}
 			else
 			{
-				ier = byte_value & 0x0F; // Only lower 4 bits are valid
+				ier = byte_value & 0x0F;
 				update_iir();
 			}
 			break;
 
-		case 2: // FCR (write) - FIFO Control Register
-			fcr			 = byte_value;
-			fifo_enabled = (fcr & 0x01);
-			if(fcr & 0x02)
-			{ // clear RX FIFO
+		case 2: // FCR (FIFO Control)
+		{
+			fcr			  = byte_value;
+			bool old_fifo = fifo_enabled;
+			fifo_enabled  = (fcr & 0x01);
+
+			if(fifo_enabled && !old_fifo && (lsr & LSR_DATA_READY))
+			{
+				fifo_buffer.push(rhr);
+
+				if(fifo_buffer.empty())
+					lsr &= ~LSR_DATA_READY;
+				else
+					lsr |= LSR_DATA_READY;
+			}
+
+			else if(!fifo_enabled && old_fifo && !fifo_buffer.empty())
+			{
+				rhr = fifo_buffer.front();
+
 				std::queue<uint8_t> empty;
 				fifo_buffer.swap(empty);
+				lsr |= LSR_DATA_READY;
+			}
+
+			// Clear fifo
+			if(fcr & 0x02)
+			{
+				std::queue<uint8_t> empty;
+				fifo_buffer.swap(empty);
+				lsr &= ~LSR_DATA_READY;
+				rx_irq_pending = false;
+				update_iir();
 			}
 			if(fcr & 0x04)
-			{ // clear TX FIFO
-			  // TX Buffer Clear
-			  // Empty rn cuz i have no buffer
+			{
+				// TX FIFO not emulating
 			}
-
 			break;
-
-		case 3: // LCR (write)
+		}
+		case 3: // LCR
 			lcr	 = byte_value;
-			dlab = (lcr & 0x80) != 0; // Update DLAB from bit 7
+			dlab = (lcr & 0x80) != 0;
 			break;
 
-		case 4: // MCR (write)
+		case 4: // MCR
 			mcr = byte_value;
 			break;
 
-		case 5: // LSR (read-only)
-			// Ignore writes to read-only register
-			break;
-
+		case 5: // LSR (read-only) – игнорируем запись
 		case 6: // MSR (read-only)
-			// Ignore writes to read-only register
 			break;
 
-		case 7: // SCR (write)
+		case 7: // SCR
 			scr = byte_value;
 			break;
 
 		default:
-			// Ignore writes to unknown registers
 			break;
 	}
 }
 
 void UART::receive_byte(uint8_t byte)
 {
+	// Переполнение FIFO
+	if(fifo_enabled && fifo_buffer.size() >= 16)
+	{
+		lsr |= LSR_OE; // Overrun Error
+		// потеря байта
+		return;
+	}
+
 	if(fifo_enabled)
 	{
-		if(fifo_buffer.size() < 16)
-		{
-			fifo_buffer.push(byte);
-		}
+		fifo_buffer.push(byte);
+		lsr |= LSR_DATA_READY;
 	}
 	else
 	{
-		rhr = byte;
+		if(lsr & LSR_DATA_READY) // в режиме без FIFO это переполнение
+			lsr |= LSR_OE;
+		else
+			rhr = byte;
+		lsr |= LSR_DATA_READY;
 	}
-	lsr |= LSR_DATA_READY; // Data Ready
 
+	// Если разрешено прерывание по приёму
 	if(ier & 0x01)
-	{
-		trigger_irq();
-	}
-
-	update_iir();
-}
-
-// idk why but why not
-void UART::reset()
-{
-	rhr	 = 0;
-	thr	 = 0;
-	ier	 = 0;
-	iir	 = 0x01;
-	fcr	 = 0;
-	lcr	 = 0;
-	mcr	 = 0;
-	lsr	 = 0x60 | 0x40; // THR empty (0x20) + TEMT (0x40) + line idle
-	msr	 = 0;
-	scr	 = 0;
-	dll	 = 0;
-	dlm	 = 0;
-	dlab = false;
+		update_iir(); // вызовет trigger_irq если нужно
+	else
+		update_iir(); // всё равно пересчитаем статус
 }
