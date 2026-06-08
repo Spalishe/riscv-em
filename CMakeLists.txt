@@ -10,6 +10,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Load the gmod-module-base project that sets up headers and settings.
 add_subdirectory(./include)
+include_directories(./src/include)
 
 file(GLOB SOURCES "src/*.cpp")
 
@@ -21,5 +22,12 @@ add_library(riscv-em SHARED)
 target_sources(riscv-em PRIVATE ${SOURCES})
 
 target_link_libraries(riscv-em gmod-module-base)
+target_link_libraries(riscv-em /home/michen/dev/riscv-em-gmod/slib_x86_64.lib)
+
+target_link_options(riscv-em PRIVATE
+    -static-libstdc++
+    -static-libgcc
+	-static
+)
 
 set_gmod_suffix_prefix(riscv-em)

@@ -1,4 +1,5 @@
 #include "../include/GarrysMod/Lua/Interface.h"
+#include "rvmachine.hpp"
 
 /*
 		require "HelloWorld"
@@ -7,21 +8,30 @@
 
 using namespace GarrysMod::Lua;
 
-LUA_FUNCTION(MyExampleFunction)
-{
-	double first_number	 = LUA->CheckNumber(1);
-	double second_number = LUA->CheckNumber(2);
-
-	LUA->PushNumber(first_number + second_number);
-	return 1;
-}
-
 GMOD_MODULE_OPEN()
 {
-	LUA->PushSpecial(GarrysMod::Lua::SPECIAL_GLOB);
-	LUA->PushString("TestFunction");
-	LUA->PushCFunction(MyExampleFunction);
-	LUA->SetTable(-3); // `_G.TestFunction = MyExampleFunction`
+	s_RVMachine_TypeId = LUA->CreateMetaTable("RVMachine");
+	LUA->PushCFunction(Destroy_RVMachine);
+	LUA->SetField(-2, "__gc");
+	LUA->PushCFunction(RVMachine_GetState);
+	LUA->SetField(-2, "GetState");
+	LUA->PushCFunction(RVMachine_InitMmap);
+	LUA->SetField(-2, "InitMmap");
+
+	LUA->Pop();
+
+	LUA->PushSpecial(SPECIAL_GLOB);
+	LUA->GetField(-1, "rvmachine");
+	if(!LUA->IsType(-1, Type::Table))
+	{
+		LUA->Pop(1);
+		LUA->CreateTable();
+	}
+
+	LUA->PushCFunction(Create_RVMachine);
+	LUA->SetField(-2, "Create");
+
+	LUA->SetField(-2, "rvmachine");
 
 	return 0;
 }
