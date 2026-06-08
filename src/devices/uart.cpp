@@ -21,7 +21,7 @@ Copyright 2026 Spalishe
 #include <cstdio>
 #include <queue>
 
-UART::UART(uint64_t start, uint64_t size, Machine& cpu, fdt_node* fdt)
+UART::UART(uint64_t start, uint64_t size, Machine& cpu, fdt_node* fdt, FILE* out)
 	: Device(start, size, fdt, cpu.mmap), plic(cpu.mmio->get<PLIC>().get()), irq_num(plic->acquire_irq()),
 	  dlab(false),
 	  dll(0),
@@ -39,7 +39,8 @@ UART::UART(uint64_t start, uint64_t size, Machine& cpu, fdt_node* fdt)
 	  rhr(0),
 	  tx_irq_pending(false),
 	  rx_irq_pending(false),
-	  overrun_error(0)
+	  overrun_error(0),
+	  out_stream(out)
 {
 	cpu.mmap->add_region(start, size);
 
@@ -57,9 +58,9 @@ UART::UART(uint64_t start, uint64_t size, Machine& cpu, fdt_node* fdt)
 	fdt_node_add_prop_str(chosen, "stdout-path", "/soc/serial@10000000");
 }
 
-std::shared_ptr<UART> UART::init_auto(Machine& cpu)
+std::shared_ptr<UART> UART::init_auto(Machine& cpu, FILE* out)
 {
-	return std::make_shared<UART>(0x10000000, 0x100, cpu, cpu.fdt);
+	return std::make_shared<UART>(0x10000000, 0x100, cpu, cpu.fdt, out);
 }
 
 void UART::trigger_irq()
@@ -74,7 +75,7 @@ void UART::clear_irq()
 
 uint8_t UART::calc_iir_locked()
 {
-	// Приоритет: 1 = RX timeout (не эмулируем) -> 2 = RX data available -> 3 = TX empty
+	// Priority: 1 = RX timeout (не эмулируем) -> 2 = RX data available -> 3 = TX empty
 	if((ier & 0x01) && (lsr & LSR_DATA_READY))
 		return IIR_RX_AVAILABLE;
 	if((ier & 0x02) && (lsr & LSR_THR_EMPTY))
@@ -93,7 +94,6 @@ void UART::update_iir()
 	else
 		clear_irq();
 
-	// Запоминаем тип активного прерывания для последующего сброса при чтении IIR
 	if(irq_active)
 	{
 		if(new_iir == IIR_RX_AVAILABLE)
@@ -138,7 +138,7 @@ uint64_t UART::read(uint64_t addr, MemorySize size)
 					value = rhr;
 					lsr &= ~LSR_DATA_READY;
 				}
-				// Сброс overrun error после чтения (спецификация)
+				// overrun reset after read
 				if(lsr & LSR_OE)
 					lsr &= ~LSR_OE;
 
@@ -153,13 +153,11 @@ uint64_t UART::read(uint64_t addr, MemorySize size)
 				value = ier;
 			break;
 
-		case 2: // IIR (read) – чтение сбрасывает активное прерывание
+		case 2: // IIR (read)
 			value = iir;
-			// Сброс прерывания в соответствии с прочитанным кодом
 			if(value == IIR_RX_AVAILABLE && rx_irq_pending)
 			{
 				rx_irq_pending = false;
-				// Если больше нет причин для прерывания, обновляем IIR
 				if(calc_iir_locked() == IIR_NO_INT)
 					update_iir();
 			}
@@ -207,7 +205,7 @@ void UART::write(uint64_t addr, MemorySize size, uint64_t value)
 			{
 				thr = byte_value;
 				std::putchar(thr);
-				std::fflush(stdout);
+				std::fflush(out_stream);
 
 				if((ier & 0x02) && !tx_irq_pending)
 				{
@@ -279,7 +277,7 @@ void UART::write(uint64_t addr, MemorySize size, uint64_t value)
 			mcr = byte_value;
 			break;
 
-		case 5: // LSR (read-only) – игнорируем запись
+		case 5: // LSR (read-only)
 		case 6: // MSR (read-only)
 			break;
 
@@ -294,11 +292,10 @@ void UART::write(uint64_t addr, MemorySize size, uint64_t value)
 
 void UART::receive_byte(uint8_t byte)
 {
-	// Переполнение FIFO
+	// FIFO overflow
 	if(fifo_enabled && fifo_buffer.size() >= 16)
 	{
 		lsr |= LSR_OE; // Overrun Error
-		// потеря байта
 		return;
 	}
 
@@ -309,16 +306,12 @@ void UART::receive_byte(uint8_t byte)
 	}
 	else
 	{
-		if(lsr & LSR_DATA_READY) // в режиме без FIFO это переполнение
+		if(lsr & LSR_DATA_READY)
 			lsr |= LSR_OE;
 		else
 			rhr = byte;
 		lsr |= LSR_DATA_READY;
 	}
 
-	// Если разрешено прерывание по приёму
-	if(ier & 0x01)
-		update_iir(); // вызовет trigger_irq если нужно
-	else
-		update_iir(); // всё равно пересчитаем статус
+	update_iir();
 }

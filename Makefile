@@ -92,15 +92,26 @@ CXXFLAGS += $(foreach v,$(USE_VARS),$(if $(filter-out 0,$($(v))),-D$(v)=$($(v)))
 
 CXXFLAGS += -DRVEM_VERSION='"riscv-em; git-$(GIT_HASH_SHORT)"'
 
-BUILD_DIR := build.$(OS_lower).$(TRIPLET_ARCH)
+ifneq ($(findstring mingw,$(TRIPLET_WORDS)),)
+    EXE_EXT := .exe
+    LIB_EXT := .dll
+else ifneq ($(findstring darwin,$(TRIPLET_WORDS)),)
+    EXE_EXT :=
+    LIB_EXT := .dylib
+else
+    EXE_EXT :=
+    LIB_EXT := .so
+endif
+
+BUILD_DIR := build.$(TRIPLET_3).$(TRIPLET_ARCH)
 OBJ_DIR_BIN := $(BUILD_DIR)/obj/bin/
 OBJ_DIR_SO := $(BUILD_DIR)/obj/so/
 SRCS := $(shell find src -name '*.cpp')
 SRCS_SO := $(filter-out src/main.cpp, $(SRCS))
 OBJS_BIN := $(patsubst src/%.cpp,$(OBJ_DIR_BIN)/%.o,$(SRCS))
 OBJS_SO := $(patsubst src/%.cpp,$(OBJ_DIR_SO)/%.o,$(SRCS_SO))
-TARGET_BIN := $(BUILD_DIR)/release_$(TRIPLET_ARCH)
-TARGET_SO := $(BUILD_DIR)/lib_$(TRIPLET_ARCH).so
+TARGET_BIN := $(BUILD_DIR)/release_$(TRIPLET_ARCH)$(EXE_EXT)
+TARGET_SO := $(BUILD_DIR)/lib_$(TRIPLET_ARCH)$(LIB_EXT)
 
 all:
 	$(call print_info)

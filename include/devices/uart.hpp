@@ -55,13 +55,14 @@ struct UART : public Device
 	bool tx_irq_pending	  = false;
 
 	PLIC* plic;
+	FILE* out_stream;
 	int irq_num;
 	bool dlab = false; // Divisor Latch Access Bit (from LCR[7])
 
 	bool fifo_enabled;
 	std::queue<uint8_t> fifo_buffer;
 
-	UART(uint64_t start, uint64_t size, Machine& cpu, fdt_node* fdt);
+	UART(uint64_t start, uint64_t size, Machine& cpu, fdt_node* fdt, FILE* out);
 
 	void trigger_irq();
 	void clear_irq();
@@ -69,7 +70,7 @@ struct UART : public Device
 	uint8_t calc_iir_locked();
 	uint64_t read(uint64_t addr, MemorySize size);
 	void write(uint64_t addr, MemorySize size, uint64_t value);
-	static std::shared_ptr<UART> init_auto(Machine& cpu);
+	static std::shared_ptr<UART> init_auto(Machine& cpu, FILE* out = stdout);
 	void receive_byte(uint8_t byte);
 	void reset();
 };

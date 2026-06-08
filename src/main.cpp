@@ -33,10 +33,6 @@ Copyright 2026 Spalishe
 
 /*
  *		   TODO:
- *		    -ZBA
- *		    -ZBB
- *		    -ZBC
- *		    -ZBS
  *		    -RV64F
  *		    -RV64D
  *          -Device:

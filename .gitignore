@@ -4,6 +4,8 @@
 /build
 /build.linux.x86_64
 /build.linux.x86_64/
+/build.*
+/build.*/
 /tests/*
 ./programs/rootfs.ext2
 ./programs/rootfs.cpio
