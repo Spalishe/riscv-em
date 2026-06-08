@@ -1,8 +1,8 @@
-#include "GarrysMod/Lua/Interface.h"
+#include "../include/GarrysMod/Lua/Interface.h"
 
 /*
-	require "HelloWorld"
-	print( TestFunction( 5, 17 ) )
+		require "HelloWorld"
+		print( TestFunction( 5, 17 ) )
 */
 
 using namespace GarrysMod::Lua;
