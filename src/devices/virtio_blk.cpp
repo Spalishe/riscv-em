@@ -20,10 +20,7 @@ Copyright 2026 Spalishe
 
 #include <cassert>
 #include <cstdio>
-#include <fcntl.h>
-#include <iostream>
 #include <sys/stat.h>
-#include <unistd.h>
 
 VirtIO_BLK::VirtIO_BLK(uint64_t base, uint64_t size, Machine& cpu, fdt_node* fdt, FILE* image)
 	: Device(base, size, fdt, cpu.mmap), plic(cpu.mmio->get<PLIC>().get()), irq_num(plic->acquire_irq()), disk(image)
@@ -40,21 +37,10 @@ VirtIO_BLK::VirtIO_BLK(uint64_t base, uint64_t size, Machine& cpu, fdt_node* fdt
 	// Device features
 	device_features = VIRTIO_F_VERSION_1;
 
-	int fd = fileno(disk);
-	if(fd == -1)
-	{
-		printf("virtio_blk: cant read fileno\n");
-	}
-	int flags = fcntl(fd, F_GETFL);
-	if(flags == -1)
-	{
-		printf("virtio_blk: cant read flags\n");
-	}
-	int access_mode = flags & O_ACCMODE;
-	if((flags & O_ACCMODE) != O_RDWR)
+	if(!disk)
 	{
 		// can't open image -> device will return IO errors on ops
-		printf("virtio_blk: image is not RW\n");
+		printf("virtio_blk: image is invalid\n");
 	}
 	else
 	{
