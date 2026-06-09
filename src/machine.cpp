@@ -117,6 +117,11 @@ void Machine::init_fdt()
 
 void Machine::write_fdt()
 {
+	if(dtb_file != nullptr)
+	{
+		load_fdt();
+		return;
+	}
 	uint64_t dtb_path_in_memory = 0x80000000 + memory_size - 0x20000;
 	size_t dtb_size				= fdt_size(fdt);
 	void* buffer				= malloc(dtb_size);
@@ -136,9 +141,17 @@ void Machine::write_fdt()
 	free(buffer);
 }
 
-void Machine::load_fdt(char* buffer, size_t size)
+void Machine::load_fdt()
 {
 	uint64_t dtb_path_in_memory = 0x80000000 + memory_size - 0x20000;
+
+	fseek(dtb_file, 0, SEEK_END);
+	long size = ftell(dtb_file);
+	rewind(dtb_file);
+	char* buffer = new char[size + 1];
+	fread(buffer, 1, size, dtb_file);
+	buffer[size] = '\0';
+
 	mmap->load_buffer(dtb_path_in_memory, buffer, size);
 }
 

@@ -185,17 +185,8 @@ int main(int argc, char* argv[])
 
 	if(dtb_var->defined())
 	{
-		FILE* dtb_file = fopen(dtb_var->val().c_str(), "rb");
-		fseek(dtb_file, 0, SEEK_END);
-		long sz = ftell(dtb_file);
-		fseek(dtb_file, 0, SEEK_SET);
-
-		rewind(dtb_file);
-		char* buffer = new char[sz + 1];
-		fread(buffer, 1, sz, dtb_file);
-		buffer[sz] = '\0';
-
-		machine.load_fdt(buffer, sz);
+		machine.dtb_file = fopen(dtb_var->val().c_str(), "rb");
+		machine.write_fdt();
 	}
 	else
 	{
