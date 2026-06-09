@@ -19,9 +19,15 @@ struct RVMachine
 	uint8_t hart_count;
 	Machine machine;
 };
-static int s_RVMachine_TypeId;
+extern int s_RVMachine_TypeId;
 
 LUA_FUNCTION_DECLARE(Create_RVMachine);
 LUA_FUNCTION_DECLARE(Destroy_RVMachine);
+LUA_FUNCTION_DECLARE(RVMachine_ToString);
+LUA_FUNCTION_DECLARE(RVMachine_Index);
 LUA_FUNCTION_DECLARE(RVMachine_GetState);
 LUA_FUNCTION_DECLARE(RVMachine_InitMmap);
+LUA_FUNCTION_DECLARE(RVMachine_PutFirmware);
+LUA_FUNCTION_DECLARE(RVMachine_PutKernel);
+LUA_FUNCTION_DECLARE(RVMachine_PutImage);
+LUA_FUNCTION_DECLARE(RVMachine_PutCustomDTB);

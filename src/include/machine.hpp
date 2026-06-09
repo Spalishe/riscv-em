@@ -21,6 +21,7 @@ Copyright 2026 Spalishe
 #include "libfdt.hpp"
 #include "memory_map.hpp"
 #include "mmio.hpp"
+#include <atomic>
 #include <thread>
 #include <vector>
 
@@ -44,6 +45,8 @@ struct Machine
 	FILE* bios_file;
 	// File, that will be automatically loaded as Kernel on 0x80200000
 	FILE* kernel_file;
+	// File, that will be automatically loaded as FDT
+	FILE* dtb_file;
 	fdt_node* fdt;
 	MemoryMap* mmap;
 	MMIO* mmio;
@@ -66,7 +69,7 @@ struct Machine
 	void init_mmap();
 	void init_fdt();
 	void write_fdt();
-	void load_fdt(char* buffer, size_t size);
+	void load_fdt();
 	void init_auto_devices();
 	void destroy_harts();
 	void destroy_devices();

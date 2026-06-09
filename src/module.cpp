@@ -11,12 +11,24 @@ using namespace GarrysMod::Lua;
 GMOD_MODULE_OPEN()
 {
 	s_RVMachine_TypeId = LUA->CreateMetaTable("RVMachine");
+	LUA->PushCFunction(RVMachine_Index);
+	LUA->SetField(-2, "__index");
 	LUA->PushCFunction(Destroy_RVMachine);
 	LUA->SetField(-2, "__gc");
+	LUA->PushCFunction(RVMachine_ToString);
+	LUA->SetField(-2, "__tostring");
 	LUA->PushCFunction(RVMachine_GetState);
 	LUA->SetField(-2, "GetState");
 	LUA->PushCFunction(RVMachine_InitMmap);
 	LUA->SetField(-2, "InitMmap");
+	LUA->PushCFunction(RVMachine_PutFirmware);
+	LUA->SetField(-2, "PutFirmware");
+	LUA->PushCFunction(RVMachine_PutFirmware);
+	LUA->SetField(-2, "PutKernel");
+	LUA->PushCFunction(RVMachine_PutFirmware);
+	LUA->SetField(-2, "PutImage");
+	LUA->PushCFunction(RVMachine_PutCustomDTB);
+	LUA->SetField(-2, "PutCustomDTB");
 
 	LUA->Pop();
 
