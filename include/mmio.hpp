@@ -48,10 +48,10 @@ struct MMIO
 		return new_device;
 	}
 	// Creates new device calling it auto function
-	template <typename T>
-	std::shared_ptr<T> create_device_auto(Machine& cpu)
+	template <typename T, typename... Args>
+	std::shared_ptr<T> create_device_auto(Machine& cpu, Args&&... args)
 	{
-		auto new_device = T::init_auto(cpu);
+		auto new_device = T::init_auto(cpu, std::forward<Args>(args)...);
 		devs.push_back(new_device);
 		return new_device;
 	}
