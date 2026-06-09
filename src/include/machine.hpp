@@ -47,6 +47,8 @@ struct Machine
 	FILE* kernel_file;
 	// File, that will be automatically loaded as FDT
 	FILE* dtb_file;
+	// Stream, where all output data from UART will come
+	FILE* uart_out;
 	fdt_node* fdt;
 	MemoryMap* mmap;
 	MMIO* mmio;
@@ -60,11 +62,6 @@ struct Machine
 	bool work_thread_joined; // manual variable to indicate that thread was joined. You probably want to set it to true if you do work_thread.join();
 
 	std::atomic<MachineState> state;
-
-#ifdef USE_GDBSTUB
-	bool gdb;
-	bool gdb_single_step;
-#endif
 
 	void init_mmap();
 	void init_fdt();

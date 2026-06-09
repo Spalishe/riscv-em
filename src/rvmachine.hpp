@@ -1,6 +1,7 @@
 
 #pragma once
 #include "../include/GarrysMod/Lua/Interface.h"
+#include "./include/devices/uart.hpp"
 #include "./include/machine.hpp"
 #include <cstdint>
 
@@ -18,8 +19,10 @@ struct RVMachine
 	uint64_t mem_size;
 	uint8_t hart_count;
 	Machine machine;
+	std::shared_ptr<UART> uart;
 };
 extern int s_RVMachine_TypeId;
+extern std::vector<RVMachine*> s_RVMachine_Instance;
 
 LUA_FUNCTION_DECLARE(Create_RVMachine);
 LUA_FUNCTION_DECLARE(Destroy_RVMachine);
@@ -33,6 +36,9 @@ LUA_FUNCTION_DECLARE(RVMachine_PutImage);
 LUA_FUNCTION_DECLARE(RVMachine_PutCustomDTB);
 LUA_FUNCTION_DECLARE(RVMachine_SetBootArgs);
 LUA_FUNCTION_DECLARE(RVMachine_InitAutoDevices);
+LUA_FUNCTION_DECLARE(RVMachine_InitFDT);
+LUA_FUNCTION_DECLARE(RVMachine_WriteFDT);
 LUA_FUNCTION_DECLARE(RVMachine_Run);
 LUA_FUNCTION_DECLARE(RVMachine_Stop);
 LUA_FUNCTION_DECLARE(RVMachine_Reboot);
+LUA_FUNCTION_DECLARE(RVMachine_PutChar);

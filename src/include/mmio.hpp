@@ -14,7 +14,6 @@ Copyright 2026 Spalishe
    limitations under the License.
 
 */
-
 #pragma once
 
 #include "defines/traps.hpp"
@@ -41,17 +40,46 @@ struct MMIO
 
 	// Creates new device
 	template <typename T, typename... Args>
-	std::shared_ptr<T> create_device(Args&&... args);
+	std::shared_ptr<T> create_device(Args&&... args)
+	{
+		auto new_device = std::make_shared<T>(std::forward<Args>(args)...);
+		devs.push_back(new_device);
+		return new_device;
+	}
 	// Creates new device calling it auto function
 	template <typename T>
-	std::shared_ptr<T> create_device_auto(Machine& cpu);
+	std::shared_ptr<T> create_device_auto(Machine& cpu)
+	{
+		auto new_device = T::init_auto(cpu);
+		devs.push_back(new_device);
+		return new_device;
+	}
 
 	// Runs tick() on every created device
-	void tick_all();
+	void tick_all()
+	{
+		for(const auto& dev : devs)
+		{
+			if(dev)
+			{
+				dev->tick();
+			}
+		}
+	}
 
 	// Returns device
 	template <typename T>
-	std::shared_ptr<T> get();
+	std::shared_ptr<T> get()
+	{
+		for(const auto& dev : devs)
+		{
+			if(auto sel = std::dynamic_pointer_cast<T>(dev))
+			{
+				return sel;
+			}
+		}
+		return NULL;
+	}
 
   private:
 	MemoryMap* mmap;
