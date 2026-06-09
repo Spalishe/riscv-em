@@ -164,10 +164,11 @@ void Machine::init_mmap()
 	idec->init_all_instrs();
 }
 
-void Machine::init_auto_devices()
+void Machine::init_auto_devices(FILE* uart_out)
 {
 	mmio->create_device_auto<PLIC>(*this);
-	mmio->create_device_auto<UART>(*this);
+	auto ptr		= mmio->create_device_auto<UART>(*this);
+	ptr->out_stream = uart_out;
 	mmio->create_device_auto<ACLINT>(*this);
 	mmio->create_device_auto<SYSCON>(*this);
 	if(image_file != nullptr)

@@ -69,7 +69,7 @@ struct Machine
 	void init_fdt();
 	void write_fdt();
 	void load_fdt();
-	void init_auto_devices();
+	void init_auto_devices(FILE* uart_out = stdout);
 	void destroy_harts();
 	void destroy_devices();
 	void destroy_mmap();
