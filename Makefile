@@ -140,7 +140,6 @@ lib:
 	@$(MAKE) --no-print-directory $(TARGET_SO)
 
 slib:
-	@echo -e $(AR)
 	$(call print_info)
 	@mkdir -p $(BUILD_DIR) 
 	@mkdir -p $(OBJ_DIR_SO) 

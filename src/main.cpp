@@ -186,7 +186,6 @@ int main(int argc, char* argv[])
 	if(dtb_var->defined())
 	{
 		machine.dtb_file = fopen(dtb_var->val().c_str(), "rb");
-		machine.write_fdt();
 	}
 	else
 	{
