@@ -39,13 +39,13 @@ struct Machine
 	std::string append;
 	std::string dtb_dump_path;
 	// File, that will be used to automatically load as Block device.
-	FILE* image_file;
+	FILE* image_file  = nullptr;
 	// File, that will be automatically loaded as Firmware on 0x80000000
-	FILE* bios_file;
+	FILE* bios_file	  = nullptr;
 	// File, that will be automatically loaded as Kernel on 0x80200000
-	FILE* kernel_file;
+	FILE* kernel_file = nullptr;
 	// File, that will be automatically loaded as FDT
-	FILE* dtb_file;
+	FILE* dtb_file	  = nullptr;
 	fdt_node* fdt;
 	MemoryMap* mmap;
 	MMIO* mmio;
