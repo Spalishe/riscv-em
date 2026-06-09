@@ -229,3 +229,69 @@ LUA_FUNCTION(RVMachine_PutCustomDTB)
 
 	return 0;
 }
+LUA_FUNCTION(RVMachine_SetBootArgs)
+{
+	RVMachine** pp = LUA->GetUserType<RVMachine*>(1, s_RVMachine_TypeId);
+	if(!pp || !*pp)
+	{
+		LUA->ThrowError("Invalid RVMachine userdata");
+		return 0;
+	}
+	RVMachine* machine = *pp;
+
+	std::string str			= LUA->CheckString(2);
+	machine->machine.append = str;
+	return 0;
+}
+LUA_FUNCTION(RVMachine_InitAutoDevices)
+{
+	RVMachine** pp = LUA->GetUserType<RVMachine*>(1, s_RVMachine_TypeId);
+	if(!pp || !*pp)
+	{
+		LUA->ThrowError("Invalid RVMachine userdata");
+		return 0;
+	}
+	RVMachine* machine = *pp;
+
+	machine->machine.init_auto_devices();
+	return 0;
+}
+LUA_FUNCTION(RVMachine_Run)
+{
+	RVMachine** pp = LUA->GetUserType<RVMachine*>(1, s_RVMachine_TypeId);
+	if(!pp || !*pp)
+	{
+		LUA->ThrowError("Invalid RVMachine userdata");
+		return 0;
+	}
+	RVMachine* machine = *pp;
+
+	machine->machine.run();
+	return 0;
+}
+LUA_FUNCTION(RVMachine_Stop)
+{
+	RVMachine** pp = LUA->GetUserType<RVMachine*>(1, s_RVMachine_TypeId);
+	if(!pp || !*pp)
+	{
+		LUA->ThrowError("Invalid RVMachine userdata");
+		return 0;
+	}
+	RVMachine* machine = *pp;
+
+	machine->machine.stop();
+	return 0;
+}
+LUA_FUNCTION(RVMachine_Reboot)
+{
+	RVMachine** pp = LUA->GetUserType<RVMachine*>(1, s_RVMachine_TypeId);
+	if(!pp || !*pp)
+	{
+		LUA->ThrowError("Invalid RVMachine userdata");
+		return 0;
+	}
+	RVMachine* machine = *pp;
+
+	machine->machine.reset();
+	return 0;
+}

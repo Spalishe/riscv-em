@@ -29,6 +29,16 @@ GMOD_MODULE_OPEN()
 	LUA->SetField(-2, "PutImage");
 	LUA->PushCFunction(RVMachine_PutCustomDTB);
 	LUA->SetField(-2, "PutCustomDTB");
+	LUA->PushCFunction(RVMachine_SetBootArgs);
+	LUA->SetField(-2, "SetBootArgs");
+	LUA->PushCFunction(RVMachine_InitAutoDevices);
+	LUA->SetField(-2, "InitAutoDevices");
+	LUA->PushCFunction(RVMachine_Run);
+	LUA->SetField(-2, "Run");
+	LUA->PushCFunction(RVMachine_Stop);
+	LUA->SetField(-2, "Stop");
+	LUA->PushCFunction(RVMachine_Reboot);
+	LUA->SetField(-2, "Reboot");
 
 	LUA->Pop();
 
