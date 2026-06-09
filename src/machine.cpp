@@ -164,7 +164,7 @@ void Machine::init_mmap()
 	idec->init_all_instrs();
 }
 
-void Machine::init_auto_devices(FILE* uart_out)
+void Machine::init_auto_devices()
 {
 	mmio->create_device_auto<PLIC>(*this);
 	auto ptr		= mmio->create_device_auto<UART>(*this);
