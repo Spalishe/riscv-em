@@ -60,7 +60,7 @@ struct InstructionCache
 	uint32_t inst_raw = 0;
 	Instruction inst;
 	InstructionData data;
-	bool valid = true;
+	bool valid = false;
 };
 
 struct InstructionDecoder

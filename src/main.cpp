@@ -35,6 +35,7 @@ Copyright 2026 Spalishe
  *		   TODO:
  *		    -RV64F
  *		    -RV64D
+ *		    -Machine suspend
  *          -Device:
  *			  1. Framebuffer
  *            2. RTC GoldFish

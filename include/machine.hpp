@@ -35,6 +35,14 @@ enum class MachineState
 struct Machine
 {
 	Machine(uint64_t mem_size, uint8_t hart_count);
+	~Machine()
+	{
+		state = MachineState::Off;
+		void destroy_harts();
+		void destroy_devices();
+		void destroy_mmap();
+		if(work_thread_w && !work_thread_joined) work_thread.join();
+	}
 	uint64_t memory_size;
 	std::string append;
 	std::string dtb_dump_path;

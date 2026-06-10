@@ -112,7 +112,7 @@ InstructionCache InstructionDecoder::decode_inst(uint32_t inst)
 		data.rd	  = d_rd(inst);
 		data.rs1  = d_rs1(inst);
 		data.rs2  = d_rs2(inst);
-		data.imm  = dinst->imm_decode_func(inst);
+		data.imm  = f ? dinst->imm_decode_func(inst) : 0;
 
 		InstructionCache inst_cache;
 		inst_cache.inst_raw	 = inst;

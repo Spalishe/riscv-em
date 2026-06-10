@@ -73,9 +73,9 @@ void Hart::tick()
 {
 	GPR[0] = 0;
 	csrs[CSR_MCYCLE]++;
+	check_ints();
 	if(WFI)
 	{
-		check_ints();
 		// We must continue execution even if we has locally pending interruptions
 		if(int_local_pending()) WFI = false;
 
@@ -95,8 +95,6 @@ void Hart::tick()
 		csrs[CSR_MINSTRET]++;
 		pc += out.increase_pc;
 	}
-
-	check_ints();
 }
 
 bool Hart::int_local_pending()

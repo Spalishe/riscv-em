@@ -204,8 +204,8 @@ void UART::write(uint64_t addr, MemorySize size, uint64_t value)
 			else
 			{
 				thr = byte_value;
-				std::putchar(thr);
-				std::fflush(out_stream);
+				fputc(thr, out_stream);
+				fflush(out_stream);
 
 				if((ier & 0x02) && !tx_irq_pending)
 				{

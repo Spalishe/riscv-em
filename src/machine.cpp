@@ -55,9 +55,11 @@ void Machine::init_fdt()
 	std::stringstream rng_seed;
 	for(int i = 0; i < 16; i++)
 	{
+		char buf[12];
 		std::srand(std::time({}));
 		uint32_t rand = std::rand();
-		rng_seed << std::format("0x{:08x} ", rand);
+		snprintf(buf, sizeof(buf), "0x%08x ", rand);
+		rng_seed << buf;
 	}
 	rng_seed << std::endl;
 	fdt_node_add_prop_str(chosen, "rng-seed", rng_seed.str().c_str()); // why there is no direct conversion from stringstream to c string?
@@ -147,7 +149,7 @@ void Machine::load_fdt()
 
 	fseek(dtb_file, 0, SEEK_END);
 	long size = ftell(dtb_file);
-	rewind(dtb_file);
+	fseek(dtb_file, 0, SEEK_SET);
 	char* buffer = new char[size + 1];
 	fread(buffer, 1, size, dtb_file);
 	buffer[size] = '\0';
@@ -181,7 +183,7 @@ void Machine::run()
 {
 	fseek(bios_file, 0, SEEK_END);
 	long size = ftell(bios_file);
-	rewind(bios_file);
+	fseek(bios_file, 0, SEEK_SET);
 	char* buffer = new char[size + 1];
 	fread(buffer, 1, size, bios_file);
 	buffer[size] = '\0';
@@ -191,7 +193,7 @@ void Machine::run()
 	{
 		fseek(kernel_file, 0, SEEK_END);
 		long size = ftell(kernel_file);
-		rewind(kernel_file);
+		fseek(kernel_file, 0, SEEK_SET);
 		char* buffer = new char[size + 1];
 		fread(buffer, 1, size, kernel_file);
 		buffer[size] = '\0';
@@ -235,7 +237,7 @@ void Machine::work()
 
 			fseek(bios_file, 0, SEEK_END);
 			long size = ftell(bios_file);
-			rewind(bios_file);
+			fseek(bios_file, 0, SEEK_SET);
 			char* buffer = new char[size + 1];
 			fread(buffer, 1, size, bios_file);
 			buffer[size] = '\0';
@@ -244,7 +246,7 @@ void Machine::work()
 			{
 				fseek(kernel_file, 0, SEEK_END);
 				long size = ftell(kernel_file);
-				rewind(kernel_file);
+				fseek(kernel_file, 0, SEEK_SET);
 				char* buffer = new char[size + 1];
 				fread(buffer, 1, size, kernel_file);
 				buffer[size] = '\0';
@@ -264,7 +266,6 @@ void Machine::work()
 				hart.init(dtb_path_in_memory, entry_pc);
 				harts.push_back(hart);
 			}
-
 // prepare
 #ifdef USE_GDBSTUB
 			state.store(gdb ? MachineState::Halted : MachineState::Running, std::memory_order_release);
@@ -273,6 +274,7 @@ void Machine::work()
 #endif
 			continue;
 		}
+
 		if(state.load(std::memory_order_acquire) == MachineState::Halted)
 		{
 #ifdef USE_GDBSTUB
@@ -302,9 +304,7 @@ void Machine::work()
 		}
 #endif
 	}
-	destroy_harts();
-	destroy_devices();
-	destroy_mmap();
+	work_thread_w = false;
 }
 
 void Machine::stop()
@@ -319,7 +319,51 @@ void Machine::stop()
 
 void Machine::reset()
 {
-	state.store(MachineState::Resetting, std::memory_order_release);
+	if(state.load() == MachineState::Off)
+	{
+		destroy_harts();
+		reset_memory();
+
+		fseek(bios_file, 0, SEEK_END);
+		long size = ftell(bios_file);
+		fseek(bios_file, 0, SEEK_SET);
+		char* buffer = new char[size + 1];
+		fread(buffer, 1, size, bios_file);
+		buffer[size] = '\0';
+		mmap->load_buffer(0x80000000, buffer, size);
+		if(kernel_file != nullptr)
+		{
+			fseek(kernel_file, 0, SEEK_END);
+			long size = ftell(kernel_file);
+			fseek(kernel_file, 0, SEEK_SET);
+			char* buffer = new char[size + 1];
+			fread(buffer, 1, size, kernel_file);
+			buffer[size] = '\0';
+			mmap->load_buffer(0x80200000, buffer, size);
+		}
+
+		write_fdt();
+
+		// Init harts
+		uint64_t dtb_path_in_memory = 0x80000000 + memory_size - 0x20000;
+		for(int i = 0; i < harts_count; i++)
+		{
+			Hart hart = Hart(i);
+			hart.mmap = mmap;
+			hart.mmio = mmio;
+			hart.idec = idec;
+			hart.init(dtb_path_in_memory, entry_pc);
+			harts.push_back(hart);
+		}
+// prepare
+#ifdef USE_GDBSTUB
+		state.store(gdb ? MachineState::Halted : MachineState::Running, std::memory_order_release);
+#else
+		state.store(MachineState::Running, std::memory_order_release);
+#endif
+	}
+	else
+		state.store(MachineState::Resetting, std::memory_order_release);
 }
 
 void Machine::reset_memory()

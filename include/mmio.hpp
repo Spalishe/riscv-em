@@ -61,7 +61,10 @@ struct MMIO
 	{
 		for(const auto& dev : devs)
 		{
-			dev->tick();
+			if(dev)
+			{
+				dev->tick();
+			}
 		}
 	}
 
