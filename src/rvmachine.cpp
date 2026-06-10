@@ -150,6 +150,17 @@ FILE* openFileInDataForWrite(std::string path)
 	FILE* file = fopen(fpath, "wb+");
 	return file;
 }
+FILE* openFileInDataForAppend(std::string path)
+{
+	char currentDir[PATH_MAX];
+	getcwd(currentDir, PATH_MAX);
+
+	char fpath[PATH_MAX];
+	snprintf(fpath, sizeof(fpath), "%s\\garrysmod\\data\\%s", currentDir, path.c_str());
+
+	FILE* file = fopen(fpath, "r+b");
+	return file;
+}
 
 LUA_FUNCTION(RVMachine_PutFirmware)
 {
@@ -213,7 +224,7 @@ LUA_FUNCTION(RVMachine_PutImage)
 
 	std::string path = LUA->CheckString(2);
 
-	FILE* image = openFileInDataForWrite(path);
+	FILE* image = openFileInDataForAppend(path);
 	if(!image)
 	{
 		LUA->ThrowError("Invalid file!");
