@@ -6,11 +6,11 @@ require("riscv-em")
 -- @class library
 -- @libtbl rvmachine_library
 SF.RegisterLibrary("rvmachine")
-SF.RegisterType("RVMachine", true, false, FindMetaTable("RVMachine"))
+SF.RegisterType("RVMachine", false, false, FindMetaTable("RVMachine"))
 return function(instance)
 	local checkluatype = SF.CheckLuaType
 	local library = instance.Libraries.rvmachine
-	local rv_methods = instance.Types.RVMachine
+	local rv_methods = instance.Types.RVMachine.Methods
 	local rvwrap = instance.Types.RVMachine.Wrap
 	local rvunwrap = instance.Types.RVMachine.Unwrap
 
@@ -61,12 +61,15 @@ return function(instance)
 		this:InitMmap()
 		this:PutFirmware(fw_path)
 		if kernel_path ~= nil then
+			checkluatype(kernel_path, TYPE_STRING)
 			this:PutKernel(kernel_path)
 		end
 		if image_path ~= nil then
+			checkluatype(image_path, TYPE_STRING)
 			this:PutImage(image_path)
 		end
 		if append ~= nil then
+			checkluatype(append, TYPE_STRING)
 			this:SetBootArgs(append)
 		end
 		this:InitFDT()
