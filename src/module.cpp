@@ -92,7 +92,7 @@ GMOD_MODULE_CLOSE()
 			{
 				fclose(machine->machine.dtb_file);
 			}
-			machine->machine.stop();
+			if(machine->machine.work_thread_w) machine->machine.stop();
 		idle:
 			if(machine->machine.work_thread_w) goto idle;
 			delete machine;

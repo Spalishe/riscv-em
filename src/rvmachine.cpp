@@ -62,7 +62,7 @@ LUA_FUNCTION(Destroy_RVMachine)
 	{
 		fclose(machine->machine.dtb_file);
 	}
-	machine->machine.stop();
+	if(machine->machine.work_thread_w) machine->machine.stop();
 idle:
 	if(machine->machine.work_thread_w) goto idle;
 	s_RVMachine_Instance.erase(std::remove(s_RVMachine_Instance.begin(), s_RVMachine_Instance.end(), machine), s_RVMachine_Instance.end());
