@@ -313,7 +313,8 @@ void Machine::stop()
 	if(work_thread_w)
 	{
 		state.store(MachineState::Off, std::memory_order_release);
-		if(!work_thread_joined) work_thread.join();
+		if(!work_thread_joined && std::this_thread::get_id() != work_thread.get_id())
+			work_thread.join();
 	}
 }
 

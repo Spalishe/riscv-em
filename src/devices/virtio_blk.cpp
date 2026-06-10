@@ -40,7 +40,8 @@ VirtIO_BLK::VirtIO_BLK(uint64_t base, uint64_t size, Machine& cpu, fdt_node* fdt
 	if(!disk)
 	{
 		// can't open image -> device will return IO errors on ops
-		printf("virtio_blk: image is invalid\n");
+		fprintf(cpu.uart_out, "virtio_blk: image is invalid\n");
+		fflush(cpu.uart_out);
 	}
 	else
 	{
@@ -49,7 +50,8 @@ VirtIO_BLK::VirtIO_BLK(uint64_t base, uint64_t size, Machine& cpu, fdt_node* fdt
 		long sz = ftell(disk);
 		if(sz < 0) sz = 0;
 		capacity_sectors = static_cast<uint64_t>(sz / SECTOR_SIZE);
-		printf("virtio_blk: capacity_sectors: %ld; sz: %ld\n", capacity_sectors, sz);
+		fprintf(cpu.uart_out, "virtio_blk: capacity_sectors: %ld; sz: %ld\n", capacity_sectors, sz);
+		fflush(cpu.uart_out);
 	}
 
 	// init queue defaults
