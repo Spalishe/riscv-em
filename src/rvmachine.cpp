@@ -213,7 +213,7 @@ LUA_FUNCTION(RVMachine_PutImage)
 
 	std::string path = LUA->CheckString(2);
 
-	FILE* image = openFileInData(path);
+	FILE* image = openFileInDataForWrite(path);
 	if(!image)
 	{
 		LUA->ThrowError("Invalid file!");
