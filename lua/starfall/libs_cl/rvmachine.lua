@@ -13,6 +13,7 @@ return function(instance)
 	local rv_methods = instance.Types.RVMachine.Methods
 	local rvwrap = instance.Types.RVMachine.Wrap
 	local rvunwrap = instance.Types.RVMachine.Unwrap
+	local machines = {}
 
 	--- Creates RVMachine object
 	-- @param number memsize Memory size (in bytes)
@@ -26,8 +27,17 @@ return function(instance)
 		hart_count = hart_count or 1
 
 		local obj = _G.rvmachine.Create(memsize, hart_count)
+		machines[obj] = true
 		return rvwrap(obj)
 	end
+
+	instance:AddHook("deinitialize", function()
+		for machine, _ in pairs(machines) do
+			machine:Stop()
+		end
+		table.Empty(machines)
+		collectgarbage("collect") -- Collect immediately
+	end)
 
 	--- Turns the RVMachine into a string.
 	-- @client

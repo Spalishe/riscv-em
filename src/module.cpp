@@ -67,36 +67,5 @@ GMOD_MODULE_OPEN()
 
 GMOD_MODULE_CLOSE()
 {
-	// Remove all existing machines
-	for(RVMachine* machine : s_RVMachine_Instance)
-	{
-		if(machine != nullptr)
-		{
-			if(machine->uart)
-			{
-				machine->uart = nullptr;
-			}
-			if(machine->machine.bios_file)
-			{
-				fclose(machine->machine.bios_file);
-			}
-			if(machine->machine.kernel_file)
-			{
-				fclose(machine->machine.kernel_file);
-			}
-			if(machine->machine.image_file)
-			{
-				fclose(machine->machine.image_file);
-			}
-			if(machine->machine.dtb_file)
-			{
-				fclose(machine->machine.dtb_file);
-			}
-			if(machine->machine.work_thread_w) machine->machine.stop();
-		idle:
-			if(machine->machine.work_thread_w) goto idle;
-			delete machine;
-		}
-	}
 	return 0;
 }
