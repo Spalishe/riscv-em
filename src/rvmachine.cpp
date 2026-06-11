@@ -20,13 +20,15 @@
 */
 
 using namespace GarrysMod::Lua;
-int s_RVMachine_TypeId = 0;
+int s_RVMachine_TypeId						 = 0;
+std::vector<RVMachine*> s_RVMachine_Instance = {};
 LUA_FUNCTION(Create_RVMachine)
 {
 	uint64_t memsize   = (uint64_t)LUA->CheckNumber(1);
 	uint8_t hart_count = (uint8_t)LUA->CheckNumber(2);
 
 	RVMachine* machine = new RVMachine(memsize, hart_count);
+	s_RVMachine_Instance.push_back(machine);
 	LUA->PushUserType_Value(machine, s_RVMachine_TypeId);
 	return 1;
 }
@@ -63,6 +65,7 @@ LUA_FUNCTION(Destroy_RVMachine)
 	if(machine->machine.work_thread_w) machine->machine.stop();
 idle:
 	if(machine->machine.work_thread_w) goto idle;
+	s_RVMachine_Instance.erase(std::remove(s_RVMachine_Instance.begin(), s_RVMachine_Instance.end(), machine), s_RVMachine_Instance.end());
 	delete machine;
 	*pp = nullptr;
 	return 0;

@@ -22,6 +22,7 @@ struct RVMachine
 	std::shared_ptr<UART> uart;
 };
 extern int s_RVMachine_TypeId;
+extern std::vector<RVMachine*> s_RVMachine_Instance;
 
 LUA_FUNCTION_DECLARE(Create_RVMachine);
 LUA_FUNCTION_DECLARE(Destroy_RVMachine);
