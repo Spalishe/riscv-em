@@ -15,25 +15,24 @@ Copyright 2026 Spalishe
 
 */
 
-#include "../../include/decode.hpp"
-#include "../../include/hart.hpp"
-#include "../../include/rvjit/rvjit.hpp"
+#include "../../include/rvjit/rvjit_decode.hpp"
 
-ExecReturn exec_FENCE_I(Hart& hart, InstructionData& inst)
+JIT_InstructionCache JIT_InstructionDecoder::decode_inst(InstructionCache cache)
 {
-	for(int i = 0; i < 8192; i++)
+	uint32_t inst_raw = 0;
+	JIT_Instruction inst;
+	InstructionData data;
+	bool valid = false;
+	if(auto val = conversion_tbl.find(cache.inst.func); val != conversion_tbl.end())
 	{
-		// if (hart->instr_cache[i] == NULL) continue;
-		hart.idec->cache[i].valid = false;
+		valid	 = true;
+		inst	 = { val->second, cache.inst.imm_decode_func };
+		data	 = cache.data;
+		inst_raw = cache.inst_raw;
 	}
-#ifdef USE_JIT
-	hart.jctx->jits.clear();
-	hart.jctx->ignore_pc.clear();
-#endif
-	return { true, false, 4, 0, 0 };
+	return { inst_raw, inst, data, valid };
 }
-
-void InstructionDecoder::init_zifencei()
+void JIT_InstructionDecoder::init_all_instrs()
 {
-	register_instr("*****************001*****0001111", exec_FENCE_I);
+	init_rv64i();
 }

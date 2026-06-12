@@ -23,6 +23,6 @@ Copyright 2026 Spalishe
 #if defined(__x86_64__)
 #define HOST_TARGET_X86_64 1
 #endif
-#if defined(__aarch64__)
+#if defined(__aarch64__) || defined(__arm64__)
 #define HOST_TARGET_AARCH64 1
 #endif

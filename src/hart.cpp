@@ -89,6 +89,7 @@ void Hart::tick()
 	if(!out.is_success)
 	{
 		trap(out.cause, out.tval, false);
+		return;
 	}
 	else
 	{

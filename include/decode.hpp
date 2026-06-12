@@ -53,6 +53,7 @@ struct Instruction
 	uint32_t match;
 	ExecReturn (*func)(Hart& h, InstructionData& data);
 	uint64_t (*imm_decode_func)(uint32_t inst);
+	uint8_t size = 4;
 };
 
 struct InstructionCache

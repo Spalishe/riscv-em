@@ -576,3 +576,6 @@ void InstructionDecoder::init_rv64i()
 
 	register_instr("0000********00000000000000001111", exec_FENCE, imm_I);
 }
+void JIT_InstructionDecoder::init_rv64i()
+{
+}

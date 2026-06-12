@@ -20,8 +20,9 @@ Copyright 2026 Spalishe
 #include "defines/traps.hpp"
 #include "memory_map.hpp"
 #include "mmio.hpp"
+#include "rvjit/rvjit.hpp"
+#include "rvjit/rvjit_decode.hpp"
 #include <cstdint>
-#include <unordered_map>
 
 enum class PrivilegeMode
 {
@@ -44,13 +45,20 @@ struct Reservation
 
 struct Hart
 {
-	Hart(uint8_t id) : id(id) {
-
-					   };
+	Hart(uint8_t id) : id(id)
+	{
+#ifdef USE_JIT
+		jctx = new JIT_Context();
+#endif
+	};
 	uint8_t id;
 	uint64_t GPR[32];
 	uint64_t csrs[4096];
 	InstructionDecoder* idec;
+#ifdef USE_JIT
+	JIT_Context* jctx;
+	JIT_InstructionDecoder* jidec;
+#endif
 	MemoryMap* mmap;
 	MMIO* mmio;
 
