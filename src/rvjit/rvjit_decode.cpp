@@ -15,6 +15,7 @@ Copyright 2026 Spalishe
 
 */
 
+#ifdef USE_JIT
 #include "../../include/rvjit/rvjit_decode.hpp"
 
 JIT_InstructionCache JIT_InstructionDecoder::decode_inst(InstructionCache cache)
@@ -36,3 +37,4 @@ void JIT_InstructionDecoder::init_all_instrs()
 {
 	init_rv64i();
 }
+#endif

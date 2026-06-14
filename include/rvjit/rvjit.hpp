@@ -15,75 +15,103 @@ Copyright 2026 Spalishe
 
 */
 #pragma once
+#ifdef USE_JIT
 #include "../decode.hpp"
+#include "../mmio.hpp"
 #include <cstdint>
+#include <cstring>
 #include <sys/mman.h>
 #include <unordered_map>
 #include <unordered_set>
 
-#ifdef USE_JIT
 #define RVJIT_MIN_INSTRUCTIONS 12
 #define RVJIT_MAX_INSTRUCTIONS 48
 #define RVJIT_PC_CAP		   100
-#define RVJIT_FUNC_SIZE		   0x400
-using JITCompilatedFunc = int (*)(void*);
+#define RVJIT_FUNC_SIZE		   0x400 // DONT CHANGE IT IF YOU DONT KNOW WHAT YOU'RE DOING! If emitted function will overflow arena's buffer, it will be your fault
+#define RVJIT_ARENA_PAGES	   0x400 // Linux default page size is 4096, then 1024 * 4096 = 4194304 bytes, 4 MB
+struct JIT_HartContext
+{
+	uint64_t regs[32];
+	MMIO* mmio;
+	uint8_t ram;
+};
+
+using JITCompilatedFunc = void (*)(JIT_HartContext*);
 
 struct JIT_Function
 {
-	// Default constructor
-	JIT_Function() = default;
+	JITCompilatedFunc func = nullptr;
+	uint64_t offset		   = 0; // offset from arena base
+	uint64_t size		   = 0; // emitted code size
+	uint64_t pc			   = 0;
+	uint64_t inst_size	   = 0;
+	bool valid			   = false;
+};
 
-	// Destructor safely unmaps memory
-	~JIT_Function()
+struct JIT_Arena
+{
+	JIT_Arena()
 	{
-		if(func && size > 0)
+		allocate();
+	};
+
+	// Destructor
+	~JIT_Arena()
+	{
+		if(base && size > 0)
 		{
-			munmap(reinterpret_cast<void*>(func), size);
+			munmap(reinterpret_cast<void*>(base), size);
 		}
 	}
 
-	// Disable copy
-	JIT_Function(const JIT_Function&)			 = delete;
-	JIT_Function& operator=(const JIT_Function&) = delete;
+	// Disable copy, only move
+	JIT_Arena(const JIT_Arena&)			   = delete;
+	JIT_Arena& operator=(const JIT_Arena&) = delete;
 
-	// Moving
-	JIT_Function(JIT_Function&& other) noexcept
-		: func(other.func), size(other.size), pc(other.pc),
-		  inst_size(other.inst_size), valid(other.valid)
+	// Move
+	JIT_Arena(JIT_Arena&& other) noexcept
+		: size(other.size), used_size(other.used_size),
+		  base(other.base), valid(other.valid)
 	{
 		// Strip resource away from the old object so its destructor does nothing
-		other.func	= nullptr;
-		other.size	= 0;
-		other.valid = false;
+		other.base		= nullptr;
+		other.size		= 0;
+		other.valid		= false;
+		other.used_size = 0;
 	}
-
-	JIT_Function& operator=(JIT_Function&& other) noexcept
+	// Move assigment
+	JIT_Arena& operator=(JIT_Arena&& other) noexcept
 	{
 		if(this != &other)
 		{
 			// Clean up our own existing memory first
-			if(func && size > 0) munmap(reinterpret_cast<void*>(func), size);
+			if(base && size > 0) munmap(reinterpret_cast<void*>(base), size);
 
 			// Copy data
-			func	  = other.func;
+			base	  = other.base;
 			size	  = other.size;
-			pc		  = other.pc;
-			inst_size = other.inst_size;
 			valid	  = other.valid;
+			used_size = other.used_size;
 
 			// Reset other
-			other.func	= nullptr;
-			other.size	= 0;
-			other.valid = false;
+			other.base		= nullptr;
+			other.size		= 0;
+			other.valid		= false;
+			other.used_size = 0;
 		}
 		return *this;
 	}
 
-	JITCompilatedFunc func = nullptr;
-	uint64_t size		   = 0;
-	uint64_t pc			   = 0;
-	uint64_t inst_size	   = 0;
-	bool valid			   = false;
+	bool valid = true;
+	JITCompilatedFunc base;
+	uint64_t size	   = 0;
+	uint64_t used_size = 0;
+
+	JIT_Function push_function(const void* code, size_t code_size);
+
+  private:
+	uint64_t _page_size = 0;
+	void allocate();
 };
 
 struct JIT_Block
@@ -98,15 +126,56 @@ struct JIT_Block
 };
 struct JIT_Context
 {
+	JIT_Context()
+	{
+		last_arena = 0;
+		createNewArena();
+	};
+
+	// Forbid copy
+	JIT_Context(const JIT_Context&)			   = delete;
+	JIT_Context& operator=(const JIT_Context&) = delete;
+
+	// Move constructor
+	JIT_Context(JIT_Context&& other) noexcept
+		: last_arena(other.last_arena), jits(std::move(other.jits)),
+		  arenas(std::move(other.arenas)),
+		  block_c(other.block_c), block(other.block), ignore_pc(std::move(other.ignore_pc))
+	{
+		// Copy pc_hits
+		memcpy(pc_hits, other.pc_hits, sizeof(pc_hits));
+	}
+	// Move assigment
+	JIT_Context& operator=(JIT_Context&& other) noexcept
+	{
+		if(this != &other)
+		{
+			jits	  = std::move(other.jits);
+			arenas	  = std::move(other.arenas);
+			ignore_pc = std::move(other.ignore_pc);
+
+			memcpy(pc_hits, other.pc_hits, sizeof(pc_hits));
+
+			block_c	   = other.block_c;
+			block	   = other.block;
+			last_arena = other.last_arena;
+		}
+
+		return *this;
+	}
+
 	std::unordered_map<uint64_t, JIT_Function> jits;
-	uint64_t pc_hits[1024];
+	std::unordered_map<uint64_t, JIT_Arena> arenas;
+	uint64_t pc_hits[1024] = { 0 };
 
 	bool block_c	= false;
 	JIT_Block block = { 0 };
 
+	uint64_t last_arena = 0;
+
 	std::unordered_set<uint64_t> ignore_pc;
 	void handleInstruction(Hart& h, InstructionCache& cache);
 	void stopBlock();
-	JIT_Function allocateRX(unsigned char code[RVJIT_FUNC_SIZE]);
+	void createNewArena();
 };
 #endif

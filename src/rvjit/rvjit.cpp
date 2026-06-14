@@ -18,6 +18,7 @@ Copyright 2026 Spalishe
 #ifdef USE_JIT
 #include "../../include/rvjit/rvjit.hpp"
 #include "../../include/hart.hpp"
+#include "../../include/rvjit/rvjit_emit.hpp"
 
 void JIT_Context::handleInstruction(Hart& h, InstructionCache& cache)
 {
@@ -34,8 +35,17 @@ void JIT_Context::handleInstruction(Hart& h, InstructionCache& cache)
 			block_c = false;
 			if(block.count > RVJIT_MIN_INSTRUCTIONS)
 			{
+				// Check if our arena is overfilled
+				if(arenas[last_arena].used_size == arenas[last_arena].size)
+				{
+					// Create new arena
+					createNewArena();
+				}
+
+				rvjit_emit_epilogue(block.bytes, block.byte_pos);
+
 				// We built block sized enough. Go go gadget w^x allocations
-				JIT_Function func = allocateRX(block.bytes);
+				JIT_Function func = arenas[last_arena].push_function(block.bytes, block.byte_pos);
 				func.inst_size	  = block.size;
 				func.pc			  = block.pc;
 				jits.insert({ func.pc, std::move(func) });
@@ -62,6 +72,9 @@ void JIT_Context::handleInstruction(Hart& h, InstructionCache& cache)
 			block.pc	= pc;
 			block.size	= cache.inst.size;
 			block.count = 1;
+
+			rvjit_emit_prologue(block.bytes, block.byte_pos);
+
 			jc.inst.func(h, jc.data, block);
 		}
 		ignore_pc.insert(pc);
@@ -78,17 +91,16 @@ void JIT_Context::stopBlock()
 #include <sys/mman.h>
 #include <unistd.h>
 
-// TODO:
-// Implement arena method, so we will allocate N pages(for 0x1000 each), and then internally split it
-// to RVJIT_FUNC_SIZE sized functions, and place functions with increment.
-// If our arena is fulled, allocate another one.
-// If FENCE.I is upahead, clean up all pages and call __builtin___clear_cache(nullptr, nullptr) to clean up CPU I-cache
-JIT_Function JIT_Context::allocateRX(unsigned char code[])
+void JIT_Context::createNewArena()
 {
-	// So we like instead of creation vulnerable RWX region we will instead firstly allocate RW
-	// and only after writing bytecode to region we will change permissions to RX
-	long page_size = sysconf(_SC_PAGESIZE);
-	size_t size	   = (RVJIT_FUNC_SIZE + page_size - 1) & ~(page_size - 1);
+	last_arena++;
+	arenas.insert({ last_arena, JIT_Arena() });
+}
+
+void JIT_Arena::allocate()
+{
+	_page_size = sysconf(_SC_PAGESIZE);
+	size	   = RVJIT_ARENA_PAGES * _page_size;
 
 	// Allocate READ | WRITE
 	void* buffer = mmap(NULL, size, PROT_READ | PROT_WRITE,
@@ -96,27 +108,62 @@ JIT_Function JIT_Context::allocateRX(unsigned char code[])
 	if(buffer == MAP_FAILED)
 	{
 		fprintf(stderr, "[RVJIT] Failed to allocate RW region.\n");
-		return JIT_Function{};
+		return;
 	}
 
-	// Write the bytecode
-	std::memcpy(buffer, code, RVJIT_FUNC_SIZE);
-
-	// Change permissions to READ | EXEC
+	// Change permissions to READ | EXEC for default
 	if(mprotect(buffer, size, PROT_READ | PROT_EXEC) == -1)
 	{
 		munmap(buffer, size);
 		fprintf(stderr, "[RVJIT] Failed to change region permission to RX.\n");
+		return;
+	}
+	base	  = reinterpret_cast<JITCompilatedFunc>(buffer);
+	valid	  = true;
+	used_size = 0;
+}
+JIT_Function JIT_Arena::push_function(const void* code, size_t code_size)
+{
+	if(used_size + RVJIT_FUNC_SIZE > size)
+	{
+		fprintf(stderr, "[RVJIT] Arena is full.\n");
 		return JIT_Function{};
 	}
 
-	// Memcopy goes firstly to CPU I-cache, rather than straight to a memory
-	char* casted_ptr = static_cast<char*>(buffer);
-	__builtin___clear_cache(casted_ptr, casted_ptr + RVJIT_FUNC_SIZE);
+	if(code_size > RVJIT_FUNC_SIZE)
+	{
+		fprintf(stderr, "[RVJIT] Emitted code is larger than RVJIT_FUNC_SIZE.\n");
+		return JIT_Function{};
+	}
 
+	void* buffer	  = reinterpret_cast<void*>(base);
+	uint8_t* func_pos = static_cast<uint8_t*>(buffer) + used_size;
+
+	uintptr_t page_addr	 = reinterpret_cast<uintptr_t>(func_pos);
+	uintptr_t page_start = page_addr - (page_addr % _page_size);
+	// Change permission to READ | WRITE
+	if(mprotect(reinterpret_cast<void*>(page_start), _page_size, PROT_READ | PROT_WRITE) == -1)
+	{
+		fprintf(stderr, "[RVJIT] Failed to change region permission to RW.\n");
+		return JIT_Function{};
+	}
+
+	// Write bytecode
+	std::memcpy(func_pos, code, code_size);
+	// Memcpy goes firstly to CPU I-cache, rather than straight to a memory
+	__builtin___clear_cache(func_pos, func_pos + code_size);
+
+	// Change permissions back to READ | EXEC
+	if(mprotect(reinterpret_cast<void*>(page_start), _page_size, PROT_READ | PROT_EXEC) == -1)
+	{
+		fprintf(stderr, "[RVJIT] Failed to change region permission to RX.\n");
+		return JIT_Function{};
+	}
+
+	used_size += RVJIT_FUNC_SIZE;
 	JIT_Function result;
-	result.func	 = reinterpret_cast<JITCompilatedFunc>(buffer);
-	result.size	 = size;
+	result.func	 = reinterpret_cast<JITCompilatedFunc>(func_pos);
+	result.size	 = code_size;
 	result.valid = true;
 	return result;
 }

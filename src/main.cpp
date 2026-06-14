@@ -26,7 +26,6 @@ Copyright 2026 Spalishe
 #include "../include/devices/uart.hpp"
 #include "../include/gdbstub.hpp"
 #include "../include/machine.hpp"
-#include "../include/main.hpp"
 #include "fcntl.h"
 #include "termios.h"
 #include <thread>

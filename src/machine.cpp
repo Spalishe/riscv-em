@@ -28,7 +28,6 @@ Copyright 2026 Spalishe
 #include <cstdio>
 #include <cstring>
 #include <ctime>
-#include <format>
 #include <sstream>
 #include <vector>
 
