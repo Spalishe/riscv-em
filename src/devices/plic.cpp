@@ -125,7 +125,7 @@ void PLIC::set_pending(uint32_t source_id, bool pending)
 
 void PLIC::tick()
 {
-	update_all_contexts();
+	// update_all_contexts();
 }
 
 uint64_t PLIC::read(uint64_t addr, MemorySize size)
@@ -245,22 +245,31 @@ uint32_t PLIC::find_highest_pending_enabled(uint32_t ctx_idx)
 	uint32_t best_id	   = 0;
 	uint32_t best_priority = 0;
 
-	for(uint32_t id = 1; id <= max_sources; ++id)
+	uint32_t word_count = (max_sources + 31) / 32;
+	for(uint32_t word = 0; word < word_count; ++word)
 	{
-		uint32_t word = id / 32;
-		uint32_t bit  = id % 32;
+		uint32_t active = pending_words[word] & ctx.enables[word];
 
-		if(!(pending_words[word] & (1U << bit))) continue;
-		if(!(ctx.enables[word] & (1U << bit))) continue;
-
-		uint32_t prio = priorities[id];
-		if(prio > ctx.threshold)
+		while(active)
 		{
-			if(prio > best_priority || (prio == best_priority && id < best_id))
+			uint32_t bit = std::countr_zero(active);
+			uint32_t id	 = word * 32 + bit;
+
+			if(id != 0 && id <= max_sources)
 			{
-				best_priority = prio;
-				best_id		  = id;
+				uint32_t prio = priorities[id];
+
+				if(prio > ctx.threshold)
+				{
+					if(prio > best_priority || (prio == best_priority && id < best_id))
+					{
+						best_priority = prio;
+						best_id		  = id;
+					}
+				}
 			}
+
+			active &= active - 1;
 		}
 	}
 	return best_id;

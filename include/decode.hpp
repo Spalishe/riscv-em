@@ -17,6 +17,7 @@ Copyright 2026 Spalishe
 
 #pragma once
 #include "defines/traps.hpp"
+#include <array>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -67,8 +68,9 @@ struct InstructionCache
 struct InstructionDecoder
 {
 	std::vector<Instruction> instructions;
-	InstructionCache cache[16384];
-	InstructionCache decode_inst(uint32_t inst);
+	std::array<std::vector<Instruction>, 128> opcode_table;
+	InstructionCache cache[8192];
+	InstructionCache& decode_inst(uint64_t pc, uint32_t inst);
 	void register_instr(std::string mask, ExecReturn (*func)(Hart&, InstructionData&), uint64_t (*imm_decode_func)(uint32_t inst) = NULL);
 
 	// This function will call on init, calling all sets functions to initialize

@@ -19,18 +19,20 @@ Copyright 2026 Spalishe
 #include "../../include/rvjit/rvjit.hpp"
 #include "../../include/hart.hpp"
 #include "../../include/rvjit/rvjit_emit.hpp"
+#include "../../include/rvjit/rvjit_x86_64.hpp"
 
 void JIT_Context::handleInstruction(Hart& h, InstructionCache& cache)
 {
 	// This function excepts it will run after instruction execution, so subtract from current pc instruction size to get previous one
 	uint64_t pc = h.pc - cache.inst.size;
-	if(ignore_pc.contains(pc)) return;
-	pc_hits[pc]++;
+	if(ignore_pc[pc & ((1 << 20) - 1)]) return;
+	if(jits[pc].valid) return;
+	pc_hits[(pc >> 2) & 0x3FF]++;
 
 	if(block_c)
 	{
 		auto jc = h.jidec->decode_inst(cache);
-		if(!jc.valid || block.count >= RVJIT_MAX_INSTRUCTIONS)
+		if(!jc.valid || block.count >= RVJIT_MAX_INSTRUCTIONS || pc != block.pc + block.size)
 		{
 			block_c = false;
 			if(block.count > RVJIT_MIN_INSTRUCTIONS)
@@ -42,7 +44,7 @@ void JIT_Context::handleInstruction(Hart& h, InstructionCache& cache)
 					createNewArena();
 				}
 
-				rvjit_emit_epilogue(block.bytes, block.byte_pos);
+				emitter.rvjit_emit_epilogue(block);
 
 				// We built block sized enough. Go go gadget w^x allocations
 				JIT_Function func = arenas[last_arena].push_function(block.bytes, block.byte_pos);
@@ -50,34 +52,36 @@ void JIT_Context::handleInstruction(Hart& h, InstructionCache& cache)
 				func.pc			  = block.pc;
 				jits.insert({ func.pc, std::move(func) });
 			}
+			ignore_pc[pc & ((1 << 20) - 1)] = true;
 			return;
 		}
 		block.size += cache.inst.size;
 		block.count++;
-		jc.inst.func(h, jc.data, block);
-
+		jc.inst.func(h, jc.data, block, emitter);
 		return;
 	}
 
 	// If not block creating rn
-	if(pc_hits[pc] > RVJIT_PC_CAP)
+	if(pc_hits[(pc >> 2) & 0x3FF] > RVJIT_PC_CAP && !block_c)
 	{
 		// Check if there any reference of this instruction in decoder
 		auto jc = h.jidec->decode_inst(cache);
 		if(jc.valid)
 		{
 			block_c = true;
-			memset(&block, 0, sizeof(block));
-			block.valid = true;
-			block.pc	= pc;
-			block.size	= cache.inst.size;
-			block.count = 1;
+			memset(&block.bytes, 0, sizeof(block.bytes));
+			block.byte_pos = 0;
+			block.valid	   = true;
+			block.pc	   = pc;
+			block.size	   = cache.inst.size;
+			block.count	   = 1;
 
-			rvjit_emit_prologue(block.bytes, block.byte_pos);
+			emitter.reset();
+			emitter.rvjit_emit_prologue(block);
 
-			jc.inst.func(h, jc.data, block);
+			jc.inst.func(h, jc.data, block, emitter);
 		}
-		ignore_pc.insert(pc);
+		ignore_pc[pc & ((1 << 20) - 1)] = true;
 	}
 }
 void JIT_Context::stopBlock()
@@ -95,6 +99,7 @@ void JIT_Context::createNewArena()
 {
 	last_arena++;
 	arenas.insert({ last_arena, JIT_Arena() });
+	arenas.at(last_arena).init();
 }
 
 void JIT_Arena::allocate()

@@ -29,6 +29,7 @@ Copyright 2026 Spalishe
 #define RVJIT_PC_CAP		   100
 #define RVJIT_FUNC_SIZE		   0x400 // DONT CHANGE IT IF YOU DONT KNOW WHAT YOU'RE DOING! If emitted function will overflow arena's buffer, it will be your fault
 #define RVJIT_ARENA_PAGES	   0x400 // Linux default page size is 4096, then 1024 * 4096 = 4194304 bytes, 4 MB
+#include "rvjit_emit.hpp"
 struct JIT_HartContext
 {
 	uint64_t regs[32];
@@ -50,11 +51,9 @@ struct JIT_Function
 
 struct JIT_Arena
 {
-	JIT_Arena()
-	{
-		allocate();
-	};
+	JIT_Arena() {
 
+	};
 	// Destructor
 	~JIT_Arena()
 	{
@@ -108,27 +107,22 @@ struct JIT_Arena
 	uint64_t used_size = 0;
 
 	JIT_Function push_function(const void* code, size_t code_size);
+	void init()
+	{
+		allocate();
+	}
 
   private:
 	uint64_t _page_size = 0;
 	void allocate();
 };
 
-struct JIT_Block
-{
-	uint8_t bytes[RVJIT_FUNC_SIZE];
-	uint16_t byte_pos;
-
-	uint64_t pc;
-	uint64_t size;
-	uint64_t count;
-	bool valid = false;
-};
 struct JIT_Context
 {
 	JIT_Context()
 	{
 		last_arena = 0;
+		emitter	   = JIT_Emitter();
 		createNewArena();
 	};
 
@@ -140,19 +134,20 @@ struct JIT_Context
 	JIT_Context(JIT_Context&& other) noexcept
 		: last_arena(other.last_arena), jits(std::move(other.jits)),
 		  arenas(std::move(other.arenas)),
-		  block_c(other.block_c), block(other.block), ignore_pc(std::move(other.ignore_pc))
+		  block_c(other.block_c), block(other.block)
 	{
 		// Copy pc_hits
 		memcpy(pc_hits, other.pc_hits, sizeof(pc_hits));
+		memcpy(&ignore_pc, &other.ignore_pc, sizeof(ignore_pc));
 	}
 	// Move assigment
 	JIT_Context& operator=(JIT_Context&& other) noexcept
 	{
 		if(this != &other)
 		{
-			jits	  = std::move(other.jits);
-			arenas	  = std::move(other.arenas);
-			ignore_pc = std::move(other.ignore_pc);
+			jits   = std::move(other.jits);
+			arenas = std::move(other.arenas);
+			memcpy(&ignore_pc, &other.ignore_pc, sizeof(ignore_pc));
 
 			memcpy(pc_hits, other.pc_hits, sizeof(pc_hits));
 
@@ -173,7 +168,9 @@ struct JIT_Context
 
 	uint64_t last_arena = 0;
 
-	std::unordered_set<uint64_t> ignore_pc;
+	JIT_Emitter emitter;
+
+	uint64_t ignore_pc[1 << 20] = { 0 };
 	void handleInstruction(Hart& h, InstructionCache& cache);
 	void stopBlock();
 	void createNewArena();

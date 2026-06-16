@@ -60,7 +60,8 @@ struct MemoryRegion
 struct MemoryMap
 {
 	std::vector<MemoryRegion*> regions;
-	ELFParser elf = ELFParser(this);
+	MemoryRegion* ram_direct = nullptr;
+	ELFParser elf			 = ELFParser(this);
 	// std::unordered_map<uint64_t,MemoryRegion*> cache;
 
 	~MemoryMap()
@@ -72,6 +73,10 @@ struct MemoryMap
 	void add_region(uint64_t base, size_t size)
 	{
 		regions.push_back(new MemoryRegion(base, size));
+		if(base >= 0x80000000)
+		{
+			ram_direct = regions.back();
+		}
 	}
 
 	bool load_file(uint64_t memory_path, std::string path = "", uint64_t* entry_pc = NULL)
@@ -225,6 +230,8 @@ struct MemoryMap
 	MemoryRegion* find_region(uint64_t addr)
 	{
 		// if(cache.find(addr) != cache.end()) {return cache[addr];}
+		if(addr >= 0x80000000) [[likely]]
+			return ram_direct;
 		for(auto* r : regions)
 		{
 			if(addr >= r->base_addr && addr < r->base_addr + r->size)

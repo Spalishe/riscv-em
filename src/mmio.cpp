@@ -23,7 +23,7 @@ MMIO::MMIO(MemoryMap* mmap, uint64_t mem_size) : mmap(mmap), memsize(mem_size) {
 MemoryReturn MMIO::write(Hart& h, uint64_t vaddr, MemorySize size, uint64_t val)
 {
 	uint64_t end = 0x80000000ULL + memsize;
-	if(vaddr >= 0x80000000ULL && (vaddr + (uint64_t)size) <= end) // We subtracting by size to exclude chance of buffer overflow
+	if(vaddr >= 0x80000000ULL && (vaddr + (uint64_t)size) <= end) [[likely]] // We subtracting by size to exclude chance of buffer overflow
 	{
 		// DRAM
 		h.amo_check_reservation(vaddr);
@@ -52,7 +52,7 @@ MemoryReturn MMIO::read(Hart& h, uint64_t vaddr, MemorySize size, void* val)
 	uint64_t out;
 
 	uint64_t end = 0x80000000ULL + memsize;
-	if(vaddr >= 0x80000000ULL && (vaddr + (uint64_t)size) <= end) // We subtracting by size to exclude chance of buffer overflow
+	if(vaddr >= 0x80000000ULL && (vaddr + (uint64_t)size) <= end) [[likely]] // We subtracting by size to exclude chance of buffer overflow
 	{
 		// DRAM
 		out = mmap->load(vaddr, (int)size * 8);
@@ -76,6 +76,20 @@ MemoryReturn MMIO::read(Hart& h, uint64_t vaddr, MemorySize size, void* val)
 
 success:
 	// write out to val
-	std::memcpy(val, &out, (int)size);
+	switch(size)
+	{
+		case MemorySize::Byte:
+			*(uint8_t*)val = out;
+			break;
+		case MemorySize::Short:
+			*(uint16_t*)val = out;
+			break;
+		case MemorySize::Int:
+			*(uint32_t*)val = out;
+			break;
+		case MemorySize::Long:
+			*(uint64_t*)val = out;
+			break;
+	}
 	return { true, 0, 0 };
 }

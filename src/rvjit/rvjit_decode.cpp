@@ -28,7 +28,7 @@ JIT_InstructionCache JIT_InstructionDecoder::decode_inst(InstructionCache cache)
 	{
 		valid	 = true;
 		inst	 = { val->second, cache.inst.imm_decode_func };
-		data	 = cache.data;
+		data	 = { cache.data.inst, cache.data.rs1, cache.data.rs2, cache.data.rd, cache.data.imm };
 		inst_raw = cache.inst_raw;
 	}
 	return { inst_raw, inst, data, valid };

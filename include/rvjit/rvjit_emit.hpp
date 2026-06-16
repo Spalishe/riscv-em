@@ -16,18 +16,81 @@ Copyright 2026 Spalishe
 */
 #pragma once
 #ifdef USE_JIT
-#include "rvjit_x86_64.hpp"
+#include "../decode.hpp"
+#include "../host.hpp"
+#ifdef HOST_TARGET_X86_64
+#define HOST_REGS_COUNT 9
+#endif
+
+// Must be changed from rvjit.hpp, dont touch it here
+#ifndef RVJIT_FUNC_SIZE
+#define RVJIT_FUNC_SIZE 0x400
+#endif
+
 #include <cstdint>
-#include <unordered_set>
+struct HReg
+{
+	uint8_t host_reg;
+	bool used		  = false;
+	uint8_t vreg	  = 0xFF;
+	uint64_t last_use = 0;
+};
 struct VReg
 {
-	uint8_t user_reg;
-	uint8_t host_reg;
-	bool dirty;
+	bool allocated = false;
+	uint8_t vreg;
+	uint8_t host_reg = 0xFF;
+	bool dirty		 = false;
+	bool valid		 = false;
+	bool is_zero	 = false;
 };
-extern std::unordered_set<uint8_t> spill_regs;
-extern void rvjit_emit_prologue(unsigned char bytes[], uint16_t byte_pos);
-extern void rvjit_emit_epilogue(unsigned char bytes[], uint16_t byte_pos);
-extern VReg rvjit_alloc_reg(uint8_t user_reg);
+
+struct Hart;
+struct JIT_Block
+{
+	uint8_t bytes[RVJIT_FUNC_SIZE];
+	uint16_t byte_pos = 0;
+
+	uint64_t pc;
+	uint64_t size  = 0;
+	uint64_t count = 0;
+	bool valid	   = false;
+};
+struct InstructionData;
+
+using ROpFunction = void (*)(JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2);
+struct JIT_Emitter
+{
+	VReg vregs[32];
+	HReg host_regs[HOST_REGS_COUNT];
+	uint64_t global_use_counter;
+	void reset()
+	{
+		global_use_counter = 0;
+		for(int i = 0; i < HOST_REGS_COUNT; i++)
+		{
+			host_regs[i].host_reg = i;
+			host_regs[i].last_use = 0;
+			host_regs[i].vreg	  = 0xFF;
+			host_regs[i].used	  = false;
+		}
+		for(int i = 0; i < 32; i++)
+		{
+			vregs[i].allocated = false;
+			vregs[i].host_reg  = 0xFF;
+			vregs[i].vreg	   = i;
+			vregs[i].dirty	   = false;
+			vregs[i].valid	   = false;
+			vregs[i].is_zero   = (i == 0);
+		}
+	};
+	void rvjit_emit_prologue(JIT_Block& blk);
+	void rvjit_emit_epilogue(JIT_Block& blk);
+	VReg& rvjit_alloc_reg(JIT_Block& blk, uint8_t user_reg, uint64_t locked);
+	void ensure_loaded(JIT_Block& blk, VReg& vreg);
+	HReg* spill(JIT_Block& blk, uint64_t locked);
+
+	void inst_emit_r_type(Hart& h, InstructionData& inst, JIT_Block& blk, bool optimize_if_rsz, ROpFunction emit_op);
+};
 
 #endif

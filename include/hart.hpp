@@ -22,6 +22,7 @@ Copyright 2026 Spalishe
 #include "mmio.hpp"
 #include "rvjit/rvjit.hpp"
 #include "rvjit/rvjit_decode.hpp"
+#include "structs/timecmp_st.hpp"
 #include <cstdint>
 
 enum class PrivilegeMode
@@ -68,8 +69,8 @@ struct Hart
 	status_t status;
 	ie_t ie;
 	ip_t ip;
-	uint64_t stimecmp = UINT64_MAX;
-	bool WFI		  = false;
+	timecmp_st stimecmp;
+	bool WFI = false;
 
 	// Fetch buffer
 	uint32_t fetch_buffer[8];
@@ -89,7 +90,7 @@ struct Hart
 	void csr_write(uint16_t csr, uint64_t val);
 	void trap(uint64_t cause, uint64_t tval, bool interrupt);
 	void tick();
-	ExecReturn single_inst(uint32_t inst);
+	ExecReturn single_inst(InstructionCache& cache);
 	uint32_t fetch();
 	bool int_local_pending();
 	bool check_ints();

@@ -577,13 +577,28 @@ void InstructionDecoder::init_rv64i()
 	register_instr("0000********00000000000000001111", exec_FENCE, imm_I);
 }
 #ifdef USE_JIT
-ExecReturn execjit_ADD(Hart& hart, InstructionData& inst, JIT_Block& blk)
+#include "../../include/rvjit/rvjit_x86_64.hpp"
+void execjit_ADD(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
-	hart.GPR[inst.rd] = hart.GPR[inst.rs1] + hart.GPR[inst.rs2];
-	return { true, false, 4, 0, 0 };
+	emitter.inst_emit_r_type(hart, inst, blk, true, [](JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2)
+							 {
+		if(rd.vreg != rs1.vreg && rd.vreg != rs2.vreg)
+		{
+			mov(blk, rd.host_reg, rs1.host_reg);
+			add_rr(blk, rd.host_reg, rs2.host_reg);
+		}
+		else if(rd.vreg == rs1.vreg)
+		{
+			add_rr(blk, rd.host_reg, rs2.host_reg);
+		}
+		else
+		{
+			add_rr(blk, rd.host_reg, rs1.host_reg);
+		} });
 }
 
 void JIT_InstructionDecoder::init_rv64i()
 {
+	conversion_tbl[&exec_ADD] = &execjit_ADD;
 }
 #endif

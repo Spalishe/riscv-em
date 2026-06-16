@@ -58,13 +58,8 @@ uint32_t Hart::fetch()
 	}
 }
 
-ExecReturn Hart::single_inst(uint32_t inst)
+ExecReturn Hart::single_inst(InstructionCache& cache)
 {
-	InstructionCache cache = idec->decode_inst(inst);
-	if(!cache.valid)
-	{
-		return { false, false, 0, EXC_ILLEGAL_INSTRUCTION, inst };
-	}
 	ExecReturn out = cache.inst.func(*this, cache.data);
 	return out;
 }
@@ -82,12 +77,20 @@ void Hart::tick()
 		return;
 	}
 
-	uint32_t inst = fetch();
+	uint32_t inst			= fetch();
+	InstructionCache& cache = idec->decode_inst(pc, inst);
+	if(!cache.valid)
+	{
+		jctx->stopBlock();
+		trap(EXC_ILLEGAL_INSTRUCTION, inst, false);
+		return;
+	}
 
 	// Run single instruction
-	auto out = single_inst(inst);
+	auto out = single_inst(cache);
 	if(!out.is_success)
 	{
+		jctx->stopBlock();
 		trap(out.cause, out.tval, false);
 		return;
 	}
@@ -96,6 +99,7 @@ void Hart::tick()
 		csrs[CSR_MINSTRET]++;
 		pc += out.increase_pc;
 	}
+	jctx->handleInstruction(*this, cache);
 }
 
 bool Hart::int_local_pending()
@@ -229,7 +233,7 @@ void Hart::csr_write(uint16_t csr, uint64_t val)
 			ip.raw = val;
 			break;
 		case CSR_STIMECMP:
-			stimecmp = val;
+			timecmp_set(&stimecmp, val);
 			break;
 
 		case CSR_MVENDORID:
@@ -266,7 +270,7 @@ uint64_t Hart::csr_read(uint16_t csr)
 		case CSR_HPMCOUNTER3 ... CSR_HPMCOUNTER31:
 			return csrs[csr - 0x100]; // get M versions
 		case CSR_STIMECMP:
-			return stimecmp;
+			return timecmp_get(&stimecmp);
 		default:
 			return csrs[csr];
 	}

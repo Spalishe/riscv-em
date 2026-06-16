@@ -17,14 +17,14 @@ Copyright 2026 Spalishe
 
 #pragma once
 
+#include "rvjit_emit.hpp"
 #ifdef USE_JIT
 #include "../decode.hpp"
-#include "rvjit.hpp"
 #include <unordered_map>
 
 struct JIT_Instruction
 {
-	ExecReturn (*func)(Hart& h, InstructionData& data, JIT_Block& ctx);
+	void (*func)(Hart& h, InstructionData& data, JIT_Block& ctx, JIT_Emitter& emitter);
 	uint64_t (*imm_decode_func)(uint32_t inst);
 };
 
@@ -37,7 +37,7 @@ struct JIT_InstructionCache
 };
 struct JIT_InstructionDecoder
 {
-	std::unordered_map<ExecReturn (*)(Hart&, InstructionData&), ExecReturn (*)(Hart&, InstructionData&, JIT_Block&)> conversion_tbl;
+	std::unordered_map<ExecReturn (*)(Hart&, InstructionData&), void (*)(Hart&, InstructionData&, JIT_Block&, JIT_Emitter&)> conversion_tbl;
 	JIT_InstructionCache decode_inst(InstructionCache cache);
 
 	// This function will call on init, calling all sets functions to initialize

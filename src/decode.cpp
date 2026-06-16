@@ -17,6 +17,7 @@ Copyright 2026 Spalishe
 
 #include "../include/decode.hpp"
 #include <assert.h>
+#include <bitset>
 #include <cstdio>
 
 int32_t sext(uint32_t val, int bits)
@@ -88,17 +89,18 @@ uint64_t shamt64(uint32_t inst)
 	return (uint32_t)(imm_I(inst) & 0x3f);
 }
 
-InstructionCache InstructionDecoder::decode_inst(uint32_t inst)
+InstructionCache& InstructionDecoder::decode_inst(uint64_t pc, uint32_t inst)
 {
-	if(cache[inst & 0x1FFF].inst_raw == inst && cache[inst & 0x1FFF].valid)
+	if(cache[pc & 0x1FFF].inst_raw == inst && cache[pc & 0x1FFF].valid)
 	{
-		return cache[inst & 0x1FFF];
+		return cache[pc & 0x1FFF];
 	}
 	else
 	{
 		const Instruction* dinst;
-		bool f = false;
-		for(const auto& ins : instructions)
+		bool f			= false;
+		uint32_t opcode = inst & 0x7F;
+		for(const auto& ins : opcode_table[opcode])
 		{
 			if((inst & ins.mask) == ins.match)
 			{
@@ -114,14 +116,9 @@ InstructionCache InstructionDecoder::decode_inst(uint32_t inst)
 		data.rs2  = d_rs2(inst);
 		data.imm  = f ? dinst->imm_decode_func(inst) : 0;
 
-		InstructionCache inst_cache;
-		inst_cache.inst_raw	 = inst;
-		inst_cache.inst		 = *dinst;
-		inst_cache.data		 = data;
-		inst_cache.valid	 = f;
-		cache[inst & 0x1FFF] = inst_cache;
+		cache[pc & 0x1FFF] = { inst, *dinst, data, f };
 		// printf("inst=0x%lx match=0x%lx mask=0x%lx func=%p\n", inst, dinst->match, dinst->mask, dinst->func);
-		return inst_cache;
+		return cache[pc & 0x1FFF];
 	}
 }
 
@@ -155,7 +152,11 @@ void InstructionDecoder::register_instr(std::string mask, ExecReturn (*func)(Har
 		(imm_decode_func == NULL) ? imm_I : imm_decode_func, // default decode func if user dont provide such
 	};
 	// printf("Registered instr mask=0x%dx match=0x%dx with func=%p, imm_decode_func=%p\n", inst_mask, inst_match, func, imm_decode_func);
-	instructions.push_back(inst);
+	// instructions.push_back(inst);
+	std::string opcode_str = mask.substr(mask.length() - 7);
+	std::bitset<7> bits(opcode_str);
+	unsigned long opcode = bits.to_ulong();
+	opcode_table[opcode].push_back(inst);
 }
 
 void InstructionDecoder::init_all_instrs()

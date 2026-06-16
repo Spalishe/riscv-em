@@ -28,9 +28,11 @@ ExecReturn exec_FENCE_I(Hart& hart, InstructionData& inst)
 	}
 #ifdef USE_JIT
 	hart.jctx->jits.clear();
-	hart.jctx->ignore_pc.clear();
+	memset(hart.jctx->ignore_pc, 0, sizeof(hart.jctx->ignore_pc));
 	hart.jctx->arenas.clear();
+	hart.jctx->block_c = false;
 	__builtin___clear_cache(nullptr, nullptr);
+	hart.jctx->last_arena = 0;
 	hart.jctx->createNewArena();
 #endif
 	return { true, false, 4, 0, 0 };

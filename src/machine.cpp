@@ -17,7 +17,7 @@ Copyright 2026 Spalishe
 
 #include "../include/machine.hpp"
 #include "../include/defines/rvem.hpp"
-#include "../include/devices/aclint.hpp"
+#include "../include/devices/clint.hpp"
 #include "../include/devices/plic.hpp"
 #include "../include/devices/syscon.hpp"
 #include "../include/devices/uart.hpp"
@@ -174,7 +174,7 @@ void Machine::init_auto_devices()
 	mmio->create_device_auto<PLIC>(*this);
 	auto ptr		= mmio->create_device_auto<UART>(*this);
 	ptr->out_stream = uart_out;
-	mmio->create_device_auto<ACLINT>(*this);
+	mmio->create_device_auto<CLINT>(*this);
 	mmio->create_device_auto<SYSCON>(*this);
 	if(image_file != nullptr)
 	{
