@@ -147,6 +147,7 @@ int main(int argc, char* argv[])
 		uint64_t size = 1024;
 		size		  = size << symbol_to_shift[l];
 		size *= mul;
+		memsize = size;
 	}
 	uint8_t harts = 1;
 	if(harts_var->defined())

@@ -64,26 +64,7 @@ struct JIT_Emitter
 	VReg vregs[32];
 	HReg host_regs[HOST_REGS_COUNT];
 	uint64_t global_use_counter;
-	void reset()
-	{
-		global_use_counter = 0;
-		for(int i = 0; i < HOST_REGS_COUNT; i++)
-		{
-			host_regs[i].host_reg = i;
-			host_regs[i].last_use = 0;
-			host_regs[i].vreg	  = 0xFF;
-			host_regs[i].used	  = false;
-		}
-		for(int i = 0; i < 32; i++)
-		{
-			vregs[i].allocated = false;
-			vregs[i].host_reg  = 0xFF;
-			vregs[i].vreg	   = i;
-			vregs[i].dirty	   = false;
-			vregs[i].valid	   = false;
-			vregs[i].is_zero   = (i == 0);
-		}
-	};
+	void reset();
 	void rvjit_emit_prologue(JIT_Block& blk);
 	void rvjit_emit_epilogue(JIT_Block& blk);
 	VReg& rvjit_alloc_reg(JIT_Block& blk, uint8_t user_reg, uint64_t locked);

@@ -50,6 +50,7 @@ struct Hart
 	{
 #ifdef USE_JIT
 		jctx = new JIT_Context();
+		hctx = JIT_HartContext();
 #endif
 	};
 	uint8_t id;
@@ -59,6 +60,7 @@ struct Hart
 #ifdef USE_JIT
 	JIT_Context* jctx;
 	JIT_InstructionDecoder* jidec;
+	JIT_HartContext hctx;
 #endif
 	MemoryMap* mmap;
 	MMIO* mmio;

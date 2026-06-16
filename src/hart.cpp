@@ -31,6 +31,11 @@ void Hart::init(uint64_t dtb_pos_at_memory, uint64_t entry_pc)
 	csrs[CSR_MHARTID] = id;
 	status.fields.SXL = 2;
 	status.fields.UXL = 2;
+#ifdef USE_JIT
+	hctx.regs = GPR;
+	hctx.mmio = mmio;
+	hctx.ram  = mmap->ram_direct->ptr(0x80000000);
+#endif
 }
 
 uint32_t Hart::fetch()
@@ -77,29 +82,44 @@ void Hart::tick()
 		return;
 	}
 
-	uint32_t inst			= fetch();
-	InstructionCache& cache = idec->decode_inst(pc, inst);
-	if(!cache.valid)
+	uint64_t prevpc = pc;
+#ifdef USE_JIT
+	if(jctx->jits[pc].valid && jctx->jits[pc].pc == pc)
 	{
-		jctx->stopBlock();
-		trap(EXC_ILLEGAL_INSTRUCTION, inst, false);
-		return;
-	}
-
-	// Run single instruction
-	auto out = single_inst(cache);
-	if(!out.is_success)
-	{
-		jctx->stopBlock();
-		trap(out.cause, out.tval, false);
-		return;
+		jctx->jits[pc].func(&hctx);
+		pc += jctx->jits[pc].inst_size;
 	}
 	else
+#endif
 	{
-		csrs[CSR_MINSTRET]++;
-		pc += out.increase_pc;
+		uint32_t inst			= fetch();
+		InstructionCache& cache = idec->decode_inst(pc, inst);
+		if(!cache.valid)
+		{
+#ifdef USE_JIT
+			jctx->stopBlock();
+#endif
+			trap(EXC_ILLEGAL_INSTRUCTION, inst, false);
+			return;
+		}
+
+		// Run single instruction
+		auto out = single_inst(cache);
+		if(!out.is_success)
+		{
+			jctx->stopBlock();
+			trap(out.cause, out.tval, false);
+			return;
+		}
+		else
+		{
+			csrs[CSR_MINSTRET]++;
+			pc += out.increase_pc;
+		}
+#ifdef USE_JIT
+		jctx->handleInstruction(*this, cache, prevpc);
+#endif
 	}
-	jctx->handleInstruction(*this, cache);
 }
 
 bool Hart::int_local_pending()

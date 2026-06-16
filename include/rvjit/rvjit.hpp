@@ -22,7 +22,6 @@ Copyright 2026 Spalishe
 #include <cstring>
 #include <sys/mman.h>
 #include <unordered_map>
-#include <unordered_set>
 
 #define RVJIT_MIN_INSTRUCTIONS 12
 #define RVJIT_MAX_INSTRUCTIONS 48
@@ -32,9 +31,9 @@ Copyright 2026 Spalishe
 #include "rvjit_emit.hpp"
 struct JIT_HartContext
 {
-	uint64_t regs[32];
+	uint64_t* regs;
+	uint8_t* ram;
 	MMIO* mmio;
-	uint8_t ram;
 };
 
 using JITCompilatedFunc = void (*)(JIT_HartContext*);
@@ -47,6 +46,48 @@ struct JIT_Function
 	uint64_t pc			   = 0;
 	uint64_t inst_size	   = 0;
 	bool valid			   = false;
+
+	JIT_Function(const JIT_Function&)			 = delete;
+	JIT_Function& operator=(const JIT_Function&) = delete;
+
+	JIT_Function(JIT_Function&& other) noexcept
+		: func(other.func),
+		  offset(other.offset),
+		  size(other.size),
+		  pc(other.pc),
+		  inst_size(other.inst_size),
+		  valid(other.valid)
+	{
+		other.func		= nullptr;
+		other.offset	= 0;
+		other.size		= 0;
+		other.pc		= 0;
+		other.inst_size = 0;
+		other.valid		= false;
+	}
+
+	JIT_Function& operator=(JIT_Function&& other) noexcept
+	{
+		if(this != &other)
+		{
+			func	  = other.func;
+			offset	  = other.offset;
+			size	  = other.size;
+			pc		  = other.pc;
+			inst_size = other.inst_size;
+			valid	  = other.valid;
+
+			other.func		= nullptr;
+			other.offset	= 0;
+			other.size		= 0;
+			other.pc		= 0;
+			other.inst_size = 0;
+			other.valid		= false;
+		}
+		return *this;
+	}
+
+	JIT_Function() = default;
 };
 
 struct JIT_Arena
@@ -171,7 +212,7 @@ struct JIT_Context
 	JIT_Emitter emitter;
 
 	uint64_t ignore_pc[1 << 20] = { 0 };
-	void handleInstruction(Hart& h, InstructionCache& cache);
+	void handleInstruction(Hart& h, InstructionCache& cache, uint64_t prev_pc);
 	void stopBlock();
 	void createNewArena();
 };

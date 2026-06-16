@@ -91,7 +91,7 @@ uint64_t shamt64(uint32_t inst)
 
 InstructionCache& InstructionDecoder::decode_inst(uint64_t pc, uint32_t inst)
 {
-	if(cache[pc & 0x1FFF].inst_raw == inst && cache[pc & 0x1FFF].valid)
+	if(cache[pc & 0x1FFF].inst_raw == inst && cache[pc & 0x1FFF].valid) [[likely]]
 	{
 		return cache[pc & 0x1FFF];
 	}

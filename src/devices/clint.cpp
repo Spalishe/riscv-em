@@ -99,7 +99,7 @@ uint64_t CLINT::read(uint64_t addr, MemorySize size)
 	{
 		return read_mswi(off);
 	}
-	else if(off >= CLINT_MSWI_SIZE && off < CLINT_MSWI_SIZE + CLINT_MTIMER_SIZE)
+	else if(off >= CLINT_MSWI_SIZE && off < CLINT_MSWI_SIZE + CLINT_MTIMER_SIZE) [[likely]]
 	{
 		return read_mtimer(off - CLINT_MSWI_SIZE);
 	}

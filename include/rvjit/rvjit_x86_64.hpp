@@ -22,6 +22,10 @@
 
 struct JIT_Emitter;
 
+// ABI contract:
+// rdi = JIT_HartContext*
+// r12 = ctx
+// r13 = regs*
 constexpr uint8_t REG_RAX = 0b0000;
 constexpr uint8_t REG_RCX = 0b0001;
 constexpr uint8_t REG_RDX = 0b0010;
@@ -222,19 +226,57 @@ inline void ret(JIT_Block& blk)
 
 inline void JIT_Emitter::rvjit_emit_prologue(JIT_Block& blk)
 {
-	push(blk, 4);
-	mov(blk, REG_RDI, REG_R12);
+	push(blk, REG_R12);
+	push(blk, REG_R13);
+	mov(blk, REG_R12, REG_RDI);					   // Mov hart context to R12
+	mov_rm(blk, REG_R13, REG_R12, NO_INDEX, 0, 0); // Mov regs from hart context to R13
 }
 inline void JIT_Emitter::rvjit_emit_epilogue(JIT_Block& blk)
 {
-	pop(blk, 4); // pop hart context from r12
+	for(auto& vreg : vregs)
+	{
+		if(!vreg.allocated)
+			continue;
+
+		if(!vreg.dirty)
+			continue;
+
+		if(vreg.is_zero)
+			continue;
+
+		// store guest reg back
+		mov_mr(blk, vreg.host_reg, REG_R13, NO_INDEX, 0, vreg.vreg * 8);
+	}
+	pop(blk, REG_R13); // pop hart regs
+	pop(blk, REG_R12); // pop hart context from r12
 	ret(blk);
+}
+inline void JIT_Emitter::reset()
+{
+	uint8_t array[]	   = { REG_RAX, REG_RCX, REG_RDX, REG_RSI, REG_RDI, REG_R8, REG_R9, REG_R10, REG_R11 };
+	global_use_counter = 0;
+	for(int i = 0; i < HOST_REGS_COUNT; i++)
+	{
+		host_regs[i].host_reg = array[i];
+		host_regs[i].last_use = 0;
+		host_regs[i].vreg	  = 0xFF;
+		host_regs[i].used	  = false;
+	}
+	for(int i = 0; i < 32; i++)
+	{
+		vregs[i].allocated = false;
+		vregs[i].host_reg  = 0xFF;
+		vregs[i].vreg	   = i;
+		vregs[i].dirty	   = false;
+		vregs[i].valid	   = false;
+		vregs[i].is_zero   = (i == 0);
+	}
 }
 inline void JIT_Emitter::ensure_loaded(JIT_Block& blk, VReg& vreg)
 {
 	if(vreg.allocated && !vreg.valid)
 	{
-		mov_rm(blk, vreg.host_reg, REG_R12, NO_INDEX, 0, vreg.vreg * 8);
+		mov_rm(blk, vreg.host_reg, REG_R13, NO_INDEX, 0, vreg.vreg * 8);
 		vreg.valid = true;
 	}
 }
@@ -256,7 +298,7 @@ inline HReg* JIT_Emitter::spill(JIT_Block& blk, uint64_t locked)
 	victim->used = false;
 	VReg& vreg	 = vregs[victim->vreg];
 	if(vreg.dirty)
-		mov_mr(blk, victim->host_reg, REG_R12, NO_INDEX, 0, victim->vreg * 8);
+		mov_mr(blk, victim->host_reg, REG_R13, NO_INDEX, 0, victim->vreg * 8);
 	vreg.allocated = false;
 	vreg.valid	   = false;
 	vreg.dirty	   = false;

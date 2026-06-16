@@ -91,7 +91,7 @@ CXX_VERSION := $(shell $(CXX) --version | head -n 1)
 AR_VERSION := $(shell $(AR) --version | head -n 1)
 
 LIBS := -latomic -pthread -static
-CXXFLAGS := -std=c++20 -std=gnu++20 $(LIBS) -O3 -g -march=native -flto -MMD -MP -Iinclude -static
+CXXFLAGS := -std=c++20 -std=gnu++20 $(LIBS) -O3 -march=native -flto -MMD -MP -Iinclude -static
 
 CXXFLAGS += $(foreach v,$(USE_VARS),$(if $(filter-out 0,$($(v))),-D$(v)=$($(v))))
 

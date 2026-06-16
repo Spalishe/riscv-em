@@ -24,12 +24,13 @@ struct Machine;
 
 struct Device : std::enable_shared_from_this<Device>
 {
-	Device(uint64_t start, uint64_t size, fdt_node* fdt, MemoryMap* mmap) : start(start), size(size), mmap(mmap) {
+	Device(uint64_t start, uint64_t size, fdt_node* fdt, MemoryMap* mmap) : start(start), size(size), end(start + size), mmap(mmap) {
 
 																			};
 	MemoryMap* mmap;
 	uint64_t start;
 	uint64_t size;
+	uint64_t end;
 
 	virtual uint64_t read(uint64_t addr, MemorySize size) { return 0; }
 	virtual void write(uint64_t addr, MemorySize size, uint64_t val) {}

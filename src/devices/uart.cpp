@@ -116,7 +116,7 @@ uint64_t UART::read(uint64_t addr, MemorySize size)
 
 	switch(reg)
 	{
-		case 0: // RHR (read) or DLL (if DLAB=1)
+		[[likely]] case 0: // RHR (read) or DLL (if DLAB=1)
 			if(dlab)
 				value = dll;
 			else
@@ -198,7 +198,7 @@ void UART::write(uint64_t addr, MemorySize size, uint64_t value)
 
 	switch(reg)
 	{
-		case 0: // THR (write) or DLL (if DLAB=1)
+		[[likely]] case 0: // THR (write) or DLL (if DLAB=1)
 			if(dlab)
 				dll = byte_value;
 			else

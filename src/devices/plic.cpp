@@ -165,7 +165,7 @@ uint64_t PLIC::read(uint64_t addr, MemorySize size)
 	}
 
 	// Threshold and Claim
-	if(offset >= 0x200000 && offset < 0x200000 + num_contexts * 0x1000)
+	[[likely]] if(offset >= 0x200000 && offset < 0x200000 + num_contexts * 0x1000)
 	{
 		uint32_t ctx_idx = static_cast<uint32_t>((offset - 0x200000) / 0x1000);
 		if(ctx_idx >= num_contexts) return 0;
@@ -220,7 +220,7 @@ void PLIC::write(uint64_t addr, MemorySize size, uint64_t value)
 	}
 
 	// Threshold and Complete
-	if(offset >= 0x200000 && offset < 0x200000 + num_contexts * 0x1000)
+	[[likely]] if(offset >= 0x200000 && offset < 0x200000 + num_contexts * 0x1000)
 	{
 		uint32_t ctx_idx = static_cast<uint32_t>((offset - 0x200000) / 0x1000);
 		if(ctx_idx >= num_contexts) return;

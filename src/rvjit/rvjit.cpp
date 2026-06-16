@@ -21,10 +21,10 @@ Copyright 2026 Spalishe
 #include "../../include/rvjit/rvjit_emit.hpp"
 #include "../../include/rvjit/rvjit_x86_64.hpp"
 
-void JIT_Context::handleInstruction(Hart& h, InstructionCache& cache)
+void JIT_Context::handleInstruction(Hart& h, InstructionCache& cache, uint64_t prev_pc)
 {
 	// This function excepts it will run after instruction execution, so subtract from current pc instruction size to get previous one
-	uint64_t pc = h.pc - cache.inst.size;
+	uint64_t pc = prev_pc;
 	if(ignore_pc[pc & ((1 << 20) - 1)]) return;
 	if(jits[pc].valid) return;
 	pc_hits[(pc >> 2) & 0x3FF]++;
@@ -35,7 +35,7 @@ void JIT_Context::handleInstruction(Hart& h, InstructionCache& cache)
 		if(!jc.valid || block.count >= RVJIT_MAX_INSTRUCTIONS || pc != block.pc + block.size)
 		{
 			block_c = false;
-			if(block.count > RVJIT_MIN_INSTRUCTIONS)
+			if(block.count >= RVJIT_MIN_INSTRUCTIONS)
 			{
 				// Check if our arena is overfilled
 				if(arenas[last_arena].used_size == arenas[last_arena].size)
@@ -50,7 +50,7 @@ void JIT_Context::handleInstruction(Hart& h, InstructionCache& cache)
 				JIT_Function func = arenas[last_arena].push_function(block.bytes, block.byte_pos);
 				func.inst_size	  = block.size;
 				func.pc			  = block.pc;
-				jits.insert({ func.pc, std::move(func) });
+				jits[block.pc]	  = std::move(func);
 			}
 			ignore_pc[pc & ((1 << 20) - 1)] = true;
 			return;
@@ -66,6 +66,7 @@ void JIT_Context::handleInstruction(Hart& h, InstructionCache& cache)
 	{
 		// Check if there any reference of this instruction in decoder
 		auto jc = h.jidec->decode_inst(cache);
+
 		if(jc.valid)
 		{
 			block_c = true;

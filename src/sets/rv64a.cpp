@@ -26,15 +26,13 @@ MemoryReturn AMO_SC(Hart& hart, uint64_t va, MemorySize size, uint64_t val, void
 		if(!out.is_success) return out;
 		// amo_check_reservation(hart, va);
 		hart.reservation.valid = false;
-		char c				   = 0;
-		memcpy(out_val, &c, 1);
+		*(uint8_t*)out_val	   = 0;
 		return out;
 	}
 	else
 	{
 		hart.reservation.valid = false;
-		char c				   = 1;
-		memcpy(out_val, &c, 1);
+		*(uint8_t*)out_val	   = 1;
 		return { true, 0, 0 };
 	}
 }
@@ -46,7 +44,21 @@ MemoryReturn AMO_LR(Hart& hart, uint64_t va, MemorySize size, void* val)
 	hart.reservation.valid = true;
 	hart.reservation.size  = size;
 	hart.reservation.vaddr = va;
-	std::memcpy(val, &value, (int)size);
+	switch(size)
+	{
+		case MemorySize::Byte:
+			*(uint8_t*)val = value;
+			break;
+		case MemorySize::Short:
+			*(uint16_t*)val = value;
+			break;
+		case MemorySize::Int:
+			*(uint32_t*)val = value;
+			break;
+		case MemorySize::Long:
+			*(uint64_t*)val = value;
+			break;
+	}
 	return p;
 }
 
@@ -72,12 +84,11 @@ MemoryReturn AMO64(Hart& hart, uint64_t va, uint64_t rs2, uint64_t (*func)(uint6
 	uint64_t val;
 	MemoryReturn out = hart.mmio->read(hart, va, MemorySize::Long, &val);
 	if(!out.is_success) return out;
-	uint64_t t		 = val;
-	uint64_t new_val = func(t, rs2);
+	uint64_t new_val = func(val, rs2);
 
 	MemoryReturn s = hart.mmio->write(hart, va, MemorySize::Long, new_val);
 	if(!s.is_success) return s;
-	memcpy(out_val, &t, sizeof(uint64_t));
+	*(uint64_t*)out_val = val;
 	return { true, 0, 0 };
 }
 
@@ -178,12 +189,11 @@ MemoryReturn AMO32(Hart& hart, uint64_t va, uint32_t rs2, uint32_t (*func)(uint3
 	uint32_t val;
 	MemoryReturn out = hart.mmio->read(hart, va, MemorySize::Int, &val);
 	if(!out.is_success) return out;
-	uint64_t t		 = val;
-	uint64_t new_val = func(t, rs2);
+	uint64_t new_val = func(val, rs2);
 
 	MemoryReturn s = hart.mmio->write(hart, va, MemorySize::Int, new_val);
 	if(!s.is_success) return s;
-	memcpy(out_val, &t, sizeof(uint32_t));
+	*(uint32_t*)out_val = val;
 	return { true, 0, 0 };
 }
 
