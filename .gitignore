@@ -9,3 +9,6 @@
 /tests/*
 ./programs/rootfs.ext2
 ./programs/rootfs.cpio
+perf.data
+perf.data.old
+dtb.dtb
