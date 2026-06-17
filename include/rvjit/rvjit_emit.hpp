@@ -19,7 +19,7 @@ Copyright 2026 Spalishe
 #include "../decode.hpp"
 #include "../host.hpp"
 #ifdef HOST_TARGET_X86_64
-#define HOST_REGS_COUNT 9
+#define HOST_REGS_COUNT 8
 #endif
 
 // Must be changed from rvjit.hpp, dont touch it here

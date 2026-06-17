@@ -107,6 +107,14 @@ inline void sub_rr(JIT_Block& blk, char dest, char source)
 	blk.bytes[blk.byte_pos++] = 0x29;
 	blk.bytes[blk.byte_pos++] = modrm(3, (source & 7), (dest & 7));
 }
+// SUB r/m32, r32
+inline void sub_rr32(JIT_Block& blk, char dest, char source)
+{
+	// dest is RM, source is REG
+	blk.bytes[blk.byte_pos++] = rex(0, (source > 7), 0, (dest > 7));
+	blk.bytes[blk.byte_pos++] = 0x29;
+	blk.bytes[blk.byte_pos++] = modrm(3, (source & 7), (dest & 7));
+}
 // SUB r/m64, imm32
 inline void sub_riw(JIT_Block& blk, char dest, int32_t imm32)
 {
@@ -124,6 +132,14 @@ inline void add_rr(JIT_Block& blk, char dest, char source)
 {
 	// dest is RM, source is REG
 	blk.bytes[blk.byte_pos++] = rex(1, (source > 7), 0, (dest > 7));
+	blk.bytes[blk.byte_pos++] = 0x01;
+	blk.bytes[blk.byte_pos++] = modrm(3, (source & 7), (dest & 7));
+}
+// ADD r/m32, r32
+inline void add_rr32(JIT_Block& blk, char dest, char source)
+{
+	// dest is RM, source is REG
+	blk.bytes[blk.byte_pos++] = rex(0, (source > 7), 0, (dest > 7));
 	blk.bytes[blk.byte_pos++] = 0x01;
 	blk.bytes[blk.byte_pos++] = modrm(3, (source & 7), (dest & 7));
 }
@@ -145,6 +161,22 @@ inline void xor_rr(JIT_Block& blk, char dest, char source)
 	// dest is RM, source is REG
 	blk.bytes[blk.byte_pos++] = rex(1, (source > 7), 0, (dest > 7));
 	blk.bytes[blk.byte_pos++] = 0x31;
+	blk.bytes[blk.byte_pos++] = modrm(3, (source & 7), (dest & 7));
+}
+// OR r/m64, r64
+inline void or_rr(JIT_Block& blk, char dest, char source)
+{
+	// dest is RM, source is REG
+	blk.bytes[blk.byte_pos++] = rex(1, (source > 7), 0, (dest > 7));
+	blk.bytes[blk.byte_pos++] = 0x09;
+	blk.bytes[blk.byte_pos++] = modrm(3, (source & 7), (dest & 7));
+}
+// AND r/m64, r64
+inline void and_rr(JIT_Block& blk, char dest, char source)
+{
+	// dest is RM, source is REG
+	blk.bytes[blk.byte_pos++] = rex(1, (source > 7), 0, (dest > 7));
+	blk.bytes[blk.byte_pos++] = 0x21;
 	blk.bytes[blk.byte_pos++] = modrm(3, (source & 7), (dest & 7));
 }
 // MOV r/m64, r64
@@ -202,8 +234,75 @@ inline void mov_rm(JIT_Block& blk, uint8_t dest, uint8_t reg_base, uint8_t reg_i
 	blk.bytes[blk.byte_pos++] = 0x8B;
 	mov_helper(blk, dest, reg_base, reg_index, scale, disp);
 }
+// MOVSXD r64, r/m32
+inline void movsxd(JIT_Block& blk, char dest, char source)
+{
+	// dest is REG, source is RM
+	blk.bytes[blk.byte_pos++] = rex(1, (dest > 7), 0, (source > 7));
+	blk.bytes[blk.byte_pos++] = 0x63;
+	blk.bytes[blk.byte_pos++] = modrm(3, (dest & 7), (source & 7));
+}
+// SHL r/m64, CL
+// CL is RCX(first 6 bits)
+inline void shl_rc(JIT_Block& blk, char dest, char source)
+{
+	// dest is RM, source is REG
+	mov(blk, REG_RCX, source);
+	blk.bytes[blk.byte_pos++] = rex(1, 0, 0, (dest > 7));
+	blk.bytes[blk.byte_pos++] = 0xD3;
+	blk.bytes[blk.byte_pos++] = modrm(3, 0b100, (dest & 7));
+}
+// SHR r/m64, CL
+// CL is RCX(first 6 bits)
+inline void shr_rc(JIT_Block& blk, char dest, char source)
+{
+	// dest is RM, source is REG
+	mov(blk, REG_RCX, source);
+	blk.bytes[blk.byte_pos++] = rex(1, 0, 0, (dest > 7));
+	blk.bytes[blk.byte_pos++] = 0xD3;
+	blk.bytes[blk.byte_pos++] = modrm(3, 0b101, (dest & 7));
+}
+// SAR r/m64, CL
+// CL is RCX(first 6 bits)
+inline void sar_rc(JIT_Block& blk, char dest, char source)
+{
+	// dest is RM, source is REG
+	mov(blk, REG_RCX, source);
+	blk.bytes[blk.byte_pos++] = rex(1, 0, 0, (dest > 7));
+	blk.bytes[blk.byte_pos++] = 0xD3;
+	blk.bytes[blk.byte_pos++] = modrm(3, 0b111, (dest & 7));
+}
 
-// PUSH r64
+// SHL r/m32, CL
+// CL is RCX(first 5 bits)
+inline void shl_rc32(JIT_Block& blk, char dest, char source)
+{
+	// dest is RM, source is REG
+	mov(blk, REG_RCX, source);
+	blk.bytes[blk.byte_pos++] = rex(0, 0, 0, (dest > 7));
+	blk.bytes[blk.byte_pos++] = 0xD3;
+	blk.bytes[blk.byte_pos++] = modrm(3, 0b100, (dest & 7));
+}
+// SHR r/m32, CL
+// CL is RCX(first 5 bits)
+inline void shr_rc32(JIT_Block& blk, char dest, char source)
+{
+	// dest is RM, source is REG
+	mov(blk, REG_RCX, source);
+	blk.bytes[blk.byte_pos++] = rex(0, 0, 0, (dest > 7));
+	blk.bytes[blk.byte_pos++] = 0xD3;
+	blk.bytes[blk.byte_pos++] = modrm(3, 0b101, (dest & 7));
+}
+// SAR r/m32, CL
+// CL is RCX(first 5 bits)
+inline void sar_rc32(JIT_Block& blk, char dest, char source)
+{
+	// dest is RM, source is REG
+	mov(blk, REG_RCX, source);
+	blk.bytes[blk.byte_pos++] = rex(0, 0, 0, (dest > 7));
+	blk.bytes[blk.byte_pos++] = 0xD3;
+	blk.bytes[blk.byte_pos++] = modrm(3, 0b111, (dest & 7));
+} // PUSH r64
 inline void push(JIT_Block& blk, char reg)
 {
 	if(reg > 7)

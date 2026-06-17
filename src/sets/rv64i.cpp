@@ -580,25 +580,211 @@ void InstructionDecoder::init_rv64i()
 #include "../../include/rvjit/rvjit_x86_64.hpp"
 void execjit_ADD(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
-	emitter.inst_emit_r_type(hart, inst, blk, true, [](JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2)
+	emitter.inst_emit_r_type(hart, inst, blk, true,
+							 [](JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2)
 							 {
-		if(rd.vreg != rs1.vreg && rd.vreg != rs2.vreg)
-		{
-			mov(blk, rd.host_reg, rs1.host_reg);
-			add_rr(blk, rd.host_reg, rs2.host_reg);
-		}
-		else if(rd.vreg == rs1.vreg)
-		{
-			add_rr(blk, rd.host_reg, rs2.host_reg);
-		}
-		else
-		{
-			add_rr(blk, rd.host_reg, rs1.host_reg);
-		} });
+								 if(rd.vreg != rs1.vreg && rd.vreg != rs2.vreg)
+								 {
+									 mov(blk, rd.host_reg, rs1.host_reg);
+									 add_rr(blk, rd.host_reg, rs2.host_reg);
+								 }
+								 else if(rd.vreg == rs1.vreg)
+								 {
+									 add_rr(blk, rd.host_reg, rs2.host_reg);
+								 }
+								 else
+								 {
+									 add_rr(blk, rd.host_reg, rs1.host_reg);
+								 }
+							 });
+}
+void execjit_ADDW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	emitter.inst_emit_r_type(hart, inst, blk, true,
+							 [](JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2)
+							 {
+								 if(rd.vreg != rs1.vreg)
+								 {
+									 mov(blk, rd.host_reg, rs1.host_reg);
+								 }
+
+								 add_rr32(blk, rd.host_reg, rs2.host_reg);
+								 movsxd(blk, rd.host_reg, rd.host_reg);
+							 });
+}
+void execjit_SUB(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	emitter.inst_emit_r_type(hart, inst, blk, true,
+							 [](JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2)
+							 {
+								 if(rd.vreg != rs1.vreg && rd.vreg != rs2.vreg)
+								 {
+									 mov(blk, rd.host_reg, rs1.host_reg);
+									 sub_rr(blk, rd.host_reg, rs2.host_reg);
+								 }
+								 else if(rd.vreg == rs1.vreg)
+								 {
+									 sub_rr(blk, rd.host_reg, rs2.host_reg);
+								 }
+								 else
+								 {
+									 sub_rr(blk, rd.host_reg, rs1.host_reg);
+								 }
+							 });
+}
+void execjit_SUBW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	emitter.inst_emit_r_type(hart, inst, blk, true,
+							 [](JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2)
+							 {
+								 if(rd.vreg != rs1.vreg)
+								 {
+									 mov(blk, rd.host_reg, rs1.host_reg);
+								 }
+
+								 sub_rr32(blk, rd.host_reg, rs2.host_reg);
+								 movsxd(blk, rd.host_reg, rd.host_reg);
+							 });
+}
+void execjit_XOR(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	emitter.inst_emit_r_type(hart, inst, blk, true,
+							 [](JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2)
+							 {
+								 if(rd.vreg != rs1.vreg)
+								 {
+									 mov(blk, rd.host_reg, rs1.host_reg);
+								 }
+
+								 xor_rr(blk, rd.host_reg, rs2.host_reg);
+							 });
+}
+void execjit_OR(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	emitter.inst_emit_r_type(hart, inst, blk, true,
+							 [](JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2)
+							 {
+								 if(rd.vreg != rs1.vreg)
+								 {
+									 mov(blk, rd.host_reg, rs1.host_reg);
+								 }
+
+								 or_rr(blk, rd.host_reg, rs2.host_reg);
+							 });
+}
+void execjit_AND(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	emitter.inst_emit_r_type(hart, inst, blk, false,
+							 [](JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2)
+							 {
+								 if(rs1.is_zero || rs2.is_zero)
+								 {
+									 xor_rr(blk, rd.host_reg, rd.host_reg);
+								 }
+								 if(rd.vreg != rs1.vreg)
+								 {
+									 mov(blk, rd.host_reg, rs1.host_reg);
+								 }
+
+								 and_rr(blk, rd.host_reg, rs2.host_reg);
+							 });
+}
+void execjit_SLL(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	emitter.inst_emit_r_type(hart, inst, blk, true,
+							 [](JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2)
+							 {
+								 if(rd.vreg != rs1.vreg)
+								 {
+									 mov(blk, rd.host_reg, rs1.host_reg);
+								 }
+
+								 shl_rc(blk, rd.host_reg, rs2.host_reg);
+							 });
+}
+void execjit_SLLW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	emitter.inst_emit_r_type(hart, inst, blk, true,
+							 [](JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2)
+							 {
+								 if(rd.vreg != rs1.vreg)
+								 {
+									 mov(blk, rd.host_reg, rs1.host_reg);
+								 }
+
+								 shl_rc32(blk, rd.host_reg, rs2.host_reg);
+								 movsxd(blk, rd.host_reg, rd.host_reg);
+							 });
+}
+void execjit_SRL(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	emitter.inst_emit_r_type(hart, inst, blk, true,
+							 [](JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2)
+							 {
+								 if(rd.vreg != rs1.vreg)
+								 {
+									 mov(blk, rd.host_reg, rs1.host_reg);
+								 }
+
+								 shr_rc(blk, rd.host_reg, rs2.host_reg);
+							 });
+}
+void execjit_SRLW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	emitter.inst_emit_r_type(hart, inst, blk, true,
+							 [](JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2)
+							 {
+								 if(rd.vreg != rs1.vreg)
+								 {
+									 mov(blk, rd.host_reg, rs1.host_reg);
+								 }
+
+								 shr_rc32(blk, rd.host_reg, rs2.host_reg);
+								 movsxd(blk, rd.host_reg, rd.host_reg);
+							 });
+}
+void execjit_SRA(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	emitter.inst_emit_r_type(hart, inst, blk, true,
+							 [](JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2)
+							 {
+								 if(rd.vreg != rs1.vreg)
+								 {
+									 mov(blk, rd.host_reg, rs1.host_reg);
+								 }
+
+								 sar_rc(blk, rd.host_reg, rs2.host_reg);
+							 });
+}
+void execjit_SRAW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	emitter.inst_emit_r_type(hart, inst, blk, true,
+							 [](JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2)
+							 {
+								 if(rd.vreg != rs1.vreg)
+								 {
+									 mov(blk, rd.host_reg, rs1.host_reg);
+								 }
+
+								 sar_rc32(blk, rd.host_reg, rs2.host_reg);
+								 movsxd(blk, rd.host_reg, rd.host_reg);
+							 });
 }
 
 void JIT_InstructionDecoder::init_rv64i()
 {
-	conversion_tbl[&exec_ADD] = &execjit_ADD;
+	conversion_tbl[&exec_ADD]  = &execjit_ADD;
+	conversion_tbl[&exec_ADDW] = &execjit_ADDW;
+	conversion_tbl[&exec_SUB]  = &execjit_SUB;
+	conversion_tbl[&exec_SUBW] = &execjit_SUBW;
+	conversion_tbl[&exec_XOR]  = &execjit_XOR;
+	conversion_tbl[&exec_OR]   = &execjit_OR;
+	conversion_tbl[&exec_AND]  = &execjit_AND;
+	conversion_tbl[&exec_SLL]  = &execjit_SLL;
+	conversion_tbl[&exec_SLLW] = &execjit_SLLW;
+	conversion_tbl[&exec_SRL]  = &execjit_SRL;
+	conversion_tbl[&exec_SRLW] = &execjit_SRLW;
+	conversion_tbl[&exec_SRA]  = &execjit_SRA;
+	conversion_tbl[&exec_SRAW] = &execjit_SRAW;
 }
 #endif
