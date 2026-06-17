@@ -302,7 +302,47 @@ inline void sar_rc32(JIT_Block& blk, char dest, char source)
 	blk.bytes[blk.byte_pos++] = rex(0, 0, 0, (dest > 7));
 	blk.bytes[blk.byte_pos++] = 0xD3;
 	blk.bytes[blk.byte_pos++] = modrm(3, 0b111, (dest & 7));
-} // PUSH r64
+}
+// CMP r/m64,r64
+inline void cmp(JIT_Block& blk, char dest, char source)
+{
+	// dest is RM, source is REG
+	blk.bytes[blk.byte_pos++] = rex(1, (source > 7), 0, dest > 7);
+	blk.bytes[blk.byte_pos++] = 0x39;
+	blk.bytes[blk.byte_pos++] = modrm(3, source & 7, dest & 7);
+}
+// SETL r/m8
+inline void setl(JIT_Block& blk, char dest)
+{
+	// dest is RM
+	if(dest > 3)
+		blk.bytes[blk.byte_pos++] = rex(0, 0, 0, dest > 7);
+
+	blk.bytes[blk.byte_pos++] = 0x0F;
+	blk.bytes[blk.byte_pos++] = 0x9C;
+	blk.bytes[blk.byte_pos++] = modrm(3, 0, dest & 7);
+}
+// SETB r/m8
+inline void setb(JIT_Block& blk, char dest)
+{
+	// dest is RM
+	if(dest > 3)
+		blk.bytes[blk.byte_pos++] = rex(0, 0, 0, dest > 7);
+
+	blk.bytes[blk.byte_pos++] = 0x0F;
+	blk.bytes[blk.byte_pos++] = 0x92;
+	blk.bytes[blk.byte_pos++] = modrm(3, 0, dest & 7);
+}
+// MOVZX r64, r/m8
+inline void movzx(JIT_Block& blk, char dest, char source)
+{
+	// dest is RM
+	blk.bytes[blk.byte_pos++] = rex(1, (dest > 7), 0, source > 7);
+	blk.bytes[blk.byte_pos++] = 0x0F;
+	blk.bytes[blk.byte_pos++] = 0xB6;
+	blk.bytes[blk.byte_pos++] = modrm(3, dest & 7, source & 7);
+}
+// PUSH r64
 inline void push(JIT_Block& blk, char reg)
 {
 	if(reg > 7)

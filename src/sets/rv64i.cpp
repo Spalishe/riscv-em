@@ -770,6 +770,26 @@ void execjit_SRAW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter
 								 movsxd(blk, rd.host_reg, rd.host_reg);
 							 });
 }
+void execjit_SLT(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	emitter.inst_emit_r_type(hart, inst, blk, true,
+							 [](JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2)
+							 {
+								 cmp(blk, rs1.host_reg, rs2.host_reg);
+								 setl(blk, rd.host_reg);
+								 movsxd(blk, rd.host_reg, rd.host_reg);
+							 });
+}
+void execjit_SLTU(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	emitter.inst_emit_r_type(hart, inst, blk, true,
+							 [](JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2)
+							 {
+								 cmp(blk, rs1.host_reg, rs2.host_reg);
+								 setb(blk, rd.host_reg);
+								 movsxd(blk, rd.host_reg, rd.host_reg);
+							 });
+}
 
 void JIT_InstructionDecoder::init_rv64i()
 {
@@ -786,5 +806,7 @@ void JIT_InstructionDecoder::init_rv64i()
 	conversion_tbl[&exec_SRLW] = &execjit_SRLW;
 	conversion_tbl[&exec_SRA]  = &execjit_SRA;
 	conversion_tbl[&exec_SRAW] = &execjit_SRAW;
+	conversion_tbl[&exec_SLT]  = &execjit_SLT;
+	conversion_tbl[&exec_SLTU] = &execjit_SLTU;
 }
 #endif
