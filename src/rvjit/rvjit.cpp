@@ -46,6 +46,11 @@ void JIT_Context::handleInstruction(Hart& h, InstructionCache& cache, uint64_t p
 
 				emitter.rvjit_emit_epilogue(block);
 
+				FILE* f = fopen("/tmp/jit.bin", "wb");
+				fwrite(block.bytes, 1, block.byte_pos, f);
+				fclose(f);
+				// printf("jit: 0x%lx\n", block.pc);
+
 				// We built block sized enough. Go go gadget w^x allocations
 				JIT_Function func = arenas[last_arena].push_function(block.bytes, block.byte_pos);
 				func.inst_size	  = block.size;

@@ -34,8 +34,8 @@ constexpr uint8_t REG_RSP = 0b0100;
 constexpr uint8_t REG_RBP = 0b0101;
 constexpr uint8_t REG_RSI = 0b0110;
 constexpr uint8_t REG_RDI = 0b0111;
-constexpr uint8_t REG_R8  = 0b0000;
-constexpr uint8_t REG_R9  = 0b0001;
+constexpr uint8_t REG_R8  = 0b1000;
+constexpr uint8_t REG_R9  = 0b1001;
 constexpr uint8_t REG_R10 = 0b1010;
 constexpr uint8_t REG_R11 = 0b1011;
 constexpr uint8_t REG_R12 = 0b1100;
@@ -135,6 +135,30 @@ inline void add_rr(JIT_Block& blk, char dest, char source)
 	blk.bytes[blk.byte_pos++] = 0x01;
 	blk.bytes[blk.byte_pos++] = modrm(3, (source & 7), (dest & 7));
 }
+// ADD r/m64, imm32
+inline void add_rimm32(JIT_Block& blk, char dest, int32_t imm32)
+{
+	// dest is RM, imm32 is REG
+	blk.bytes[blk.byte_pos++] = rex(1, 0, 0, (dest > 7));
+	blk.bytes[blk.byte_pos++] = 0x81;
+	blk.bytes[blk.byte_pos++] = modrm(3, 0b000, (dest & 7));
+	blk.bytes[blk.byte_pos++] = imm32 & 0xFF;
+	blk.bytes[blk.byte_pos++] = (imm32 >> 8) & 0xFF;
+	blk.bytes[blk.byte_pos++] = (imm32 >> 16) & 0xFF;
+	blk.bytes[blk.byte_pos++] = (imm32 >> 24) & 0xFF;
+}
+// ADD r/m32, imm32
+inline void add_r32imm32(JIT_Block& blk, char dest, int32_t imm32)
+{
+	// dest is RM, imm32 is REG
+	blk.bytes[blk.byte_pos++] = rex(0, 0, 0, (dest > 7));
+	blk.bytes[blk.byte_pos++] = 0x81;
+	blk.bytes[blk.byte_pos++] = modrm(3, 0b000, (dest & 7));
+	blk.bytes[blk.byte_pos++] = imm32 & 0xFF;
+	blk.bytes[blk.byte_pos++] = (imm32 >> 8) & 0xFF;
+	blk.bytes[blk.byte_pos++] = (imm32 >> 16) & 0xFF;
+	blk.bytes[blk.byte_pos++] = (imm32 >> 24) & 0xFF;
+}
 // ADD r/m32, r32
 inline void add_rr32(JIT_Block& blk, char dest, char source)
 {
@@ -163,6 +187,18 @@ inline void xor_rr(JIT_Block& blk, char dest, char source)
 	blk.bytes[blk.byte_pos++] = 0x31;
 	blk.bytes[blk.byte_pos++] = modrm(3, (source & 7), (dest & 7));
 }
+// XOR r/m64, imm32
+inline void xor_rimm32(JIT_Block& blk, char dest, int32_t imm32)
+{
+	// dest is RM, imm is 6
+	blk.bytes[blk.byte_pos++] = rex(1, 0, 0, (dest > 7));
+	blk.bytes[blk.byte_pos++] = 0x81;
+	blk.bytes[blk.byte_pos++] = modrm(3, 0b110, (dest & 7));
+	blk.bytes[blk.byte_pos++] = imm32 & 0xFF;
+	blk.bytes[blk.byte_pos++] = (imm32 >> 8) & 0xFF;
+	blk.bytes[blk.byte_pos++] = (imm32 >> 16) & 0xFF;
+	blk.bytes[blk.byte_pos++] = (imm32 >> 24) & 0xFF;
+}
 // OR r/m64, r64
 inline void or_rr(JIT_Block& blk, char dest, char source)
 {
@@ -170,6 +206,18 @@ inline void or_rr(JIT_Block& blk, char dest, char source)
 	blk.bytes[blk.byte_pos++] = rex(1, (source > 7), 0, (dest > 7));
 	blk.bytes[blk.byte_pos++] = 0x09;
 	blk.bytes[blk.byte_pos++] = modrm(3, (source & 7), (dest & 7));
+}
+// OR r/m64, imm32
+inline void or_rimm32(JIT_Block& blk, char dest, int32_t imm32)
+{
+	// dest is RM, imm is 1
+	blk.bytes[blk.byte_pos++] = rex(1, 0, 0, (dest > 7));
+	blk.bytes[blk.byte_pos++] = 0x81;
+	blk.bytes[blk.byte_pos++] = modrm(3, 0b001, (dest & 7));
+	blk.bytes[blk.byte_pos++] = imm32 & 0xFF;
+	blk.bytes[blk.byte_pos++] = (imm32 >> 8) & 0xFF;
+	blk.bytes[blk.byte_pos++] = (imm32 >> 16) & 0xFF;
+	blk.bytes[blk.byte_pos++] = (imm32 >> 24) & 0xFF;
 }
 // AND r/m64, r64
 inline void and_rr(JIT_Block& blk, char dest, char source)
@@ -179,6 +227,18 @@ inline void and_rr(JIT_Block& blk, char dest, char source)
 	blk.bytes[blk.byte_pos++] = 0x21;
 	blk.bytes[blk.byte_pos++] = modrm(3, (source & 7), (dest & 7));
 }
+// AND r/m64, imm32
+inline void and_rimm32(JIT_Block& blk, char dest, int32_t imm32)
+{
+	// dest is RM, imm32 is 4
+	blk.bytes[blk.byte_pos++] = rex(1, 0, 0, (dest > 7));
+	blk.bytes[blk.byte_pos++] = 0x81;
+	blk.bytes[blk.byte_pos++] = modrm(3, 0b100, (dest & 7));
+	blk.bytes[blk.byte_pos++] = imm32 & 0xFF;
+	blk.bytes[blk.byte_pos++] = (imm32 >> 8) & 0xFF;
+	blk.bytes[blk.byte_pos++] = (imm32 >> 16) & 0xFF;
+	blk.bytes[blk.byte_pos++] = (imm32 >> 24) & 0xFF;
+}
 // MOV r/m64, r64
 inline void mov(JIT_Block& blk, char dest, char source)
 {
@@ -186,6 +246,18 @@ inline void mov(JIT_Block& blk, char dest, char source)
 	blk.bytes[blk.byte_pos++] = rex(1, (source > 7), 0, (dest > 7));
 	blk.bytes[blk.byte_pos++] = 0x89;
 	blk.bytes[blk.byte_pos++] = modrm(3, (source & 7), (dest & 7));
+}
+// MOV r/m64, imm32
+inline void mov_imm32(JIT_Block& blk, char dest, int32_t imm32)
+{
+	// dest is RM,  REG must be 0
+	blk.bytes[blk.byte_pos++] = rex(1, 0, 0, (dest > 7));
+	blk.bytes[blk.byte_pos++] = 0xC7;
+	blk.bytes[blk.byte_pos++] = modrm(3, 0, (dest & 7));
+	blk.bytes[blk.byte_pos++] = imm32 & 0xFF;
+	blk.bytes[blk.byte_pos++] = (imm32 >> 8) & 0xFF;
+	blk.bytes[blk.byte_pos++] = (imm32 >> 16) & 0xFF;
+	blk.bytes[blk.byte_pos++] = (imm32 >> 24) & 0xFF;
 }
 // MOV helper
 inline void mov_helper(JIT_Block& blk, uint8_t reg, uint8_t base, uint8_t index, uint8_t scale, int32_t disp)
@@ -252,6 +324,15 @@ inline void shl_rc(JIT_Block& blk, char dest, char source)
 	blk.bytes[blk.byte_pos++] = 0xD3;
 	blk.bytes[blk.byte_pos++] = modrm(3, 0b100, (dest & 7));
 }
+// SHL r/m64, imm8
+inline void shl_rimm8(JIT_Block& blk, char dest, uint8_t imm8)
+{
+	// dest is RM, imm8 is 4
+	blk.bytes[blk.byte_pos++] = rex(1, 0, 0, (dest > 7));
+	blk.bytes[blk.byte_pos++] = 0xC1;
+	blk.bytes[blk.byte_pos++] = modrm(3, 0b100, (dest & 7));
+	blk.bytes[blk.byte_pos++] = imm8 & 0xFF;
+}
 // SHR r/m64, CL
 // CL is RCX(first 6 bits)
 inline void shr_rc(JIT_Block& blk, char dest, char source)
@@ -262,6 +343,15 @@ inline void shr_rc(JIT_Block& blk, char dest, char source)
 	blk.bytes[blk.byte_pos++] = 0xD3;
 	blk.bytes[blk.byte_pos++] = modrm(3, 0b101, (dest & 7));
 }
+// SHR r/m64, imm8
+inline void shr_rimm8(JIT_Block& blk, char dest, uint8_t imm8)
+{
+	// dest is RM, imm8 is 5
+	blk.bytes[blk.byte_pos++] = rex(1, 0, 0, (dest > 7));
+	blk.bytes[blk.byte_pos++] = 0xC1;
+	blk.bytes[blk.byte_pos++] = modrm(3, 0b101, (dest & 7));
+	blk.bytes[blk.byte_pos++] = imm8 & 0xFF;
+}
 // SAR r/m64, CL
 // CL is RCX(first 6 bits)
 inline void sar_rc(JIT_Block& blk, char dest, char source)
@@ -271,6 +361,15 @@ inline void sar_rc(JIT_Block& blk, char dest, char source)
 	blk.bytes[blk.byte_pos++] = rex(1, 0, 0, (dest > 7));
 	blk.bytes[blk.byte_pos++] = 0xD3;
 	blk.bytes[blk.byte_pos++] = modrm(3, 0b111, (dest & 7));
+}
+// SAR r/m64, imm8
+inline void sar_rimm8(JIT_Block& blk, char dest, uint8_t imm8)
+{
+	// dest is RM, imm8 is 7
+	blk.bytes[blk.byte_pos++] = rex(1, 0, 0, (dest > 7));
+	blk.bytes[blk.byte_pos++] = 0xC1;
+	blk.bytes[blk.byte_pos++] = modrm(3, 0b111, (dest & 7));
+	blk.bytes[blk.byte_pos++] = imm8 & 0xFF;
 }
 
 // SHL r/m32, CL
@@ -283,6 +382,16 @@ inline void shl_rc32(JIT_Block& blk, char dest, char source)
 	blk.bytes[blk.byte_pos++] = 0xD3;
 	blk.bytes[blk.byte_pos++] = modrm(3, 0b100, (dest & 7));
 }
+// SHL r/m32, imm8
+inline void shl_r32imm8(JIT_Block& blk, char dest, uint8_t imm8)
+{
+	// dest is RM, imm8 is 4
+	blk.bytes[blk.byte_pos++] = rex(0, 0, 0, (dest > 7));
+	blk.bytes[blk.byte_pos++] = 0xC1;
+	blk.bytes[blk.byte_pos++] = modrm(3, 0b100, (dest & 7));
+	blk.bytes[blk.byte_pos++] = imm8 & 0xFF;
+}
+
 // SHR r/m32, CL
 // CL is RCX(first 5 bits)
 inline void shr_rc32(JIT_Block& blk, char dest, char source)
@@ -293,6 +402,15 @@ inline void shr_rc32(JIT_Block& blk, char dest, char source)
 	blk.bytes[blk.byte_pos++] = 0xD3;
 	blk.bytes[blk.byte_pos++] = modrm(3, 0b101, (dest & 7));
 }
+// SHR r/m32, imm8
+inline void shr_r32imm8(JIT_Block& blk, char dest, uint8_t imm8)
+{
+	// dest is RM, imm8 is 5
+	blk.bytes[blk.byte_pos++] = rex(0, 0, 0, (dest > 7));
+	blk.bytes[blk.byte_pos++] = 0xC1;
+	blk.bytes[blk.byte_pos++] = modrm(3, 0b101, (dest & 7));
+	blk.bytes[blk.byte_pos++] = imm8 & 0xFF;
+}
 // SAR r/m32, CL
 // CL is RCX(first 5 bits)
 inline void sar_rc32(JIT_Block& blk, char dest, char source)
@@ -302,6 +420,15 @@ inline void sar_rc32(JIT_Block& blk, char dest, char source)
 	blk.bytes[blk.byte_pos++] = rex(0, 0, 0, (dest > 7));
 	blk.bytes[blk.byte_pos++] = 0xD3;
 	blk.bytes[blk.byte_pos++] = modrm(3, 0b111, (dest & 7));
+}
+// SAR r/m32, imm8
+inline void sar_r32imm8(JIT_Block& blk, char dest, uint8_t imm8)
+{
+	// dest is RM, imm8 is 7
+	blk.bytes[blk.byte_pos++] = rex(0, 0, 0, (dest > 7));
+	blk.bytes[blk.byte_pos++] = 0xC1;
+	blk.bytes[blk.byte_pos++] = modrm(3, 0b111, (dest & 7));
+	blk.bytes[blk.byte_pos++] = imm8 & 0xFF;
 }
 // CMP r/m64,r64
 inline void cmp(JIT_Block& blk, char dest, char source)
@@ -392,7 +519,7 @@ inline void JIT_Emitter::rvjit_emit_epilogue(JIT_Block& blk)
 }
 inline void JIT_Emitter::reset()
 {
-	uint8_t array[]	   = { REG_RAX, REG_RCX, REG_RDX, REG_RSI, REG_RDI, REG_R8, REG_R9, REG_R10, REG_R11 };
+	uint8_t array[]	   = { REG_RAX, REG_RDX, REG_RSI, REG_RDI, REG_R8, REG_R9, REG_R10, REG_R11 };
 	global_use_counter = 0;
 	for(int i = 0; i < HOST_REGS_COUNT; i++)
 	{
@@ -535,6 +662,46 @@ inline void JIT_Emitter::inst_emit_r_type(Hart& h, InstructionData& inst, JIT_Bl
 
 	rd.dirty = true;
 }
+inline void JIT_Emitter::inst_emit_i_type(Hart& h, InstructionData& inst, JIT_Block& blk, bool optimize_if_rsz, IOpFunction emit_op)
+{
+	if(inst.rd == 0)
+	{
+		// x0 write ignored
+		return;
+	}
+	bool rs1_zero = optimize_if_rsz ? (inst.rs1 == 0) : false;
+	bool imm_zero = optimize_if_rsz ? (inst.imm == 0) : false;
 
+	VReg& rd = rvjit_alloc_reg(blk, inst.rd, 0);
+	if(rs1_zero && imm_zero)
+	{
+		xor_rr(blk, rd.host_reg, rd.host_reg);
+		rd.dirty = true;
+		return;
+	}
+
+	if(rs1_zero)
+	{
+		mov_imm32(blk, rd.host_reg, inst.imm);
+		rd.dirty = true;
+		return;
+	}
+
+	if(imm_zero)
+	{
+		VReg& rs1 = rvjit_alloc_reg(blk, inst.rs1, (1ULL << rd.host_reg));
+		mov(blk, rd.host_reg, rs1.host_reg);
+		rd.dirty = true;
+		return;
+	}
+	VReg& rs1 = rvjit_alloc_reg(
+		blk,
+		inst.rs1,
+		(1ULL << rd.host_reg));
+
+	emit_op(blk, rd, rs1, inst.imm);
+
+	rd.dirty = true;
+}
 #endif
 #endif

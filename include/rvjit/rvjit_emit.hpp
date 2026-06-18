@@ -59,6 +59,7 @@ struct JIT_Block
 struct InstructionData;
 
 using ROpFunction = void (*)(JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2);
+using IOpFunction = void (*)(JIT_Block& blk, VReg& rd, VReg& rs1, uint64_t imm);
 struct JIT_Emitter
 {
 	VReg vregs[32];
@@ -72,6 +73,7 @@ struct JIT_Emitter
 	HReg* spill(JIT_Block& blk, uint64_t locked);
 
 	void inst_emit_r_type(Hart& h, InstructionData& inst, JIT_Block& blk, bool optimize_if_rsz, ROpFunction emit_op);
+	void inst_emit_i_type(Hart& h, InstructionData& inst, JIT_Block& blk, bool optimize_if_rsz, IOpFunction emit_op);
 };
 
 #endif
