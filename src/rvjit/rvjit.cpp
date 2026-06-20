@@ -60,9 +60,9 @@ void JIT_Context::handleInstruction(Hart& h, InstructionCache& cache, uint64_t p
 			ignore_pc[pc & ((1 << 20) - 1)] = true;
 			return;
 		}
+		jc.inst.func(h, jc.data, block, emitter);
 		block.size += cache.inst.size;
 		block.count++;
-		jc.inst.func(h, jc.data, block, emitter);
 		return;
 	}
 
@@ -81,6 +81,7 @@ void JIT_Context::handleInstruction(Hart& h, InstructionCache& cache, uint64_t p
 			block.pc	   = pc;
 			block.size	   = cache.inst.size;
 			block.count	   = 1;
+			block.jmp_labels.clear();
 
 			emitter.reset();
 			emitter.rvjit_emit_prologue(block);

@@ -44,12 +44,19 @@ struct VReg
 	bool valid		 = false;
 	bool is_zero	 = false;
 };
-
+struct JumpLabel
+{
+	std::string label;
+	uint64_t offs;
+	bool is_opcode_2 = false;
+	size_t size		 = 4;
+};
 struct Hart;
 struct JIT_Block
 {
 	uint8_t bytes[RVJIT_FUNC_SIZE];
 	uint16_t byte_pos = 0;
+	std::vector<JumpLabel> jmp_labels;
 
 	uint64_t pc;
 	uint64_t size  = 0;
@@ -58,22 +65,27 @@ struct JIT_Block
 };
 struct InstructionData;
 
-using ROpFunction = void (*)(JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2);
-using IOpFunction = void (*)(JIT_Block& blk, VReg& rd, VReg& rs1, uint64_t imm);
+struct JIT_Emitter;
+
+using ROpFunction = void (*)(JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2, uint64_t pc, void* tmp);
+using IOpFunction = void (*)(JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, uint64_t imm, uint64_t pc, void* tmp);
+
 struct JIT_Emitter
 {
 	VReg vregs[32];
 	HReg host_regs[HOST_REGS_COUNT];
 	uint64_t global_use_counter;
+
 	void reset();
 	void rvjit_emit_prologue(JIT_Block& blk);
 	void rvjit_emit_epilogue(JIT_Block& blk);
 	VReg& rvjit_alloc_reg(JIT_Block& blk, uint8_t user_reg, uint64_t locked);
 	void ensure_loaded(JIT_Block& blk, VReg& vreg);
 	HReg* spill(JIT_Block& blk, uint64_t locked);
+	void realize_label(JIT_Block& blk, const std::string& label);
 
-	void inst_emit_r_type(Hart& h, InstructionData& inst, JIT_Block& blk, bool optimize_if_rsz, ROpFunction emit_op);
-	void inst_emit_i_type(Hart& h, InstructionData& inst, JIT_Block& blk, bool optimize_if_rsz, IOpFunction emit_op);
+	void inst_emit_r_type(Hart& h, InstructionData& inst, JIT_Block& blk, bool optimize_if_rsz, ROpFunction emit_op, uint64_t pc = 0, void* tmp = nullptr);
+	void inst_emit_i_type(Hart& h, InstructionData& inst, JIT_Block& blk, bool optimize_if_rsz, IOpFunction emit_op, uint64_t pc = 0, void* tmp = nullptr);
 };
 
 #endif

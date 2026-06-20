@@ -36,3 +36,4 @@ PointerAlignment: Left
 ReferenceAlignment: Left
 SpaceBeforeParens: Never
 AlwaysBreakTemplateDeclarations: Yes
+LambdaBodyIndentation: OuterScope

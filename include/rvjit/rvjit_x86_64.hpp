@@ -15,6 +15,7 @@
 
 */
 #pragma once
+#include "rvjit.hpp"
 #ifdef USE_JIT
 #include "rvjit_emit.hpp"
 #include <cstdint>
@@ -99,6 +100,38 @@ inline bool needs_sib(uint8_t base, uint8_t index)
 	return index != 0xFF || (base & 7) == 4; // rsp/r12
 }
 
+// SIB helper
+inline void sib_helper(JIT_Block& blk, uint8_t reg, uint8_t base, uint8_t index, uint8_t scale, int32_t disp)
+{
+	bool has_index = index != 0xFF;
+	bool need_sib  = needs_sib(base, index);
+	uint8_t mod;
+	if(disp == 0 && (base & 7) != 5)
+		mod = 0;
+	else if(disp >= -128 && disp <= 127)
+		mod = 1;
+	else
+		mod = 2;
+	blk.bytes[blk.byte_pos++] = modrm(mod, reg & 7, need_sib ? 4 : (base & 7));
+
+	if(need_sib)
+	{
+		blk.bytes[blk.byte_pos++] = sib(scale, has_index ? (index & 7) : 4, base & 7);
+	}
+
+	if(mod == 1)
+	{
+		blk.bytes[blk.byte_pos++] = (uint8_t)disp;
+	}
+	else if(mod == 2)
+	{
+		blk.bytes[blk.byte_pos++] = disp & 0xFF;
+		blk.bytes[blk.byte_pos++] = (disp >> 8) & 0xFF;
+		blk.bytes[blk.byte_pos++] = (disp >> 16) & 0xFF;
+		blk.bytes[blk.byte_pos++] = (disp >> 24) & 0xFF;
+	}
+}
+
 // SUB r/m64, r64
 inline void sub_rr(JIT_Block& blk, char dest, char source)
 {
@@ -114,6 +147,18 @@ inline void sub_rr32(JIT_Block& blk, char dest, char source)
 	blk.bytes[blk.byte_pos++] = rex(0, (source > 7), 0, (dest > 7));
 	blk.bytes[blk.byte_pos++] = 0x29;
 	blk.bytes[blk.byte_pos++] = modrm(3, (source & 7), (dest & 7));
+}
+// SUB r/m64, imm32
+inline void sub_rimm32(JIT_Block& blk, char dest, int32_t imm32)
+{
+	// dest is RM, imm32 is 5
+	blk.bytes[blk.byte_pos++] = rex(1, 0, 0, (dest > 7));
+	blk.bytes[blk.byte_pos++] = 0x81;
+	blk.bytes[blk.byte_pos++] = modrm(3, 0b101, (dest & 7));
+	blk.bytes[blk.byte_pos++] = imm32 & 0xFF;
+	blk.bytes[blk.byte_pos++] = (imm32 >> 8) & 0xFF;
+	blk.bytes[blk.byte_pos++] = (imm32 >> 16) & 0xFF;
+	blk.bytes[blk.byte_pos++] = (imm32 >> 24) & 0xFF;
 }
 // SUB r/m64, imm32
 inline void sub_riw(JIT_Block& blk, char dest, int32_t imm32)
@@ -259,36 +304,14 @@ inline void mov_imm32(JIT_Block& blk, char dest, int32_t imm32)
 	blk.bytes[blk.byte_pos++] = (imm32 >> 16) & 0xFF;
 	blk.bytes[blk.byte_pos++] = (imm32 >> 24) & 0xFF;
 }
-// MOV helper
-inline void mov_helper(JIT_Block& blk, uint8_t reg, uint8_t base, uint8_t index, uint8_t scale, int32_t disp)
+// MOV r/m64, imm64
+inline void mov_imm64(JIT_Block& blk, char dest, int32_t imm64)
 {
-	bool has_index = index != 0xFF;
-	bool need_sib  = needs_sib(base, index);
-	uint8_t mod;
-	if(disp == 0 && (base & 7) != 5)
-		mod = 0;
-	else if(disp >= -128 && disp <= 127)
-		mod = 1;
-	else
-		mod = 2;
-	blk.bytes[blk.byte_pos++] = modrm(mod, reg & 7, need_sib ? 4 : (base & 7));
-
-	if(need_sib)
-	{
-		blk.bytes[blk.byte_pos++] = sib(scale, has_index ? (index & 7) : 4, base & 7);
-	}
-
-	if(mod == 1)
-	{
-		blk.bytes[blk.byte_pos++] = (uint8_t)disp;
-	}
-	else if(mod == 2)
-	{
-		blk.bytes[blk.byte_pos++] = disp & 0xFF;
-		blk.bytes[blk.byte_pos++] = (disp >> 8) & 0xFF;
-		blk.bytes[blk.byte_pos++] = (disp >> 16) & 0xFF;
-		blk.bytes[blk.byte_pos++] = (disp >> 24) & 0xFF;
-	}
+	// dest is RM, REG must be 0
+	blk.bytes[blk.byte_pos++] = rex(1, 0, 0, (dest > 7));
+	blk.bytes[blk.byte_pos++] = 0xB8 + (dest & 7);
+	for(int i = 0; i < 8; i++)
+		blk.bytes[blk.byte_pos++] = (imm64 >> (i * 8)) & 0xFF;
 }
 // MOV memory,r64
 inline void mov_mr(JIT_Block& blk, uint8_t source, uint8_t reg_base, uint8_t reg_index, uint8_t scale, int32_t disp = 0)
@@ -296,7 +319,7 @@ inline void mov_mr(JIT_Block& blk, uint8_t source, uint8_t reg_base, uint8_t reg
 	// dest is RM, source is REG
 	blk.bytes[blk.byte_pos++] = rex(1, (source > 7), (reg_index != 0xFF && reg_index > 7), (reg_base > 7));
 	blk.bytes[blk.byte_pos++] = 0x89;
-	mov_helper(blk, source, reg_base, reg_index, scale, disp);
+	sib_helper(blk, source, reg_base, reg_index, scale, disp);
 }
 // MOV r64,memory
 inline void mov_rm(JIT_Block& blk, uint8_t dest, uint8_t reg_base, uint8_t reg_index, uint8_t scale, int32_t disp = 0)
@@ -304,7 +327,81 @@ inline void mov_rm(JIT_Block& blk, uint8_t dest, uint8_t reg_base, uint8_t reg_i
 	// dest is RM, source is REG
 	blk.bytes[blk.byte_pos++] = rex(1, (dest > 7), (reg_index != 0xFF && reg_index > 7), (reg_base > 7));
 	blk.bytes[blk.byte_pos++] = 0x8B;
-	mov_helper(blk, dest, reg_base, reg_index, scale, disp);
+	sib_helper(blk, dest, reg_base, reg_index, scale, disp);
+}
+// MOVZX r32, r/m8
+inline void movzx_r32m8(JIT_Block& blk,
+						uint8_t dest,
+						uint8_t base,
+						uint8_t index,
+						uint8_t scale,
+						int32_t disp = 0)
+{
+	blk.bytes[blk.byte_pos++] = rex(0, dest > 7, index > 7, base > 7);
+
+	blk.bytes[blk.byte_pos++] = 0x0F;
+	blk.bytes[blk.byte_pos++] = 0xB6;
+
+	sib_helper(blk, dest, base, index, scale, disp);
+}
+// MOVZX r32, r/m16
+inline void movzx_r32m16(JIT_Block& blk,
+						 uint8_t dest,
+						 uint8_t base,
+						 uint8_t index,
+						 uint8_t scale,
+						 int32_t disp = 0)
+{
+	blk.bytes[blk.byte_pos++] = rex(0, dest > 7, index > 7, base > 7);
+
+	blk.bytes[blk.byte_pos++] = 0x0F;
+	blk.bytes[blk.byte_pos++] = 0xB7;
+
+	sib_helper(blk, dest, base, index, scale, disp);
+}
+// MOVSX r64, r/m8
+inline void movsx_r64m8(JIT_Block& blk,
+						uint8_t dest,
+						uint8_t base,
+						uint8_t index,
+						uint8_t scale,
+						int32_t disp = 0)
+{
+	blk.bytes[blk.byte_pos++] = rex(1, dest > 7, index > 7, base > 7);
+
+	blk.bytes[blk.byte_pos++] = 0x0F;
+	blk.bytes[blk.byte_pos++] = 0xBE;
+
+	sib_helper(blk, dest, base, index, scale, disp);
+}
+// MOVSX r64, r/m16
+inline void movsx_r64m16(JIT_Block& blk,
+						 uint8_t dest,
+						 uint8_t base,
+						 uint8_t index,
+						 uint8_t scale,
+						 int32_t disp = 0)
+{
+	blk.bytes[blk.byte_pos++] = rex(1, dest > 7, index > 7, base > 7);
+
+	blk.bytes[blk.byte_pos++] = 0x0F;
+	blk.bytes[blk.byte_pos++] = 0xBF;
+
+	sib_helper(blk, dest, base, index, scale, disp);
+}
+// MOVSXD r64, r/m32
+inline void movsxd_r64m32(JIT_Block& blk,
+						  uint8_t dest,
+						  uint8_t base,
+						  uint8_t index,
+						  uint8_t scale,
+						  int32_t disp = 0)
+{
+	blk.bytes[blk.byte_pos++] = rex(1, dest > 7, index > 7, base > 7);
+
+	blk.bytes[blk.byte_pos++] = 0x63;
+
+	sib_helper(blk, dest, base, index, scale, disp);
 }
 // MOVSXD r64, r/m32
 inline void movsxd(JIT_Block& blk, char dest, char source)
@@ -314,6 +411,8 @@ inline void movsxd(JIT_Block& blk, char dest, char source)
 	blk.bytes[blk.byte_pos++] = 0x63;
 	blk.bytes[blk.byte_pos++] = modrm(3, (dest & 7), (source & 7));
 }
+using MovSignature = void (*)(JIT_Block&, uint8_t, uint8_t, uint8_t, uint8_t, int32_t);
+
 // SHL r/m64, CL
 // CL is RCX(first 6 bits)
 inline void shl_rc(JIT_Block& blk, char dest, char source)
@@ -438,6 +537,38 @@ inline void cmp(JIT_Block& blk, char dest, char source)
 	blk.bytes[blk.byte_pos++] = 0x39;
 	blk.bytes[blk.byte_pos++] = modrm(3, source & 7, dest & 7);
 }
+// CMP r/m64,r64
+inline void cmp_mr(JIT_Block& blk, char source, char reg_base, char reg_index, char scale, int32_t disp = 0)
+{
+	// dest is RM, source is REG
+	blk.bytes[blk.byte_pos++] = rex(1, source > 7, reg_index > 7, reg_base > 7);
+
+	blk.bytes[blk.byte_pos++] = 0x39; // CMP r/m64, r64
+
+	sib_helper(
+		blk,
+		source,
+		reg_base,
+		reg_index,
+		scale,
+		disp);
+}
+// CMP r64,r/m64
+inline void cmp_rm(JIT_Block& blk, char dest, char reg_base, char reg_index, char scale, int32_t disp = 0)
+{
+	// dest is RM, source is REG
+	blk.bytes[blk.byte_pos++] = rex(1, dest > 7, reg_index > 7, reg_base > 7);
+
+	blk.bytes[blk.byte_pos++] = 0x3B;
+
+	sib_helper(
+		blk,
+		dest,
+		reg_base,
+		reg_index,
+		scale,
+		disp);
+}
 // SETL r/m8
 inline void setl(JIT_Block& blk, char dest)
 {
@@ -459,6 +590,33 @@ inline void setb(JIT_Block& blk, char dest)
 	blk.bytes[blk.byte_pos++] = 0x0F;
 	blk.bytes[blk.byte_pos++] = 0x92;
 	blk.bytes[blk.byte_pos++] = modrm(3, 0, dest & 7);
+}
+// JAE rel8
+inline void jae8(JIT_Block& blk, int8_t rel8)
+{
+	blk.bytes[blk.byte_pos++] = 0x73;
+	blk.bytes[blk.byte_pos++] = rel8;
+}
+// JBE rel8
+inline void jbe8(JIT_Block& blk, int8_t rel8)
+{
+	blk.bytes[blk.byte_pos++] = 0x76;
+	blk.bytes[blk.byte_pos++] = rel8;
+}
+// JMP rel8
+inline void jmp8(JIT_Block& blk, int8_t rel8)
+{
+	blk.bytes[blk.byte_pos++] = 0xEB;
+	blk.bytes[blk.byte_pos++] = rel8;
+}
+// JMP rel32
+inline void jmp32(JIT_Block& blk, int32_t rel32)
+{
+	blk.bytes[blk.byte_pos++] = 0xE9;
+	blk.bytes[blk.byte_pos++] = rel32 & 0xFF;
+	blk.bytes[blk.byte_pos++] = (rel32 >> 8) & 0xFF;
+	blk.bytes[blk.byte_pos++] = (rel32 >> 16) & 0xFF;
+	blk.bytes[blk.byte_pos++] = (rel32 >> 24) & 0xFF;
 }
 // MOVZX r64, r/m8
 inline void movzx(JIT_Block& blk, char dest, char source)
@@ -494,11 +652,14 @@ inline void JIT_Emitter::rvjit_emit_prologue(JIT_Block& blk)
 {
 	push(blk, REG_R12);
 	push(blk, REG_R13);
-	mov(blk, REG_R12, REG_RDI);					   // Mov hart context to R12
-	mov_rm(blk, REG_R13, REG_R12, NO_INDEX, 0, 0); // Mov regs from hart context to R13
+	push(blk, REG_R14);
+	mov(blk, REG_R12, REG_RDI);													// Mov hart context to R12
+	mov_rm(blk, REG_R13, REG_R12, NO_INDEX, 0, 0);								// Mov regs from hart context to R13
+	mov_rm(blk, REG_R14, REG_R12, NO_INDEX, 0, offsetof(JIT_HartContext, ram)); // Mov ram* from hart context to R1$
 }
 inline void JIT_Emitter::rvjit_emit_epilogue(JIT_Block& blk)
 {
+	realize_label(blk, "epilogue");
 	for(auto& vreg : vregs)
 	{
 		if(!vreg.allocated)
@@ -513,6 +674,8 @@ inline void JIT_Emitter::rvjit_emit_epilogue(JIT_Block& blk)
 		// store guest reg back
 		mov_mr(blk, vreg.host_reg, REG_R13, NO_INDEX, 0, vreg.vreg * 8);
 	}
+
+	pop(blk, REG_R14);
 	pop(blk, REG_R13); // pop hart regs
 	pop(blk, REG_R12); // pop hart context from r12
 	ret(blk);
@@ -536,6 +699,41 @@ inline void JIT_Emitter::reset()
 		vregs[i].dirty	   = false;
 		vregs[i].valid	   = false;
 		vregs[i].is_zero   = (i == 0);
+	}
+}
+inline void JIT_Emitter::realize_label(JIT_Block& blk, const std::string& label)
+{
+	uint32_t cur_pos = blk.byte_pos;
+
+	for(size_t i = 0; i < blk.jmp_labels.size();)
+	{
+		auto& lbl = blk.jmp_labels[i];
+
+		if(lbl.label != label)
+		{
+			i++;
+			continue;
+		}
+
+		uint32_t patch_pos = lbl.offs + (lbl.is_opcode_2 ? 2 : 1);
+		uint32_t insn_size = lbl.size + (lbl.is_opcode_2 ? 2 : 1);
+
+		if(lbl.size == 1)
+		{
+			// rel8
+			int8_t rel = (int8_t)(cur_pos - (lbl.offs + insn_size));
+			std::memcpy(&blk.bytes[patch_pos], &rel, sizeof(int8_t));
+		}
+		else if(lbl.size == 4)
+		{
+			// rel32
+			int32_t rel = (int32_t)(cur_pos - (lbl.offs + insn_size));
+			std::memcpy(&blk.bytes[patch_pos], &rel, sizeof(int32_t));
+		}
+
+		blk.jmp_labels.erase(blk.jmp_labels.begin() + i);
+
+		continue;
 	}
 }
 inline void JIT_Emitter::ensure_loaded(JIT_Block& blk, VReg& vreg)
@@ -616,7 +814,7 @@ inline VReg& JIT_Emitter::rvjit_alloc_reg(JIT_Block& blk, uint8_t user_reg, uint
 }
 
 // Instruction emit part
-inline void JIT_Emitter::inst_emit_r_type(Hart& h, InstructionData& inst, JIT_Block& blk, bool optimize_if_rsz, ROpFunction emit_op)
+inline void JIT_Emitter::inst_emit_r_type(Hart& h, InstructionData& inst, JIT_Block& blk, bool optimize_if_rsz, ROpFunction emit_op, uint64_t pc, void* tmp)
 {
 	if(inst.rd == 0)
 	{
@@ -658,11 +856,11 @@ inline void JIT_Emitter::inst_emit_r_type(Hart& h, InstructionData& inst, JIT_Bl
 		blk,
 		inst.rs2,
 		(1ULL << rs1.host_reg) | (1ULL << rd.host_reg));
-	emit_op(blk, rd, rs1, rs2);
+	emit_op(*this, blk, rd, rs1, rs2, pc, tmp);
 
 	rd.dirty = true;
 }
-inline void JIT_Emitter::inst_emit_i_type(Hart& h, InstructionData& inst, JIT_Block& blk, bool optimize_if_rsz, IOpFunction emit_op)
+inline void JIT_Emitter::inst_emit_i_type(Hart& h, InstructionData& inst, JIT_Block& blk, bool optimize_if_rsz, IOpFunction emit_op, uint64_t pc, void* tmp)
 {
 	if(inst.rd == 0)
 	{
@@ -699,7 +897,7 @@ inline void JIT_Emitter::inst_emit_i_type(Hart& h, InstructionData& inst, JIT_Bl
 		inst.rs1,
 		(1ULL << rd.host_reg));
 
-	emit_op(blk, rd, rs1, inst.imm);
+	emit_op(*this, blk, rd, rs1, inst.imm, pc, tmp);
 
 	rd.dirty = true;
 }

@@ -32,9 +32,10 @@ void Hart::init(uint64_t dtb_pos_at_memory, uint64_t entry_pc)
 	status.fields.SXL = 2;
 	status.fields.UXL = 2;
 #ifdef USE_JIT
-	hctx.regs = GPR;
-	hctx.mmio = mmio;
-	hctx.ram  = mmap->ram_direct->ptr(0x80000000);
+	hctx.regs	 = GPR;
+	hctx.mmio	 = mmio;
+	hctx.ram	 = mmap->ram_direct->ptr(0x80000000);
+	hctx.memsize = mmap->ram_direct->size;
 #endif
 }
 
@@ -86,8 +87,13 @@ void Hart::tick()
 #ifdef USE_JIT
 	if(jctx->jits[pc].valid && jctx->jits[pc].pc == pc)
 	{
-		jctx->jits[pc].func(&hctx);
-		pc += jctx->jits[pc].inst_size;
+		hctx.exit_pc = 0;
+		auto& func	 = jctx->jits[pc];
+		func.func(&hctx);
+		if(hctx.exit_pc != 0)
+			pc = hctx.exit_pc;
+		else
+			pc += jctx->jits[pc].inst_size;
 	}
 	else
 #endif
