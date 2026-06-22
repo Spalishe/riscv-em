@@ -35,8 +35,11 @@ return function(instance)
 		for machine, _ in pairs(machines) do
 			machine:Stop()
 		end
+		local c = table.count(machines)
 		table.Empty(machines)
-		collectgarbage("collect") -- Collect immediately
+		if c > 0 then
+			collectgarbage("collect") -- Collect immediately
+		end
 	end)
 
 	--- Turns the RVMachine into a string.

@@ -19,6 +19,7 @@ struct RVMachine
 	uint64_t mem_size;
 	uint8_t hart_count;
 	Machine machine;
+	bool runned_before = false;
 	std::shared_ptr<UART> uart;
 };
 extern int s_RVMachine_TypeId;
