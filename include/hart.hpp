@@ -93,7 +93,7 @@ struct Hart
 	void trap(uint64_t cause, uint64_t tval, bool interrupt);
 	void tick();
 	ExecReturn single_inst(InstructionCache& cache);
-	uint32_t fetch();
+	uint32_t fetch(uint64_t inst_pc);
 	bool int_local_pending();
 	bool check_ints();
 };

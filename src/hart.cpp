@@ -39,29 +39,15 @@ void Hart::init(uint64_t dtb_pos_at_memory, uint64_t entry_pc)
 #endif
 }
 
-uint32_t Hart::fetch()
+uint32_t Hart::fetch(uint64_t inst_pc)
 {
-	if(pc >= fetch_buffer_pc && pc < fetch_buffer_pc + 28)
-	{
-		return fetch_buffer[(pc - fetch_buffer_pc) / 4];
-	}
-	else
-	{
-		// Create new fetch buffer
-		for(int i = 0; i < 32; i += 4)
-		{
-			uint32_t val;
-			MemoryReturn out = mmio->read(*this, pc + i, MemorySize::Int, &val);
-			if(!out.is_success)
-			{
-				trap(EXC_INST_ACCESS_FAULT, out.tval, false);
-				return 0;
-			}
-			fetch_buffer[i / 4] = val;
-		}
-		fetch_buffer_pc = pc;
-		return fetch_buffer[(pc - fetch_buffer_pc) / 4];
-	}
+	uint32_t val	 = 0;
+	MemoryReturn out = mmio->read(*this, inst_pc, MemorySize::Int, &val);
+
+	if(!out.is_success)
+		trap(EXC_INST_ACCESS_FAULT, out.tval, false);
+
+	return val;
 }
 
 ExecReturn Hart::single_inst(InstructionCache& cache)
@@ -85,7 +71,7 @@ void Hart::tick()
 
 	uint64_t prevpc = pc;
 #ifdef USE_JIT
-	auto& jit_entry = jctx->jits[pc];
+	JIT_Function& jit_entry = jctx->jits[jctx->jit_index(pc)];
 	if(jit_entry.valid && jit_entry.pc == pc)
 	{
 		hctx.exit_pc = 0;
@@ -98,7 +84,7 @@ void Hart::tick()
 	else
 #endif
 	{
-		uint32_t inst			= fetch();
+		uint32_t inst			= fetch(pc);
 		InstructionCache& cache = idec->decode_inst(pc, inst);
 		if(!cache.valid)
 		{
@@ -113,7 +99,9 @@ void Hart::tick()
 		auto out = single_inst(cache);
 		if(!out.is_success)
 		{
+#ifdef USE_JIT
 			jctx->stopBlock();
+#endif
 			trap(out.cause, out.tval, false);
 			return;
 		}

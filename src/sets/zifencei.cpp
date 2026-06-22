@@ -27,7 +27,8 @@ ExecReturn exec_FENCE_I(Hart& hart, InstructionData& inst)
 		hart.idec->cache[i].valid = false;
 	}
 #ifdef USE_JIT
-	hart.jctx->jits.clear();
+	// FIXME: Make JIT dirty system so frequent calls of fence.i will not make JIT system suffer
+	memset(hart.jctx->jits, 0, sizeof(hart.jctx->jits));
 	memset(hart.jctx->ignore_pc, 0, sizeof(hart.jctx->ignore_pc));
 	hart.jctx->arenas.clear();
 	hart.jctx->block_c = false;

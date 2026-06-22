@@ -26,7 +26,7 @@ void JIT_Context::handleInstruction(Hart& h, InstructionCache& cache, uint64_t p
 	// This function excepts it will run after instruction execution, so subtract from current pc instruction size to get previous one
 	uint64_t pc = prev_pc;
 	if(ignore_pc[pc & ((1 << 20) - 1)]) return;
-	if(jits[pc].valid) return;
+	if(jits[jit_index(pc)].valid) return;
 	pc_hits[(pc >> 2) & 0x3FFF]++;
 
 	if(block_c)
@@ -54,10 +54,10 @@ void JIT_Context::handleInstruction(Hart& h, InstructionCache& cache, uint64_t p
 				// printf("jit: 0x%lx\n", block.pc);
 
 				// We built block sized enough. Go go gadget w^x allocations
-				JIT_Function func = arenas[last_arena].push_function(block.bytes, block.byte_pos);
-				func.inst_size	  = block.size;
-				func.pc			  = block.pc;
-				jits[block.pc]	  = std::move(func);
+				JIT_Function func	= arenas[last_arena].push_function(block.bytes, block.byte_pos);
+				func.inst_size		= block.size;
+				func.pc				= block.pc;
+				jits[jit_index(pc)] = std::move(func);
 			}
 			ignore_pc[pc & ((1 << 20) - 1)] = true;
 			return;

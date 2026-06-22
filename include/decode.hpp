@@ -59,6 +59,7 @@ struct Instruction
 
 struct InstructionCache
 {
+	uint64_t pc;
 	uint32_t inst_raw = 0;
 	Instruction inst;
 	InstructionData data;

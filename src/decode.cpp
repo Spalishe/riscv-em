@@ -91,9 +91,12 @@ uint64_t shamt64(uint32_t inst)
 
 InstructionCache& InstructionDecoder::decode_inst(uint64_t pc, uint32_t inst)
 {
-	if(cache[pc & 0x1FFF].inst_raw == inst && cache[pc & 0x1FFF].valid) [[likely]]
+	size_t idx				= (pc >> 2) & (8192 - 1);
+	InstructionCache& entry = cache[idx];
+
+	if(entry.inst_raw == inst && entry.valid && entry.pc == pc) [[likely]]
 	{
-		return cache[pc & 0x1FFF];
+		return entry;
 	}
 	else
 	{
@@ -116,9 +119,9 @@ InstructionCache& InstructionDecoder::decode_inst(uint64_t pc, uint32_t inst)
 		data.rs2  = d_rs2(inst);
 		data.imm  = f ? dinst->imm_decode_func(inst) : 0;
 
-		cache[pc & 0x1FFF] = { inst, *dinst, data, f };
+		cache[idx] = { pc, inst, *dinst, data, f };
 		// printf("inst=0x%lx match=0x%lx mask=0x%lx func=%p\n", inst, dinst->match, dinst->mask, dinst->func);
-		return cache[pc & 0x1FFF];
+		return cache[idx];
 	}
 }
 
