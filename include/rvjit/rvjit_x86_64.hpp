@@ -329,6 +329,14 @@ inline void mov_rm(JIT_Block& blk, uint8_t dest, uint8_t reg_base, uint8_t reg_i
 	blk.bytes[blk.byte_pos++] = 0x8B;
 	sib_helper(blk, dest, reg_base, reg_index, scale, disp);
 }
+// MOV r32,memory
+inline void mov_r32m(JIT_Block& blk, uint8_t dest, uint8_t reg_base, uint8_t reg_index, uint8_t scale, int32_t disp = 0)
+{
+	// dest is RM, source is REG
+	blk.bytes[blk.byte_pos++] = rex(0, (dest > 7), (reg_index != 0xFF && reg_index > 7), (reg_base > 7));
+	blk.bytes[blk.byte_pos++] = 0x8B;
+	sib_helper(blk, dest, reg_base, reg_index, scale, disp);
+}
 // MOVZX r32, r/m8
 inline void movzx_r32m8(JIT_Block& blk,
 						uint8_t dest,

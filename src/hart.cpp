@@ -85,15 +85,15 @@ void Hart::tick()
 
 	uint64_t prevpc = pc;
 #ifdef USE_JIT
-	if(jctx->jits[pc].valid && jctx->jits[pc].pc == pc)
+	auto& jit_entry = jctx->jits[pc];
+	if(jit_entry.valid && jit_entry.pc == pc)
 	{
 		hctx.exit_pc = 0;
-		auto& func	 = jctx->jits[pc];
-		func.func(&hctx);
+		jit_entry.func(&hctx);
 		if(hctx.exit_pc != 0)
 			pc = hctx.exit_pc;
 		else
-			pc += jctx->jits[pc].inst_size;
+			pc += jit_entry.inst_size;
 	}
 	else
 #endif

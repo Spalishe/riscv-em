@@ -46,6 +46,8 @@ void JIT_Context::handleInstruction(Hart& h, InstructionCache& cache, uint64_t p
 
 				emitter.rvjit_emit_epilogue(block);
 
+				// char name[64];
+				// snprintf(name, 64, "/tmp/jit_0x%lx.bin", block.pc);
 				FILE* f = fopen("/tmp/jit.bin", "wb");
 				fwrite(block.bytes, 1, block.byte_pos, f);
 				fclose(f);

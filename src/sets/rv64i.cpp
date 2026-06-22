@@ -625,11 +625,9 @@ void execjit_SUB(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter&
 		}
 		else
 		{
-			push(blk, REG_RDI);
-			mov(blk, REG_RDI, rs2.host_reg);
+			mov(blk, REG_RCX, rs2.host_reg);
 			mov(blk, rd.host_reg, rs1.host_reg);
-			sub_rr(blk, rd.host_reg, REG_RDI);
-			pop(blk, REG_RDI);
+			sub_rr(blk, rd.host_reg, REG_RCX);
 		}
 	}, blk.pc + blk.size);
 }
@@ -640,18 +638,19 @@ void execjit_SUBW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter
 		if(rd.vreg != rs1.vreg && rd.vreg != rs2.vreg)
 		{
 			mov(blk, rd.host_reg, rs1.host_reg);
-			sub_rr(blk, rd.host_reg, rs2.host_reg);
+			sub_rr32(blk, rd.host_reg, rs2.host_reg);
 		}
 		else if(rd.vreg == rs1.vreg)
 		{
-			sub_rr(blk, rd.host_reg, rs2.host_reg);
+			sub_rr32(blk, rd.host_reg, rs2.host_reg);
 		}
 		else
 		{
 			mov(blk, REG_RCX, rs2.host_reg);
 			mov(blk, rd.host_reg, rs1.host_reg);
-			sub_rr(blk, rd.host_reg, REG_RCX);
+			sub_rr32(blk, rd.host_reg, REG_RCX);
 		}
+		movsxd(blk, rd.host_reg, rd.host_reg);
 	}, blk.pc + blk.size);
 }
 void execjit_XOR(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
@@ -838,7 +837,7 @@ void execjit_SRAW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter
 }
 void execjit_SLT(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
-	emitter.inst_emit_r_type(hart, inst, blk, true,
+	emitter.inst_emit_r_type(hart, inst, blk, false,
 							 [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2, uint64_t pc, void* tmp)
 	{
 		cmp(blk, rs1.host_reg, rs2.host_reg);
@@ -848,7 +847,7 @@ void execjit_SLT(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter&
 }
 void execjit_SLTU(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
-	emitter.inst_emit_r_type(hart, inst, blk, true, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2, uint64_t pc, void* tmp)
+	emitter.inst_emit_r_type(hart, inst, blk, false, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2, uint64_t pc, void* tmp)
 	{
 		cmp(blk, rs1.host_reg, rs2.host_reg);
 		setb(blk, rd.host_reg);
@@ -1027,6 +1026,30 @@ void execjit_LB(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& 
 {
 	jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&movsx_r64m8));
 }
+void execjit_LBU(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&movzx_r32m8));
+}
+void execjit_LH(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&movsx_r64m16));
+}
+void execjit_LHU(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&movzx_r32m16));
+}
+void execjit_LW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&movsxd_r64m32));
+}
+void execjit_LWU(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&mov_r32m));
+}
+void execjit_LD(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&mov_rm));
+}
 
 void JIT_InstructionDecoder::init_rv64i()
 {
@@ -1057,5 +1080,11 @@ void JIT_InstructionDecoder::init_rv64i()
 	conversion_tbl[&exec_SRAI]	= &execjit_SRAI;
 	conversion_tbl[&exec_SRAIW] = &execjit_SRAIW;
 	conversion_tbl[&exec_LB]	= &execjit_LB;
+	conversion_tbl[&exec_LBU]	= &execjit_LBU;
+	conversion_tbl[&exec_LH]	= &execjit_LH;
+	conversion_tbl[&exec_LHU]	= &execjit_LHU;
+	conversion_tbl[&exec_LW]	= &execjit_LW;
+	conversion_tbl[&exec_LWU]	= &execjit_LWU;
+	conversion_tbl[&exec_LD]	= &execjit_LD;
 }
 #endif
