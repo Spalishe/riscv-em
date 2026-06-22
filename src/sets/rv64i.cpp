@@ -601,12 +601,20 @@ void execjit_ADDW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter
 {
 	emitter.inst_emit_r_type(hart, inst, blk, true, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2, uint64_t pc, void* tmp)
 	{
-		if(rd.vreg != rs1.vreg)
+		if(rd.vreg != rs1.vreg && rd.vreg != rs2.vreg)
 		{
 			mov(blk, rd.host_reg, rs1.host_reg);
+			add_rr32(blk, rd.host_reg, rs2.host_reg);
+		}
+		else if(rd.vreg == rs1.vreg)
+		{
+			add_rr32(blk, rd.host_reg, rs2.host_reg);
+		}
+		else
+		{
+			add_rr32(blk, rd.host_reg, rs1.host_reg);
 		}
 
-		add_rr32(blk, rd.host_reg, rs2.host_reg);
 		movsxd(blk, rd.host_reg, rd.host_reg);
 	}, blk.pc + blk.size);
 }
