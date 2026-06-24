@@ -118,6 +118,8 @@ void Hart::tick()
 
 bool Hart::int_local_pending()
 {
+	if((ip.raw & ie.raw) == 0)
+		return false;
 	uint64_t sip	 = ip.raw & SE_MASK;
 	uint64_t sie	 = ie.raw & SE_MASK;
 	uint64_t mideleg = csrs[CSR_MIDELEG];
@@ -132,6 +134,10 @@ bool Hart::int_local_pending()
 
 bool Hart::check_ints()
 {
+	uint64_t pending_all = ip.raw & ie.raw;
+
+	if(!pending_all)
+		return false;
 	uint64_t sip	 = ip.raw & SE_MASK;
 	uint64_t sie	 = ie.raw & SE_MASK;
 	uint64_t mideleg = csrs[CSR_MIDELEG];

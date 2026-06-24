@@ -297,7 +297,12 @@ void Machine::work()
 		}
 
 		// Update devices
-		mmio->tick_all();
+		dev_tick_time++;
+		if(dev_tick_time == 0x1000)
+		{
+			dev_tick_time = 0;
+			mmio->tick_all();
+		}
 		// Update harts
 		for(int i = 0; i < harts_count; i++)
 		{

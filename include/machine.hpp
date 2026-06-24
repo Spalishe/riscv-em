@@ -92,4 +92,7 @@ struct Machine
 	void reset();
 	void work();
 	void stop();
+
+  private:
+	uint16_t dev_tick_time;
 };

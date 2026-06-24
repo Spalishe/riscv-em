@@ -27,7 +27,7 @@ void JIT_Context::handleInstruction(Hart& h, InstructionCache& cache, uint64_t p
 	uint64_t pc = prev_pc;
 	if(ignore_pc[pc & ((1 << 20) - 1)]) return;
 	if(jits[jit_index(pc)].valid) return;
-	pc_hits[(pc >> 2) & 0x3FFF]++;
+	pc_hits[(pc >> 2) & 0x1FFFF]++;
 
 	if(block_c)
 	{
@@ -69,7 +69,7 @@ void JIT_Context::handleInstruction(Hart& h, InstructionCache& cache, uint64_t p
 	}
 
 	// If not block creating rn
-	if(pc_hits[(pc >> 2) & 0x3FFF] > RVJIT_PC_CAP && !block_c)
+	if(pc_hits[(pc >> 2) & 0x1FFFF] > RVJIT_PC_CAP && !block_c)
 	{
 		// Check if there any reference of this instruction in decoder
 		auto jc = h.jidec->decode_inst(cache);

@@ -208,7 +208,7 @@ struct JIT_Context
 
 	JIT_Function* jits;
 	std::unordered_map<uint64_t, JIT_Arena> arenas;
-	uint64_t pc_hits[16384] = { 0 };
+	uint16_t pc_hits[0x20000] = { 0 };
 
 	bool block_c	= false;
 	JIT_Block block = { 0 };

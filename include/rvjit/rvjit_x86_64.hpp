@@ -313,7 +313,32 @@ inline void mov_imm64(JIT_Block& blk, char dest, int32_t imm64)
 	for(int i = 0; i < 8; i++)
 		blk.bytes[blk.byte_pos++] = (imm64 >> (i * 8)) & 0xFF;
 }
-// MOV memory,r64
+// MOV memory8,r8
+inline void mov_m8r8(JIT_Block& blk, uint8_t source, uint8_t reg_base, uint8_t reg_index, uint8_t scale, int32_t disp = 0)
+{
+	// dest is RM, source is REG
+	blk.bytes[blk.byte_pos++] = rex(0, (source > 7), (reg_index != 0xFF && reg_index > 7), (reg_base > 7));
+	blk.bytes[blk.byte_pos++] = 0x88;
+	sib_helper(blk, source, reg_base, reg_index, scale, disp);
+}
+// MOV memory16,r16
+inline void mov_m16r16(JIT_Block& blk, uint8_t source, uint8_t reg_base, uint8_t reg_index, uint8_t scale, int32_t disp = 0)
+{
+	// dest is RM, source is REG
+	blk.bytes[blk.byte_pos++] = 0x66;
+	blk.bytes[blk.byte_pos++] = rex(0, (source > 7), (reg_index != 0xFF && reg_index > 7), (reg_base > 7));
+	blk.bytes[blk.byte_pos++] = 0x89;
+	sib_helper(blk, source, reg_base, reg_index, scale, disp);
+}
+// MOV memory32,r32
+inline void mov_m32r32(JIT_Block& blk, uint8_t source, uint8_t reg_base, uint8_t reg_index, uint8_t scale, int32_t disp = 0)
+{
+	// dest is RM, source is REG
+	blk.bytes[blk.byte_pos++] = rex(0, (source > 7), (reg_index != 0xFF && reg_index > 7), (reg_base > 7));
+	blk.bytes[blk.byte_pos++] = 0x89;
+	sib_helper(blk, source, reg_base, reg_index, scale, disp);
+}
+// MOV memory64,r64
 inline void mov_mr(JIT_Block& blk, uint8_t source, uint8_t reg_base, uint8_t reg_index, uint8_t scale, int32_t disp = 0)
 {
 	// dest is RM, source is REG
@@ -909,5 +934,20 @@ inline void JIT_Emitter::inst_emit_i_type(Hart& h, InstructionData& inst, JIT_Bl
 
 	rd.dirty = true;
 }
+inline void JIT_Emitter::inst_emit_s_type(Hart& h, InstructionData& inst, JIT_Block& blk, SOpFunction emit_op, uint64_t pc, void* tmp)
+{
+	// We don't need any zero optimizations here: we dont have any RD
+	VReg& rs1 = rvjit_alloc_reg(
+		blk,
+		inst.rs1,
+		0);
+
+	VReg& rs2 = rvjit_alloc_reg(
+		blk,
+		inst.rs2,
+		(1ULL << rs1.host_reg));
+	emit_op(*this, blk, rs1, rs2, inst.imm, pc, tmp);
+}
+
 #endif
 #endif

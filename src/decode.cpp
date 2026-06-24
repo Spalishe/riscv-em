@@ -94,7 +94,7 @@ InstructionCache& InstructionDecoder::decode_inst(uint64_t pc, uint32_t inst)
 	size_t idx				= (pc >> 2) & (8192 - 1);
 	InstructionCache& entry = cache[idx];
 
-	if(entry.inst_raw == inst && entry.valid && entry.pc == pc) [[likely]]
+	if(entry.valid && entry.pc == pc) [[likely]]
 	{
 		return entry;
 	}

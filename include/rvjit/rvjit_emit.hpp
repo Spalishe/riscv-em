@@ -69,6 +69,7 @@ struct JIT_Emitter;
 
 using ROpFunction = void (*)(JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2, uint64_t pc, void* tmp);
 using IOpFunction = void (*)(JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, uint64_t imm, uint64_t pc, void* tmp);
+using SOpFunction = void (*)(JIT_Emitter& em, JIT_Block& blk, VReg& rs1, VReg& rs2, uint64_t imm, uint64_t pc, void* tmp);
 
 struct JIT_Emitter
 {
@@ -86,6 +87,7 @@ struct JIT_Emitter
 
 	void inst_emit_r_type(Hart& h, InstructionData& inst, JIT_Block& blk, bool optimize_if_rsz, ROpFunction emit_op, uint64_t pc = 0, void* tmp = nullptr);
 	void inst_emit_i_type(Hart& h, InstructionData& inst, JIT_Block& blk, bool optimize_if_rsz, IOpFunction emit_op, uint64_t pc = 0, void* tmp = nullptr);
+	void inst_emit_s_type(Hart& h, InstructionData& inst, JIT_Block& blk, SOpFunction emit_op, uint64_t pc = 0, void* tmp = nullptr);
 };
 
 #endif

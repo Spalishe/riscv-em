@@ -1058,6 +1058,49 @@ void execjit_LD(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& 
 {
 	jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&mov_rm));
 }
+void jit_store(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter, void* func)
+{
+	emitter.inst_emit_s_type(hart, inst, blk, [](JIT_Emitter& em, JIT_Block& blk, VReg& rs1, VReg& rs2, uint64_t imm, uint64_t pc, void* tmp)
+	{
+		mov(blk, REG_RCX, rs1.host_reg);
+		add_rimm32(blk, REG_RCX, imm);
+		sub_rimm32(blk, REG_RCX, 0x40000000); //
+		sub_rimm32(blk, REG_RCX, 0x40000000); // This does sum of 0x80000000, which is beyond the int32_t limit
+		cmp_rm(blk, REG_RCX, REG_R12, NO_INDEX, 0, 24);
+
+		blk.jmp_labels.push_back({ "fast_path", blk.byte_pos, false, 1 });
+		jbe8(blk, 0);
+
+		{
+			// Slow path, make interpreter work instead
+			mov_imm64(blk, REG_RCX, pc);
+			mov_mr(blk, REG_RCX, REG_R12, NO_INDEX, 0, 32);
+			blk.jmp_labels.push_back({ "epilogue", blk.byte_pos, false });
+			jmp32(blk, 0);
+		}
+
+		em.realize_label(blk, "fast_path");
+
+		auto function_ptr = reinterpret_cast<MovSignature>(tmp);
+		function_ptr(blk, rs2.host_reg, REG_R14, REG_RCX, 0, 0);
+	}, blk.pc + blk.size, func);
+}
+void execjit_SB(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&mov_m8r8));
+}
+void execjit_SH(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&mov_m16r16));
+}
+void execjit_SW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&mov_m32r32));
+}
+void execjit_SD(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&mov_mr));
+}
 
 void JIT_InstructionDecoder::init_rv64i()
 {
@@ -1094,5 +1137,9 @@ void JIT_InstructionDecoder::init_rv64i()
 	conversion_tbl[&exec_LW]	= &execjit_LW;
 	conversion_tbl[&exec_LWU]	= &execjit_LWU;
 	conversion_tbl[&exec_LD]	= &execjit_LD;
+	conversion_tbl[&exec_SB]	= &execjit_SB;
+	conversion_tbl[&exec_SH]	= &execjit_SH;
+	conversion_tbl[&exec_SW]	= &execjit_SW;
+	conversion_tbl[&exec_SD]	= &execjit_SD;
 }
 #endif
