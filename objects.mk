@@ -1,5 +1,6 @@
 USE_GDBSTUB ?= 1
 USE_FPU ?= 0
 USE_JIT ?= 1
+USE_FRAMEBUFFER ?= 1
 
 USE_VARS := $(filter USE_%,$(.VARIABLES))

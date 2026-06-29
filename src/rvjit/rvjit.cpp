@@ -48,9 +48,9 @@ void JIT_Context::handleInstruction(Hart& h, InstructionCache& cache, uint64_t p
 
 				// char name[64];
 				// snprintf(name, 64, "/tmp/jit_0x%lx.bin", block.pc);
-				FILE* f = fopen("/tmp/jit.bin", "wb");
-				fwrite(block.bytes, 1, block.byte_pos, f);
-				fclose(f);
+				// FILE* f = fopen("/tmp/jit.bin", "wb");
+				// fwrite(block.bytes, 1, block.byte_pos, f);
+				// fclose(f);
 				// printf("jit: 0x%lx\n", block.pc);
 
 				// We built block sized enough. Go go gadget w^x allocations

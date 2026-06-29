@@ -90,8 +90,8 @@ endif
 CXX_VERSION := $(shell $(CXX) --version | head -n 1)
 AR_VERSION := $(shell $(AR) --version | head -n 1)
 
-LIBS := -latomic -pthread -static
-CXXFLAGS := -std=c++20 -std=gnu++20 $(LIBS) -O3 -g -march=native -flto -MMD -MP -Iinclude -static
+LIBS := -latomic -pthread
+CXXFLAGS := -std=c++20 -std=gnu++20 $(LIBS) -O3 -g -march=native -flto -MMD -MP -Iinclude
 
 CXXFLAGS += $(foreach v,$(USE_VARS),$(if $(filter-out 0,$($(v))),-D$(v)=$($(v))))
 
@@ -109,6 +109,23 @@ else
     EXE_EXT :=
     LIB_EXT := .so
 	STATIC_EXT := .a
+endif
+
+ifdef USE_FRAMEBUFFER
+	DISPLAY_SERVER := $(shell \
+		if [ "$$XDG_SESSION_TYPE" = "wayland" ]; then echo "wayland"; \
+		elif [ "$$XDG_SESSION_TYPE" = "x11" ]; then echo "x11"; \
+		elif [ -n "$$WAYLAND_DISPLAY" ]; then echo "wayland"; \
+		elif [ -n "$$DISPLAY" ]; then echo "x11"; \
+		else echo "unknown"; fi)
+
+	ifeq ($(DISPLAY_SERVER), wayland)
+		CXXFLAGS += -D__PKG_WAYLAND
+		LIBS += -lwayland-client -lvulkan
+	else ifeq ($(DISPLAY_SERVER), x11)
+		CXXFLAGS += -D__PKG_X11
+		LIBS += -lvulkan
+	endif
 endif
 
 BUILD_DIR := build.$(TRIPLET_3).$(TRIPLET_ARCH)
@@ -139,6 +156,8 @@ lib:
 
 	@$(MAKE) --no-print-directory $(TARGET_SO)
 
+slib: LIBS += -static
+slib: CXXFLAGS += -static
 slib:
 	$(call print_info)
 	@mkdir -p $(BUILD_DIR) 

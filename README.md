@@ -41,6 +41,7 @@ The emulator supports the following features:
   - [x] CLINT: core local interruptor
   - [x] PLIC: platform level interrupt controller
   - [x] Virtio-BLK: virtual I/O Block Device
+  - [x] Framebuffer: virtual simple screen
 - [x] FDT
 
 ## Build

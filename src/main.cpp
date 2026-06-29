@@ -23,6 +23,10 @@ Copyright 2026 Spalishe
 #include <string>
 #include <unordered_map>
 
+#include "../include/gui/wayland/wayland.hpp"
+#include "../include/gui/x11.hpp"
+
+#include "../include/devices/framebuffer.hpp"
 #include "../include/devices/uart.hpp"
 #include "../include/gdbstub.hpp"
 #include "../include/machine.hpp"
@@ -36,15 +40,17 @@ Copyright 2026 Spalishe
  *		    -RV64D
  *		    -Machine suspend
  *          -Device:
- *			  1. Framebuffer
- *            2. RTC GoldFish
- *            3. VirtIO-GPU
- * 			-Smcntrpmf
- * 			-Scountovf
- * 			-Smstateen
- * 			-Ssstateen
- * 			-Mmaia
- * 			-Smaia
+ *            1. RTC GoldFish
+ *            2. VirtIO-GPU
+ *
+ *          -Possible, but stupid ideas:
+ *			1. Smcntrpmf
+ *			2. Scountovf
+ *			3. Smstateen
+ *			4. Ssstateen
+ *			5. Mmaia
+ *			6. Smaia
+ *
  */
 
 termios oldt;
@@ -117,6 +123,10 @@ int main(int argc, char* argv[])
 										arp::nopos, "-M");
 	auto harts_var
 		= parser.add<arp::uint>("--harts", "Set custom harts count (Default is 1)", arp::norequired, arp::nopos, "-S");
+#ifdef USE_FRAMEBUFFER
+	auto fb_var
+		= parser.add<arp::str>("--framebuffer", "Enables framebuffer with defined size (F.e. 640x480)", arp::norequired, arp::nopos, "-fb");
+#endif
 
 	parser.parse();
 
@@ -194,6 +204,35 @@ int main(int argc, char* argv[])
 		if(append_var->defined()) machine.append = append_var->val();
 		machine.init_fdt();
 	}
+#ifdef USE_FRAMEBUFFER
+	uint64_t fb_w = 0;
+	uint64_t fb_h = 0;
+	if(fb_var->defined())
+	{
+		std::string text = fb_var->val();
+		if(text.empty())
+		{
+			fb_w = 640;
+			fb_h = 480;
+		}
+		else
+		{
+			size_t pos = text.find('x');
+
+			if(pos != std::string::npos)
+			{
+				fb_w = stoull(text.substr(0, pos));
+
+				fb_h = stoull(text.substr(pos + 1));
+			}
+			else
+			{
+				std::cerr << "Wrong FB resolution! Example: 1280x720" << std::endl;
+				return -1;
+			}
+		}
+	}
+#endif
 
 	mach = &machine;
 
@@ -211,6 +250,30 @@ int main(int argc, char* argv[])
 
 	machine.init_auto_devices();
 	uart = machine.mmio->get<UART>();
+
+#ifdef USE_FRAMEBUFFER
+	AppWindow window;
+	VkInstance instance;
+	VkSurfaceKHR surface;
+	if(fb_w != 0 && fb_h != 0)
+	{
+		window.width  = fb_w;
+		window.height = fb_h;
+		if(!InitializeNativeWindow(window, "riscv-em"))
+		{
+			return -1;
+		}
+		instance = CreateVulkanInstance();
+		surface	 = VK_NULL_HANDLE;
+		if(!CreateVulkanSurface(instance, window, surface))
+		{
+			return -1;
+		}
+		StartEventLoop(window);
+
+		machine.mmio->create_device<Framebuffer>(0x18000000, machine, machine.fdt, fb_w, fb_h, window);
+	}
+#endif
 	machine.write_fdt();
 	machine.run();
 	if(machine.work_thread_w)
@@ -226,6 +289,18 @@ int main(int argc, char* argv[])
 	{
 		GDB_Stop();
 		gdbstub.join();
+	}
+#endif
+
+#ifdef USE_FRAMEBUFFER
+	if(fb_w != 0 && fb_h != 0)
+	{
+		if(surface != VK_NULL_HANDLE)
+		{
+			vkDestroySurfaceKHR(instance, surface, nullptr);
+		}
+		vkDestroyInstance(instance, nullptr);
+		TerminateNativeWindow(window);
 	}
 #endif
 
