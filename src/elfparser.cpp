@@ -99,7 +99,7 @@ bool ELFParser::parse(std::string file_path, uint64_t* entry_pc)
 
 	std::streamsize size = file.tellg();
 	file.seekg(0, std::ios::beg);
-	char* buffer = (char*)malloc(size);
+	char* buffer = new char[size]{};
 	file.read(buffer, size);
 	return parse(buffer, size, entry_pc);
 }

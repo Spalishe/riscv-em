@@ -105,6 +105,11 @@ int PLIC::acquire_irq()
 	return val;
 }
 
+int PLIC::last_irq()
+{
+	return last_irq_registered - 1;
+}
+
 void PLIC::set_pending(uint32_t source_id, bool pending)
 {
 	if(source_id == 0 || source_id > max_sources)

@@ -34,6 +34,7 @@ class PLIC : public Device
 	void tick();
 	static std::shared_ptr<PLIC> init_auto(Machine& cpu);
 	int acquire_irq();
+	int last_irq();
 
   private:
 	struct Context
