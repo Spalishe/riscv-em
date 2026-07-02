@@ -27,7 +27,7 @@ Copyright 2026 Spalishe
 #include "../include/gui/x11.hpp"
 
 #include "../include/devices/framebuffer.hpp"
-#include "../include/devices/hid/hid_test.hpp"
+#include "../include/devices/hid/hid_keyboard.hpp"
 #include "../include/devices/i2c/i2c-core.hpp"
 #include "../include/devices/uart.hpp"
 #include "../include/gdbstub.hpp"
@@ -278,7 +278,14 @@ int main(int argc, char* argv[])
 #endif
 
 	auto i2c = machine.mmio->get<I2C>();
-	i2c->create_device<HID_TestDevice>(machine, machine.fdt);
+	auto kb	 = i2c->create_device<HID_Keyboard>(machine, machine.fdt);
+
+#ifdef USE_FRAMEBUFFER
+	if(fb_w != 0 && fb_h != 0)
+	{
+		window.kb = (HID_Keyboard*)kb.get();
+	}
+#endif
 
 	machine.write_fdt();
 	machine.run();

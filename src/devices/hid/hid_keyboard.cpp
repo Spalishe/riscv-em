@@ -15,19 +15,16 @@ Copyright 2026 Spalishe
 
 */
 
-#include "../../../include/devices/hid/hid_test.hpp"
+#include "../../../include/devices/hid/hid_keyboard.hpp"
 #include "../../../include/devices/plic.hpp"
-#include <chrono>
 #include <thread>
-using namespace std::chrono_literals;
-HID_TestDevice::HID_TestDevice(Machine& cpu, fdt_node* fdt) : HIDOverI2C(cpu, fdt, generate_report_descriptor(HID_TestDevice::report_descriptor_items))
+HID_Keyboard::HID_Keyboard(Machine& cpu, fdt_node* fdt) : HIDOverI2C(cpu, fdt, generate_report_descriptor(HID_Keyboard::report_descriptor_items))
 {
-	// We will make test looping timer which will print test key
-
 	uint16_t max_input_len = 10;
 	hid_descriptor[0xa]	   = (max_input_len & 0xFF);		// 0x0A
 	hid_descriptor[0xb]	   = ((max_input_len >> 8) & 0xFF); // 0x00
 
+	/*
 	thr = std::thread([this]()
 	{
 		// Даем гостевой ОС Linux время загрузиться и инициализировать I2C-драйвер
@@ -68,16 +65,16 @@ HID_TestDevice::HID_TestDevice(Machine& cpu, fdt_node* fdt) : HIDOverI2C(cpu, fd
 			// Ждем секунду перед следующим циклом нажатия
 			std::this_thread::sleep_for(1000ms);
 		}
-	});
+	});*/
 }
 
-void HID_TestDevice::hid_event_output_report_write()
+void HID_Keyboard::hid_event_output_report_write()
 {
 }
-void HID_TestDevice::hid_event_data_register_write()
+void HID_Keyboard::hid_event_data_register_write()
 {
 }
-void HID_TestDevice::hid_event_command_register_write()
+void HID_Keyboard::hid_event_command_register_write()
 {
 	uint8_t arg	   = command_register[0];
 	uint8_t opcode = command_register[1] & 0x0F;
@@ -106,4 +103,27 @@ void HID_TestDevice::hid_event_command_register_write()
 
 			break;
 	}
+}
+
+// TODO: Make report system:
+// Use std::queue<std::vector<uint8_t>> report_queue;
+// In update firstly make packet with data, then push it to report_queue
+// if size == 1, write it into input_buffer and make a pulse.
+// if in reg 3 read io offset >= total len, then report considered readed and must be poped.
+// right afterwards, if there any report left, write those into buffer and raise irq again,
+// otherwise, lower irq
+void HID_Keyboard::update(uint8_t modifiers, uint8_t key_1, uint8_t key_2, uint8_t key_3, uint8_t key_4, uint8_t key_5, uint8_t key_6, bool rollover)
+{
+	if(rollover)
+	{
+		hid_input_report_write({ 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01 });
+	}
+	else
+	{
+		hid_input_report_write({ modifiers,
+								 0x00,
+								 key_1, key_2, key_3, key_4, key_5, key_6 });
+	}
+	plic->set_pending(irq_num, true);
+	plic->set_pending(irq_num, false);
 }

@@ -23,6 +23,113 @@ Copyright 2026 Spalishe
 #include <vulkan/vulkan_wayland.h>
 #endif
 
+enum : uint8_t
+{
+	KEY_LEFTSHIFT  = 42,
+	KEY_RIGHTSHIFT = 54,
+
+	KEY_LEFTCTRL  = 29,
+	KEY_RIGHTCTRL = 97,
+
+	KEY_LEFTALT	 = 56,
+	KEY_RIGHTALT = 100
+};
+struct InputState
+{
+	uint8_t active[6]{};
+	uint8_t active_count = 0;
+
+	bool lctrl = false;
+	bool rctrl = false;
+
+	bool lshift = false;
+	bool rshift = false;
+
+	bool lalt = false;
+	bool ralt = false;
+
+	bool pressed[256]{};
+};
+
+static inline void key_press(InputState& s, uint32_t key)
+{
+	if(key < 256)
+	{
+		s.pressed[key] = true;
+	}
+
+	switch(key)
+	{
+		case KEY_LEFTSHIFT:
+			s.lshift = true;
+			return;
+		case KEY_RIGHTSHIFT:
+			s.rshift = true;
+			return;
+
+		case KEY_LEFTCTRL:
+			s.lctrl = true;
+			return;
+		case KEY_RIGHTCTRL:
+			s.rctrl = true;
+			return;
+
+		case KEY_LEFTALT:
+			s.lalt = true;
+			return;
+		case KEY_RIGHTALT:
+			s.ralt = true;
+			return;
+	}
+
+	if(s.active_count < 6)
+		s.active[s.active_count++] = key;
+}
+static inline void key_release(InputState& s, uint32_t key)
+{
+	if(key < 256)
+	{
+		s.pressed[key] = false;
+	}
+
+	switch(key)
+	{
+		case KEY_LEFTSHIFT:
+			s.lshift = false;
+			return;
+		case KEY_RIGHTSHIFT:
+			s.rshift = false;
+			return;
+
+		case KEY_LEFTCTRL:
+			s.lctrl = false;
+			return;
+		case KEY_RIGHTCTRL:
+			s.rctrl = false;
+			return;
+
+		case KEY_LEFTALT:
+			s.lalt = false;
+			return;
+		case KEY_RIGHTALT:
+			s.ralt = false;
+			return;
+	}
+
+	// remove from rollover list (compact shift)
+	for(uint8_t i = 0; i < s.active_count; i++)
+	{
+		if(s.active[i] == key)
+		{
+			for(uint8_t j = i; j + 1 < s.active_count; j++)
+				s.active[j] = s.active[j + 1];
+
+			s.active_count--;
+			break;
+		}
+	}
+}
+
 struct AppWindow;
 
 bool InitializeNativeWindow(AppWindow& appWindow, const std::string& title);

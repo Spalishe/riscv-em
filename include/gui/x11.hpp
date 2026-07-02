@@ -17,6 +17,7 @@ Copyright 2026 Spalishe
 // TODO: Finish X11
 #pragma once
 #ifdef __PKG_X11
+#include "../devices/hid/hid_keyboard.hpp"
 #include "window.hpp"
 #include <X11/Xlib.h>
 #include <vulkan/vulkan_xlib.h>
@@ -25,8 +26,10 @@ struct AppWindow
 {
 	Display* x11Display = nullptr;
 	Window x11Window	= 0;
-	int width			= 800;
-	int height			= 600;
+	InputState input;
+	HID_Keyboard* kb;
+	int width  = 800;
+	int height = 600;
 };
 inline bool InitializeNativeWindow(AppWindow& appWindow, const std::string& title)
 {

@@ -20,9 +20,8 @@ Copyright 2026 Spalishe
 #include "hid-over-i2c.hpp"
 #include <thread>
 
-struct HID_TestDevice : HIDOverI2C
+struct HID_Keyboard : HIDOverI2C
 {
-	// Our test device will emulate keyboard with 39 buttons
 	inline static const std::vector<HIDItem> report_descriptor_items = {
 		{ GLOBAL, USAGE_PAGE_TAG,	  0x01 }, // Generic Desktop Page
 		{ LOCAL,	 USAGE_TAG,			0x06 }, // Keyboard
@@ -52,10 +51,11 @@ struct HID_TestDevice : HIDOverI2C
 		{ MAIN,	END_COLLECTION_TAG, 0x0	},
 	};
 
-	HID_TestDevice(Machine& cpu, fdt_node* fdt);
+	HID_Keyboard(Machine& cpu, fdt_node* fdt);
 
 	void hid_event_output_report_write();
 	void hid_event_data_register_write();
 	void hid_event_command_register_write();
-	std::thread thr;
+
+	void update(uint8_t modifiers, uint8_t key_1, uint8_t key_2, uint8_t key_3, uint8_t key_4, uint8_t key_5, uint8_t key_6, bool rollover);
 };

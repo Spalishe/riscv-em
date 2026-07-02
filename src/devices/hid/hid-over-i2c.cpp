@@ -74,7 +74,6 @@ void HIDOverI2C::start_transmit()
 uint8_t HIDOverI2C::dev_read(bool m_ack)
 {
 	uint8_t val = 0;
-	printf("    read io_offset: %d cur_reg: %d\n", io_offset, cur_reg);
 	if(cur_reg == 0x01)
 	{
 		if(io_offset < 30)

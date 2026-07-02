@@ -15,6 +15,7 @@ Copyright 2026 Spalishe
 
 */
 #pragma once
+#include <wayland-client-protocol.h>
 #ifdef __PKG_WAYLAND
 #include "../window.hpp"
 extern "C"
@@ -27,12 +28,99 @@ extern "C"
 #include <wayland-client-core.h>
 #include <wayland-client.h>
 
+#include "../../devices/hid/hid_keyboard.hpp"
 #include <algorithm>
 #include <fcntl.h>
+#include <linux/input-event-codes.h>
 #include <mutex>
 #include <sys/mman.h>
 #include <thread>
 #include <unistd.h>
+
+static constexpr std::array<int, 256> wl_input_conv_table = []
+{
+	std::array<int, 256> t{};
+	t[0]			  = 0x0;
+	t[KEY_A]		  = 0x4;
+	t[KEY_B]		  = 0x5;
+	t[KEY_C]		  = 0x6;
+	t[KEY_D]		  = 0x7;
+	t[KEY_E]		  = 0x8;
+	t[KEY_F]		  = 0x9;
+	t[KEY_G]		  = 0xa;
+	t[KEY_H]		  = 0xb;
+	t[KEY_I]		  = 0xc;
+	t[KEY_J]		  = 0xd;
+	t[KEY_K]		  = 0xe;
+	t[KEY_L]		  = 0xf;
+	t[KEY_M]		  = 0x10;
+	t[KEY_N]		  = 0x11;
+	t[KEY_O]		  = 0x12;
+	t[KEY_P]		  = 0x13;
+	t[KEY_Q]		  = 0x14;
+	t[KEY_R]		  = 0x15;
+	t[KEY_S]		  = 0x16;
+	t[KEY_T]		  = 0x17;
+	t[KEY_U]		  = 0x18;
+	t[KEY_V]		  = 0x19;
+	t[KEY_W]		  = 0x1A;
+	t[KEY_X]		  = 0x1B;
+	t[KEY_Y]		  = 0x1C;
+	t[KEY_Z]		  = 0x1D;
+	t[KEY_1]		  = 0x1E;
+	t[KEY_2]		  = 0x1F;
+	t[KEY_3]		  = 0x20;
+	t[KEY_4]		  = 0x21;
+	t[KEY_5]		  = 0x22;
+	t[KEY_6]		  = 0x23;
+	t[KEY_7]		  = 0x24;
+	t[KEY_8]		  = 0x25;
+	t[KEY_9]		  = 0x26;
+	t[KEY_0]		  = 0x27;
+	t[KEY_ENTER]	  = 0x28;
+	t[KEY_ESC]		  = 0x29;
+	t[KEY_BACKSPACE]  = 0x2A;
+	t[KEY_TAB]		  = 0x2B;
+	t[KEY_SPACE]	  = 0x2C;
+	t[KEY_MINUS]	  = 0x2D;
+	t[KEY_EQUAL]	  = 0x2E;
+	t[KEY_LEFTBRACE]  = 0x2F;
+	t[KEY_RIGHTBRACE] = 0x30;
+	t[KEY_BACKSLASH]  = 0x31;
+	t[KEY_SEMICOLON]  = 0x33;
+	t[KEY_APOSTROPHE] = 0x34;
+	t[KEY_GRAVE]	  = 0x35;
+	t[KEY_COMMA]	  = 0x36;
+	t[KEY_DOT]		  = 0x37;
+	t[KEY_SLASH]	  = 0x38;
+	t[KEY_CAPSLOCK]	  = 0x39;
+	t[KEY_F1]		  = 0x3A;
+	t[KEY_F2]		  = 0x3B;
+	t[KEY_F3]		  = 0x3C;
+	t[KEY_F4]		  = 0x3D;
+	t[KEY_F5]		  = 0x3E;
+	t[KEY_F6]		  = 0x3F;
+	t[KEY_F7]		  = 0x40;
+	t[KEY_F8]		  = 0x41;
+	t[KEY_F9]		  = 0x42;
+	t[KEY_F10]		  = 0x43;
+	t[KEY_F11]		  = 0x44;
+	t[KEY_F12]		  = 0x45;
+	t[KEY_SYSRQ]	  = 0x46;
+	t[KEY_SCROLLLOCK] = 0x47;
+	t[KEY_PAUSE]	  = 0x48;
+	t[KEY_INSERT]	  = 0x49;
+	t[KEY_HOME]		  = 0x4A;
+	t[KEY_PAGEUP]	  = 0x4B;
+	t[KEY_DELETE]	  = 0x4C;
+	t[KEY_END]		  = 0x4D;
+	t[KEY_PAGEDOWN]	  = 0x4E;
+	t[KEY_RIGHT]	  = 0x4F;
+	t[KEY_LEFT]		  = 0x50;
+	t[KEY_DOWN]		  = 0x51;
+	t[KEY_UP]		  = 0x52;
+	return t;
+}();
 
 struct WaylandWindow
 {
@@ -52,6 +140,9 @@ struct WaylandWindow
 	bool configured					   = false;
 	bool running					   = true;
 
+	struct wl_seat* seat			= nullptr;
+	struct wl_keyboard* wl_keyboard = nullptr;
+
 	std::unique_ptr<std::mutex> window_mutex = std::make_unique<std::mutex>();
 	struct wl_buffer* wl_buffer				 = nullptr;
 	struct wl_shm_pool* wl_shm_pool			 = nullptr;
@@ -60,6 +151,9 @@ struct WaylandWindow
 	int shm_fd								 = -1;
 	int width								 = 0;
 	int height								 = 0;
+
+	InputState* input;
+	HID_Keyboard** kb;
 };
 namespace
 {
@@ -96,6 +190,85 @@ namespace
 		.close	   = xdg_toplevel_handle_close
 	};
 
+	static void keyboard_handle_keymap(void* data, struct wl_keyboard* wl_keyboard, uint32_t format, int32_t fd, uint32_t size)
+	{
+		auto* window = static_cast<WaylandWindow*>(data);
+	}
+	static void keyboard_handle_enter(void* data, struct wl_keyboard* wl_keyboard, uint32_t serial, struct wl_surface* surface, struct wl_array* keys)
+	{
+	}
+	static void keyboard_handle_leave(void* data, struct wl_keyboard* wl_keyboard, uint32_t serial, struct wl_surface* surface)
+	{
+		auto* window = static_cast<WaylandWindow*>(data);
+	}
+	static void keyboard_handle_key(void* data, struct wl_keyboard* wl_keyboard, uint32_t serial, uint32_t time, uint32_t key, uint32_t state)
+	{
+		auto* window = static_cast<WaylandWindow*>(data);
+
+		if(state == WL_KEYBOARD_KEY_STATE_PRESSED)
+			key_press(*window->input, key);
+		else
+			key_release(*window->input, key);
+
+		uint8_t key1 = wl_input_conv_table[window->input->active[0]];
+		uint8_t key2 = wl_input_conv_table[window->input->active[1]];
+		uint8_t key3 = wl_input_conv_table[window->input->active[2]];
+		uint8_t key4 = wl_input_conv_table[window->input->active[3]];
+		uint8_t key5 = wl_input_conv_table[window->input->active[4]];
+		uint8_t key6 = wl_input_conv_table[window->input->active[5]];
+
+		uint8_t mods = (window->input->lctrl << 0) | (window->input->lshift << 1) | (window->input->lalt << 2) | (window->input->rctrl << 4) | (window->input->rshift << 5) | (window->input->ralt << 6);
+		(*window->kb)->update(mods, key1, key2, key3, key4, key5, key6, window->input->active_count > 6);
+	}
+	static void keyboard_handle_modifiers(void* data, struct wl_keyboard* wl_keyboard, uint32_t serial, uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked, uint32_t group)
+	{
+		auto* window = static_cast<WaylandWindow*>(data);
+	}
+	static void keyboard_handle_repeat_info(void* data, struct wl_keyboard* wl_keyboard, int32_t rate, int32_t delay)
+	{
+	}
+
+	inline const struct wl_keyboard_listener keyboard_listener = {
+		.keymap		 = keyboard_handle_keymap,
+		.enter		 = keyboard_handle_enter,
+		.leave		 = keyboard_handle_leave,
+		.key		 = keyboard_handle_key,
+		.modifiers	 = keyboard_handle_modifiers,
+		.repeat_info = keyboard_handle_repeat_info
+	};
+
+	static void seat_handle_capabilities(void* data, struct wl_seat* seat, uint32_t capabilities)
+	{
+		auto* window = static_cast<WaylandWindow*>(data);
+
+		if(capabilities & WL_SEAT_CAPABILITY_KEYBOARD)
+		{
+			if(!window->wl_keyboard)
+			{
+				window->wl_keyboard = wl_seat_get_keyboard(seat);
+
+				wl_keyboard_add_listener(window->wl_keyboard, &keyboard_listener, window);
+			}
+		}
+		else
+		{
+			if(window->wl_keyboard)
+			{
+				wl_keyboard_release(window->wl_keyboard);
+				window->wl_keyboard = nullptr;
+			}
+		}
+	}
+
+	static void seat_handle_name(void* data, struct wl_seat* seat, const char* name)
+	{
+	}
+
+	static const struct wl_seat_listener seat_listener = {
+		.capabilities = seat_handle_capabilities,
+		.name		  = seat_handle_name,
+	};
+
 	static void registry_global_handler(void* data, struct wl_registry* registry, uint32_t id, const char* interface, uint32_t version)
 	{
 		auto* window = static_cast<WaylandWindow*>(data);
@@ -117,6 +290,12 @@ namespace
 		{
 			window->shm = static_cast<struct wl_shm*>(
 				wl_registry_bind(registry, id, &wl_shm_interface, 1));
+		}
+		else if(std::strcmp(interface, "wl_seat") == 0)
+		{
+			window->seat = static_cast<struct wl_seat*>(
+				wl_registry_bind(registry, id, &wl_seat_interface, 1));
+			wl_seat_add_listener(window->seat, &seat_listener, window);
 		}
 	}
 
@@ -141,6 +320,7 @@ namespace
 		window.registry = wl_display_get_registry(window.display);
 		wl_registry_add_listener(window.registry, &registry_listener, &window);
 
+		wl_display_roundtrip(window.display);
 		wl_display_roundtrip(window.display);
 
 		if(!window.compositor || !window.xdg_wm_base)
@@ -198,6 +378,7 @@ namespace
 				}
 			}
 		}
+
 		return true;
 	}
 
@@ -209,6 +390,8 @@ namespace
 		if(window.xdg_wm_base) wl_proxy_set_queue((struct wl_proxy*)window.xdg_wm_base, window.event_queue);
 		if(window.xdg_surface) wl_proxy_set_queue((struct wl_proxy*)window.xdg_surface, window.event_queue);
 		if(window.xdg_toplevel) wl_proxy_set_queue((struct wl_proxy*)window.xdg_toplevel, window.event_queue);
+		if(window.seat) wl_proxy_set_queue((struct wl_proxy*)window.seat, window.event_queue);
+		if(window.wl_keyboard) wl_proxy_set_queue((struct wl_proxy*)window.wl_keyboard, window.event_queue);
 
 		std::thread([&window]()
 		{
@@ -242,6 +425,9 @@ namespace
 		{
 			wl_display_flush(window.display);
 		}
+
+		if(window.wl_keyboard) wl_keyboard_release(window.wl_keyboard);
+		if(window.seat) wl_seat_release(window.seat);
 
 		if(window.xdg_toplevel) xdg_toplevel_destroy(window.xdg_toplevel);
 		if(window.xdg_surface) xdg_surface_destroy(window.xdg_surface);
@@ -290,6 +476,8 @@ namespace
 struct AppWindow
 {
 	WaylandWindow wl;
+	InputState input;
+	HID_Keyboard* kb;
 	int width  = 800;
 	int height = 600;
 };
@@ -297,6 +485,8 @@ inline bool InitializeNativeWindow(AppWindow& appWindow, const std::string& titl
 {
 	(void)title;
 	WaylandWindow window = {};
+	window.kb			 = &appWindow.kb;
+	window.input		 = &appWindow.input;
 	bool out			 = InitializeWaylandScreen(window, appWindow.width, appWindow.height);
 	if(out)
 	{
