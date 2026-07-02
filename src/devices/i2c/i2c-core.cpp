@@ -38,9 +38,9 @@ I2C::I2C(uint64_t start, Machine& cpu, fdt_node* fdt)
 		fdt_node_add_prop_u32(i2c_fdt, "interrupts", irq_num);
 		fdt_node_add_prop_u32(i2c_fdt, "#address-cells", 1);
 		fdt_node_add_prop_u32(i2c_fdt, "#size-cells", 0);
-		fdt_node_add_prop_u32(i2c_fdt, "reg-shift", 0);
+		fdt_node_add_prop_u32(i2c_fdt, "reg-shift", 2);
 		fdt_node_add_prop_u32(i2c_fdt, "reg-io-width", 1);
-		fdt_node_add_prop_u32(i2c_fdt, "opencores,ip-clock-frequency", 0x20000000);
+		fdt_node_add_prop_u32(i2c_fdt, "opencores,ip-clock-frequency", 0x1312d00);
 
 		fdt_node_add_prop_str(i2c_fdt, "status", "okay");
 
@@ -53,17 +53,10 @@ std::shared_ptr<I2C> I2C::init_auto(Machine& cpu)
 	return std::make_shared<I2C>(0x10030000, cpu, cpu.fdt);
 }
 
-template <typename T, typename... Args>
-std::shared_ptr<I2CSlave> I2C::create_device(Args&&... args)
-{
-	auto new_device = std::make_shared<T>(std::forward<Args>(args)...);
-	slaves.push_back(new_device);
-	return new_device;
-}
-
 uint64_t I2C::read(uint64_t addr, MemorySize size)
 {
 	uint64_t offs = addr - start;
+
 	switch(offs)
 	{
 		case I2C_REG_PRER_LO:
@@ -81,6 +74,20 @@ uint64_t I2C::read(uint64_t addr, MemorySize size)
 	}
 }
 
+void I2C::tick()
+{
+	if(!op_active) return;
+
+	execute_command();
+
+	sr.fields.TIP = 0;
+	sr.fields.IF  = 1;
+
+	raise_interrupt();
+
+	op_active = false;
+}
+
 void I2C::execute_command()
 {
 	// reset int
@@ -90,65 +97,92 @@ void I2C::execute_command()
 		lower_interrupt();
 	}
 
-	sr.fields.TIP  = 1;
-	sr.fields.BUSY = 0;
+	bool transaction_started = false;
 
 	// set dev addr
-	if(cr.fields.STA && cr.fields.WR)
+	if(cr.fields.STA)
 	{
-		current_address	  = txr >> 1;
-		is_read_operation = txr & 1;
-
-		sr.fields.RxACK = 1;
-		device_selected = false;
-		for(auto dev : slaves)
+		sr.fields.BUSY	= 1;
+		current_address = 0xFFFF;
+	}
+	// write
+	if(cr.fields.WR)
+	{
+		transaction_started = true;
+		if(current_address == 0xFFFF)
 		{
-			if(dev->address == current_address)
+			current_address	  = txr >> 1;
+			is_read_operation = txr & 1;
+
+			device_selected = false;
+
+			for(auto dev : slaves)
 			{
-				current_dev = dev;
-				current_dev->start_transmit();
-				device_selected = true;
+				if(dev->address == current_address)
+				{
+					if(!device_selected)
+					{
+						current_dev = dev;
+						dev->start_transmit();
+					}
+					device_selected = true;
+					sr.fields.RxACK = 0; // ACK
+					break;
+				}
+			}
+		}
+		else
+		{
+			sr.fields.TIP	= 1;
+			sr.fields.RxACK = 1;
+			if(device_selected && current_dev)
+			{
+				handle_device_write(txr);
 				sr.fields.RxACK = 0;
-				break;
 			}
 		}
 	}
-	// write
-	else if(cr.fields.WR && device_selected)
-	{
-		handle_device_write(txr);
-		sr.fields.RxACK = 0;
-	}
 	// read
-	else if(cr.fields.RD && device_selected)
+	if(cr.fields.RD)
 	{
-		rxr = handle_device_read();
-
-		if(cr.fields.ACK)
+		transaction_started = true;
+		sr.fields.TIP		= 1;
+		if(device_selected && current_dev)
 		{
-			// if guest sets ack to 1, it means that he ended his read.
-			// for safety we will reset device internal buffer pointer, even if the system will call STO
-			current_dev->buffer_ind = 0;
+			rxr				= handle_device_read();
+			sr.fields.RxACK = 0;
 		}
-		sr.fields.RxACK = 0;
+		else
+		{
+			rxr				= 0xFF;
+			sr.fields.RxACK = 1;
+		}
 	}
 
 	// stop
 	if(cr.fields.STO)
 	{
-		current_dev->stop_transmit();
-		device_selected = false;
-		sr.fields.BUSY	= 0; // release bus
+		if(device_selected && current_dev)
+		{
+			current_dev->stop_transmit();
+		}
+		device_selected		= false;
+		transaction_started = true;
+		sr.fields.BUSY		= 0; // release bus
 	}
 
-	sr.fields.TIP = 0; // transfer complete
-	sr.fields.IF  = 1; // irq flag of transaction complete
-	raise_interrupt();
+	if(transaction_started)
+	{
+		sr.fields.TIP = 0; // transfer complete
+		sr.fields.IF  = 1; // irq flag of transaction complete
+		raise_interrupt();
+	}
+	fflush(stdout);
 }
 
 void I2C::raise_interrupt()
 {
-	if(ctr & (1 << 6) && !int_line)
+	if((ctr & 0x40) && !int_line)
 	{
 		// IEN set
 		int_line = true;
@@ -188,8 +222,10 @@ void I2C::write(uint64_t addr, MemorySize size, uint64_t val)
 	{
 		case I2C_REG_PRER_LO:
 			prer_lo = val;
+			break;
 		case I2C_REG_PRER_HI:
 			prer_hi = val;
+			break;
 		case I2C_REG_CTR:
 			ctr = val;
 			if(!(ctr & (1 << 7)))
@@ -198,12 +234,20 @@ void I2C::write(uint64_t addr, MemorySize size, uint64_t val)
 				device_selected = false;
 				lower_interrupt();
 			}
+			break;
 		case I2C_REG_TXR_RXR:
 			txr = val;
+			break;
 		case I2C_REG_CR_SR:
+		{
 			if(!(ctr & (1 << 7))) return;
-			cr.raw = val;
-			execute_command();
+			cr.raw	  = val;
+			op_active = true;
+
+			sr.fields.TIP = 1;
+			sr.fields.IF  = 0;
+			break;
+		}
 		default:
 			return;
 	}

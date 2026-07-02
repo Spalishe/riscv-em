@@ -23,39 +23,39 @@ Copyright 2026 Spalishe
 #include <vector>
 
 #define I2C_REG_PRER_LO 0x0
-#define I2C_REG_PRER_HI 0x1
-#define I2C_REG_CTR		0x2
-#define I2C_REG_TXR_RXR 0x3
-#define I2C_REG_CR_SR	0x4
+#define I2C_REG_PRER_HI 0x1 << 2
+#define I2C_REG_CTR		0x2 << 2
+#define I2C_REG_TXR_RXR 0x3 << 2
+#define I2C_REG_CR_SR	0x4 << 2
 
 #define I2C_CTR_EN_BIT	0x7
 #define I2C_CTR_IEN_BIT 0x6
 
 union i2c_cr
 {
-	struct
+	struct [[gnu::packed]]
 	{
-		unsigned int IACK : 1;
-		unsigned int : 2;
-		unsigned int ACK : 1;
-		unsigned int WR : 1;
-		unsigned int RD : 1;
-		unsigned int STO : 1;
-		unsigned int STA : 1;
+		uint8_t IACK : 1;
+		uint8_t : 2;
+		uint8_t ACK : 1;
+		uint8_t WR : 1;
+		uint8_t RD : 1;
+		uint8_t STO : 1;
+		uint8_t STA : 1;
 	} fields;
 
 	uint8_t raw;
 };
 union i2c_sr
 {
-	struct
+	struct [[gnu::packed]]
 	{
-		unsigned int IF : 1;
-		unsigned int TIP : 1;
-		unsigned int : 3;
-		unsigned int Al : 1;
-		unsigned int BUSY : 1;
-		unsigned int RxACK : 1;
+		uint8_t IF : 1;
+		uint8_t TIP : 1;
+		uint8_t : 3;
+		uint8_t Al : 1;
+		uint8_t BUSY : 1;
+		uint8_t RxACK : 1;
 	} fields;
 
 	uint8_t raw;
@@ -80,7 +80,7 @@ struct I2C : public Device
 	i2c_sr sr;				// status register
 
 	bool device_selected				  = false;
-	uint8_t current_address				  = 0;
+	uint16_t current_address			  = 0;
 	std::shared_ptr<I2CSlave> current_dev = 0;
 	bool is_read_operation				  = false;
 	bool int_line						  = false;
@@ -92,9 +92,17 @@ struct I2C : public Device
 	void handle_device_write(uint8_t data);
 	uint8_t handle_device_read();
 	void execute_command();
+	void tick();
+
+	bool op_active = false;
 
 	template <typename T, typename... Args>
-	std::shared_ptr<I2CSlave> create_device(Args&&... args);
+	std::shared_ptr<I2CSlave> create_device(Args&&... args)
+	{
+		auto new_device = std::make_shared<T>(std::forward<Args>(args)...);
+		slaves.push_back(new_device);
+		return new_device;
+	}
 
 	uint64_t read(uint64_t addr, MemorySize size);
 	void write(uint64_t addr, MemorySize size, uint64_t val);

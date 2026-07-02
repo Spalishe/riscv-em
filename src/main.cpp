@@ -27,6 +27,8 @@ Copyright 2026 Spalishe
 #include "../include/gui/x11.hpp"
 
 #include "../include/devices/framebuffer.hpp"
+#include "../include/devices/hid/hid_test.hpp"
+#include "../include/devices/i2c/i2c-core.hpp"
 #include "../include/devices/uart.hpp"
 #include "../include/gdbstub.hpp"
 #include "../include/machine.hpp"
@@ -274,6 +276,10 @@ int main(int argc, char* argv[])
 		machine.mmio->create_device<Framebuffer>(0x18000000, machine, machine.fdt, fb_w, fb_h, window);
 	}
 #endif
+
+	auto i2c = machine.mmio->get<I2C>();
+	i2c->create_device<HID_TestDevice>(machine, machine.fdt);
+
 	machine.write_fdt();
 	machine.run();
 	if(machine.work_thread_w)

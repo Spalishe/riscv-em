@@ -18,6 +18,7 @@ Copyright 2026 Spalishe
 #pragma once
 #include "../i2c/i2c-core.hpp"
 #include "../i2c/i2c-slave.hpp"
+#include <cstdint>
 
 #define HID_I2C_BUFFER_SIZE 0x1000
 
@@ -38,8 +39,7 @@ struct HIDOverI2C : I2CSlave
 
 	std::vector<uint8_t> report_desc;
 	uint16_t cur_reg;
-	uint16_t write_cycle = 0;
-	uint16_t read_ind	 = 0;
+	uint16_t io_offset = 0;
 
 	void dev_write(uint8_t val);
 	uint8_t dev_read(bool m_ack);
@@ -52,19 +52,16 @@ struct HIDOverI2C : I2CSlave
 
 	// Output report
 	uint8_t* output_report;
-	void (*hid_event_output_report_write)();
+	virtual void hid_event_output_report_write() {};
 
 	// Data register
 	uint8_t* data_register;
 	void hid_data_register_write(const std::vector<uint8_t>& bytes);
-	void (*hid_event_data_register_write)();
+	virtual void hid_event_data_register_write() {};
 
 	// Command register
 	uint8_t* command_register;
-	void (*hid_event_command_register_write)();
-
-  private:
-	void (**last_write_event)();
+	virtual void hid_event_command_register_write() {};
 
 	uint8_t hid_descriptor[30] = {
 		0x1e, 0x00,			   // wHIDDescLength (30 байт)
@@ -82,4 +79,14 @@ struct HIDOverI2C : I2CSlave
 		0x01, 0x00,			   // wVersionID
 		0x00, 0x00, 0x00, 0x00 // Reserved
 	};
+
+  private:
+	enum class WriteEvent
+	{
+		NONE	= 0,
+		COMMAND = 1,
+		DATA	= 2,
+		OUTPUT	= 3
+	};
+	WriteEvent last_event = WriteEvent::NONE;
 };
