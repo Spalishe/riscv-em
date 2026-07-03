@@ -19,13 +19,15 @@ Copyright 2026 Spalishe
 #include "../i2c/i2c-core.hpp"
 #include "../i2c/i2c-slave.hpp"
 #include <cstdint>
+#include <queue>
+#include <vector>
 
 #define HID_I2C_BUFFER_SIZE 0x1000
 
 struct PLIC;
 struct HIDOverI2C : I2CSlave
 {
-	HIDOverI2C(Machine& cpu, fdt_node* fdt, std::vector<uint8_t> report_desc);
+	HIDOverI2C(Machine& cpu, fdt_node* fdt, std::vector<uint8_t> report_desc, uint16_t input_report_size);
 	~HIDOverI2C()
 	{
 		if(input_report != nullptr) delete input_report;
@@ -40,6 +42,7 @@ struct HIDOverI2C : I2CSlave
 	std::vector<uint8_t> report_desc;
 	uint16_t cur_reg;
 	uint16_t io_offset = 0;
+	uint16_t input_report_size;
 
 	void dev_write(uint8_t val);
 	uint8_t dev_read(bool m_ack);
@@ -47,6 +50,7 @@ struct HIDOverI2C : I2CSlave
 	void start_transmit();
 
 	// Input report
+	std::queue<std::vector<uint8_t>> report_queue;
 	uint8_t* input_report;
 	void hid_input_report_write(const std::vector<uint8_t>& bytes);
 

@@ -19,15 +19,15 @@ Copyright 2026 Spalishe
 #include "../../../include/devices/plic.hpp"
 #include "../../../include/machine.hpp"
 
-HIDOverI2C::HIDOverI2C(Machine& cpu, fdt_node* fdt, std::vector<uint8_t> report_desc) : I2CSlave(cpu.mmio->get<PLIC>().get()->acquire_irq(), HID_I2C_BUFFER_SIZE),
-																						plic(cpu.mmio->get<PLIC>().get()), irq_num(plic->last_irq()),
-																						report_desc(report_desc),
-																						cpu(cpu)
+HIDOverI2C::HIDOverI2C(Machine& cpu, fdt_node* fdt, std::vector<uint8_t> report_desc, uint16_t input_report_size) : I2CSlave(cpu.mmio->get<PLIC>().get()->acquire_irq(), HID_I2C_BUFFER_SIZE),
+																													plic(cpu.mmio->get<PLIC>().get()), irq_num(plic->last_irq()),
+																													report_desc(report_desc), input_report_size(input_report_size),
+																													cpu(cpu)
 {
 	hid_descriptor[0x4] = (report_desc.size() & 0xFF);
 	hid_descriptor[0x5] = ((report_desc.size() >> 8) & 0xFF);
 
-	input_report	 = new uint8_t[1024];
+	input_report	 = new uint8_t[input_report_size];
 	output_report	 = new uint8_t[1024];
 	data_register	 = new uint8_t[1024];
 	command_register = new uint8_t[1024];
@@ -71,6 +71,10 @@ void HIDOverI2C::start_transmit()
 
 	last_event = WriteEvent::NONE;
 };
+// TODO: Make report system:
+// if in reg 3 read io offset >= total len, then report considered readed and must be poped.
+// right afterwards, if there any report left, write those into buffer and raise irq again,
+// otherwise, lower irq
 uint8_t HIDOverI2C::dev_read(bool m_ack)
 {
 	uint8_t val = 0;
@@ -92,7 +96,23 @@ uint8_t HIDOverI2C::dev_read(bool m_ack)
 	else if(cur_reg == 0x03)
 	{
 		// Input Report Register
-		if(io_offset < 1024) val = input_report[io_offset];
+		if(io_offset < input_report_size) val = input_report[io_offset];
+		if(io_offset >= (input_report_size - 1))
+		{
+			if(!report_queue.empty())
+				report_queue.pop();
+
+			if(report_queue.size() > 0)
+			{
+				hid_input_report_write(report_queue.front());
+				io_offset = 0;
+				plic->set_pending(irq_num, true);
+
+				return val;
+			}
+			else
+				plic->set_pending(irq_num, false);
+		}
 	}
 	else if(cur_reg == 0x05)
 	{

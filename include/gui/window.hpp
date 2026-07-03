@@ -116,15 +116,18 @@ static inline void key_release(InputState& s, uint32_t key)
 			return;
 	}
 
-	// remove from rollover list (compact shift)
-	for(uint8_t i = 0; i < s.active_count; i++)
+	for(uint8_t i = 0; i < s.active_count; ++i)
 	{
 		if(s.active[i] == key)
 		{
-			for(uint8_t j = i; j + 1 < s.active_count; j++)
+			for(uint8_t j = i; j + 1 < s.active_count; ++j)
+			{
 				s.active[j] = s.active[j + 1];
+			}
 
-			s.active_count--;
+			--s.active_count;
+			s.active[s.active_count] = 0; // очистить хвост
+
 			break;
 		}
 	}
