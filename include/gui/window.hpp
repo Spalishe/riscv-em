@@ -49,13 +49,17 @@ struct InputState
 	bool ralt = false;
 
 	bool pressed[256]{};
+	uint16_t pressed_count = 0;
 };
 
 static inline void key_press(InputState& s, uint32_t key)
 {
 	if(key < 256)
 	{
+		if(s.pressed[key])
+			return;
 		s.pressed[key] = true;
+		++s.pressed_count;
 	}
 
 	switch(key)
@@ -90,6 +94,8 @@ static inline void key_release(InputState& s, uint32_t key)
 	if(key < 256)
 	{
 		s.pressed[key] = false;
+		--s.pressed_count;
+		if((int16_t)s.pressed_count < 0) s.pressed_count = 0;
 	}
 
 	switch(key)
@@ -126,11 +132,46 @@ static inline void key_release(InputState& s, uint32_t key)
 			}
 
 			--s.active_count;
-			s.active[s.active_count] = 0; // очистить хвост
+			s.active[s.active_count] = 0;
 
 			break;
 		}
 	}
+}
+static inline uint8_t build_report_keys(InputState& s, uint8_t out[6])
+{
+	uint8_t count = 0;
+
+	for(uint32_t key = 0; key < 256; ++key)
+	{
+		if(!s.pressed[key])
+			continue;
+
+		switch(key)
+		{
+			case KEY_LEFTSHIFT:
+			case KEY_RIGHTSHIFT:
+			case KEY_LEFTCTRL:
+			case KEY_RIGHTCTRL:
+			case KEY_LEFTALT:
+			case KEY_RIGHTALT:
+				continue;
+		}
+
+		if(count < 6)
+		{
+			out[count++] = key;
+		}
+		else
+		{
+			return 7; // rollover
+		}
+	}
+
+	while(count < 6)
+		out[count++] = 0;
+
+	return count;
 }
 
 struct AppWindow;

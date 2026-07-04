@@ -210,15 +210,18 @@ namespace
 		else
 			key_release(*window->input, key);
 
-		uint8_t key1 = wl_input_conv_table[window->input->active[0]];
-		uint8_t key2 = wl_input_conv_table[window->input->active[1]];
-		uint8_t key3 = wl_input_conv_table[window->input->active[2]];
-		uint8_t key4 = wl_input_conv_table[window->input->active[3]];
-		uint8_t key5 = wl_input_conv_table[window->input->active[4]];
-		uint8_t key6 = wl_input_conv_table[window->input->active[5]];
+		uint8_t out[6] = { 0 };
+		build_report_keys(*window->input, out);
+		uint8_t key1 = wl_input_conv_table[out[0]];
+		uint8_t key2 = wl_input_conv_table[out[1]];
+		uint8_t key3 = wl_input_conv_table[out[2]];
+		uint8_t key4 = wl_input_conv_table[out[3]];
+		uint8_t key5 = wl_input_conv_table[out[4]];
+		uint8_t key6 = wl_input_conv_table[out[5]];
 
 		uint8_t mods = (window->input->lctrl << 0) | (window->input->lshift << 1) | (window->input->lalt << 2) | (window->input->rctrl << 4) | (window->input->rshift << 5) | (window->input->ralt << 6);
-		(*window->kb)->update(mods, key1, key2, key3, key4, key5, key6, window->input->active_count > 6);
+		printf("%d %d %d %d %d %d %d %d\n", mods, key1, key2, key3, key4, key5, key6, window->input->pressed_count);
+		(*window->kb)->update(mods, key1, key2, key3, key4, key5, key6, window->input->pressed_count > 6);
 	}
 	static void keyboard_handle_modifiers(void* data, struct wl_keyboard* wl_keyboard, uint32_t serial, uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked, uint32_t group)
 	{

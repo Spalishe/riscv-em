@@ -71,10 +71,7 @@ void HIDOverI2C::start_transmit()
 
 	last_event = WriteEvent::NONE;
 };
-// TODO: Make report system:
-// if in reg 3 read io offset >= total len, then report considered readed and must be poped.
-// right afterwards, if there any report left, write those into buffer and raise irq again,
-// otherwise, lower irq
+
 uint8_t HIDOverI2C::dev_read(bool m_ack)
 {
 	uint8_t val = 0;

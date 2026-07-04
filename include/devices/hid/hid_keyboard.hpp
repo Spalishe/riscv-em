@@ -43,9 +43,9 @@ struct HID_Keyboard : HIDOverI2C
 		{ GLOBAL, REPORT_SIZE_TAG,	   8	 },
 		{ GLOBAL, REPORT_COUNT_TAG,	6	  },
 		{ GLOBAL, LOGICAL_MIN_TAG,	   0	 },
-		{ GLOBAL, LOGICAL_MAX_TAG,	   101  },
+		{ GLOBAL, LOGICAL_MAX_TAG,	   255  },
 		{ LOCAL,	 USAGE_MIN_TAG,		0x00 },
-		{ LOCAL,	 USAGE_MAX_TAG,		101	},
+		{ LOCAL,	 USAGE_MAX_TAG,		255	},
 		{ MAIN,	INPUT_TAG,		   0x00 },
 
 		{ MAIN,	END_COLLECTION_TAG, 0x0	},

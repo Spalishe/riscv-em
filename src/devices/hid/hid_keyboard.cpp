@@ -17,10 +17,11 @@ Copyright 2026 Spalishe
 
 #include "../../../include/devices/hid/hid_keyboard.hpp"
 #include "../../../include/devices/plic.hpp"
+#include <cstdint>
 HID_Keyboard::HID_Keyboard(Machine& cpu, fdt_node* fdt) : HIDOverI2C(cpu, fdt, generate_report_descriptor(HID_Keyboard::report_descriptor_items), 10)
 {
-	hid_descriptor[0xa] = (input_report_size & 0xFF);		 // 0x0A
-	hid_descriptor[0xb] = ((input_report_size >> 8) & 0xFF); // 0x00
+	hid_descriptor[0xb] = (input_report_size & 0xFF);		 // 0x0A
+	hid_descriptor[0xa] = ((input_report_size >> 8) & 0xFF); // 0x00
 }
 
 void HID_Keyboard::hid_event_output_report_write()
