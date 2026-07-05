@@ -124,7 +124,7 @@ ifdef USE_FRAMEBUFFER
 		LIBS += -lwayland-client -lvulkan
 	else ifeq ($(DISPLAY_SERVER), x11)
 		CXXFLAGS += -D__PKG_X11
-		LIBS += -lvulkan
+		LIBS += -lvulkan -lX11
 	endif
 endif
 

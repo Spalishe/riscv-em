@@ -220,7 +220,6 @@ namespace
 		uint8_t key6 = wl_input_conv_table[out[5]];
 
 		uint8_t mods = (window->input->lctrl << 0) | (window->input->lshift << 1) | (window->input->lalt << 2) | (window->input->rctrl << 4) | (window->input->rshift << 5) | (window->input->ralt << 6);
-		printf("%d %d %d %d %d %d %d %d\n", mods, key1, key2, key3, key4, key5, key6, window->input->pressed_count);
 		(*window->kb)->update(mods, key1, key2, key3, key4, key5, key6, window->input->pressed_count > 6);
 	}
 	static void keyboard_handle_modifiers(void* data, struct wl_keyboard* wl_keyboard, uint32_t serial, uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked, uint32_t group)
