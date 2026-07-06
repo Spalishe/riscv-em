@@ -155,6 +155,70 @@ ExecReturn exec_FADD_S(Hart& hart, InstructionData& inst)
 	hart.FPR[inst.rd] = f32_out(res);
 	return { true, false, 4, 0, 0 };
 }
+ExecReturn exec_FSUB_S(Hart& hart, InstructionData& inst)
+{
+	double res = (double)f32_in(hart.FPR[inst.rs1] - hart.FPR[inst.rs2]);
+	FLOAT_START
+	RM_HANDLE(res, inst.inst, inst.rm, hart);
+	FLOAT_END(hart.fcsr.fields.fflags);
+	hart.FPR[inst.rd] = f32_out(res);
+	return { true, false, 4, 0, 0 };
+}
+ExecReturn exec_FMUL_S(Hart& hart, InstructionData& inst)
+{
+	double res = (double)f32_in(hart.FPR[inst.rs1] * hart.FPR[inst.rs2]);
+	FLOAT_START
+	RM_HANDLE(res, inst.inst, inst.rm, hart);
+	FLOAT_END(hart.fcsr.fields.fflags);
+	hart.FPR[inst.rd] = f32_out(res);
+	return { true, false, 4, 0, 0 };
+}
+ExecReturn exec_FDIV_S(Hart& hart, InstructionData& inst)
+{
+	double res = (double)f32_in(hart.FPR[inst.rs1] / hart.FPR[inst.rs2]);
+	FLOAT_START
+	RM_HANDLE(res, inst.inst, inst.rm, hart);
+	FLOAT_END(hart.fcsr.fields.fflags);
+	hart.FPR[inst.rd] = f32_out(res);
+	return { true, false, 4, 0, 0 };
+}
+ExecReturn exec_FSQRT_S(Hart& hart, InstructionData& inst)
+{
+	double res = (double)f32_in(sqrt(hart.FPR[inst.rs1]));
+	FLOAT_START
+	RM_HANDLE(res, inst.inst, inst.rm, hart);
+	FLOAT_END(hart.fcsr.fields.fflags);
+	hart.FPR[inst.rd] = f32_out(res);
+	return { true, false, 4, 0, 0 };
+}
+ExecReturn exec_FSGNJ_S(Hart& hart, InstructionData& inst)
+{
+	float f_src1	  = f32_in(hart.FPR[inst.rs1]);
+	float f_src2	  = f32_in(hart.FPR[inst.rs2]);
+	float res		  = std::copysign(f_src1, f_src2);
+	hart.FPR[inst.rd] = f32_out(res);
+	return { true, false, 4, 0, 0 };
+}
+ExecReturn exec_FSGNJN_S(Hart& hart, InstructionData& inst)
+{
+	float f_src1	  = f32_in(hart.FPR[inst.rs1]);
+	float f_src2	  = f32_in(hart.FPR[inst.rs2]);
+	float res		  = std::copysign(f_src1, -f_src2);
+	hart.FPR[inst.rd] = f32_out(res);
+	return { true, false, 4, 0, 0 };
+}
+ExecReturn exec_FSGNJX_S(Hart& hart, InstructionData& inst)
+{
+	float f_src1				 = f32_in(hart.FPR[inst.rs1]);
+	float f_src2				 = f32_in(hart.FPR[inst.rs2]);
+	uint32_t bits1				 = std::bit_cast<uint32_t>(f32_in(hart.FPR[inst.rs1]));
+	uint32_t bits2				 = std::bit_cast<uint32_t>(f32_in(hart.FPR[inst.rs2]));
+	constexpr uint32_t sign_mask = 0x80000000;
+	uint32_t res_bits			 = (bits1 & ~sign_mask) | ((bits1 ^ bits2) & sign_mask);
+	hart.FPR[inst.rd]			 = f32_out(std::bit_cast<float>(res_bits));
+	return { true, false, 4, 0, 0 };
+}
+
 void InstructionDecoder::init_rv64f()
 {
 	register_instr("*****00******************1000011", exec_FMADD_S);
