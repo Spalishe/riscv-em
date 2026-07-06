@@ -45,6 +45,10 @@ uint64_t d_rs3(uint32_t inst)
 {
 	return (inst >> 27) & 0x1f; // rs3 in bits 31..27
 }
+uint64_t d_rm(uint32_t inst)
+{
+	return (inst >> 12) & 0x7; // rm in bits 13..15
+}
 uint64_t imm_Zicsr(uint32_t inst)
 {
 	return (inst >> 20);
@@ -117,7 +121,11 @@ InstructionCache& InstructionDecoder::decode_inst(uint64_t pc, uint32_t inst)
 		data.rd	  = d_rd(inst);
 		data.rs1  = d_rs1(inst);
 		data.rs2  = d_rs2(inst);
-		data.imm  = f ? dinst->imm_decode_func(inst) : 0;
+#ifdef USE_FPU
+		data.rs3 = d_rs3(inst);
+		data.rm	 = d_rm(inst);
+#endif
+		data.imm = f ? dinst->imm_decode_func(inst) : 0;
 
 		cache[idx] = { pc, inst, *dinst, data, f };
 		// printf("inst=0x%lx match=0x%lx mask=0x%lx func=%p\n", inst, dinst->match, dinst->mask, dinst->func);
@@ -167,6 +175,9 @@ void InstructionDecoder::init_all_instrs()
 	init_rv64i();
 	init_rv64m();
 	init_rv64a();
+#ifdef USE_FPU
+	init_rv64f();
+#endif
 	init_priv();
 	init_zicsr();
 	init_zifencei();

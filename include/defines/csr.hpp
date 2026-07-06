@@ -66,7 +66,7 @@ Copyright 2026 Spalishe
 #define CSR_SIE			 0x104 // SRW Supervisor interrupt-enable register.
 #define CSR_STVEC		 0x105 // SRW Supervisor trap handler base address.
 #define CSR_SCOUNTEREN	 0x106 // SRW Supervisor counter enable.
-#define CSR_SCOUNTOVF    0xDA0 // SRW Supervisor counter overflow register
+#define CSR_SCOUNTOVF	 0xDA0 // SRW Supervisor counter overflow register
 
 // Ssstateen
 #define CSR_SSTATEEN0	 0x10C // SRW Supervisor state enable register
@@ -111,7 +111,7 @@ Copyright 2026 Spalishe
 
 // Machine cycle and instret privilege mode filtering (Smcntrpmf)
 #define CSR_MCYCLECFG	 0x321 // MRW Machine privilege mode filtering for the cycle counter.
-#define CSR_MINSTRETCFG  0x322 // MRW Machine privilege mode filtering for the instret counter.
+#define CSR_MINSTRETCFG	 0x322 // MRW Machine privilege mode filtering for the instret counter.
 
 // Machine Trap Handling
 #define CSR_MSCRATCH	 0x340 // MRW Scratch register for machine trap handlers.
@@ -441,6 +441,17 @@ union status_t
 		uint64_t MBE : 1;
 		uint64_t : 25;
 		uint64_t SD : 1;
+	} fields;
+
+	uint64_t raw;
+};
+union fcsr_t
+{
+	struct
+	{
+		uint64_t fflags : 5;
+		uint64_t frm : 3;
+		uint64_t : 56;
 	} fields;
 
 	uint64_t raw;

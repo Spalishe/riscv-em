@@ -55,6 +55,9 @@ struct Hart
 	};
 	uint8_t id;
 	uint64_t GPR[32];
+#ifdef USE_FPU
+	double FPR[32];
+#endif
 	uint64_t csrs[4096];
 	InstructionDecoder* idec;
 #ifdef USE_JIT
@@ -72,6 +75,7 @@ struct Hart
 	ie_t ie;
 	ip_t ip;
 	timecmp_st stimecmp;
+	fcsr_t fcsr;
 	bool WFI = false;
 
 	// Fetch buffer

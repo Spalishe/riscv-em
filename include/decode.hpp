@@ -28,6 +28,7 @@ uint64_t d_rd(uint32_t inst);
 uint64_t d_rs1(uint32_t inst);
 uint64_t d_rs2(uint32_t inst);
 uint64_t d_rs3(uint32_t inst);
+uint64_t d_rm(uint32_t inst);
 uint64_t imm_Zicsr(uint32_t inst);
 uint64_t imm_I(uint32_t inst);
 uint64_t imm_S(uint32_t inst);
@@ -46,6 +47,10 @@ struct InstructionData
 	uint8_t rs2;
 	uint8_t rd;
 	uint64_t imm;
+#ifdef USE_FPU
+	uint8_t rs3;
+	uint8_t rm;
+#endif
 };
 
 struct Instruction
@@ -79,6 +84,9 @@ struct InstructionDecoder
 	void init_rv64i();
 	void init_rv64m();
 	void init_rv64a();
+#ifdef USE_FPU
+	void init_rv64f();
+#endif
 	void init_priv();
 	void init_zicsr();
 	void init_zifencei();

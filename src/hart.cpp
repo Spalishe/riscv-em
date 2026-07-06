@@ -255,6 +255,36 @@ void Hart::csr_write(uint16_t csr, uint64_t val)
 		case CSR_STIMECMP:
 			timecmp_set(&stimecmp, val);
 			break;
+		case CSR_FCSR:
+		{
+			if(!status.fields.FS)
+			{
+				trap(EXC_ILLEGAL_INSTRUCTION, csr, false);
+				break;
+			}
+			fcsr.raw = val;
+			break;
+		}
+		case CSR_FFLAGS:
+		{
+			if(!status.fields.FS)
+			{
+				trap(EXC_ILLEGAL_INSTRUCTION, csr, false);
+				break;
+			}
+			fcsr.fields.fflags = val;
+			break;
+		}
+		case CSR_FRM:
+		{
+			if(!status.fields.FS)
+			{
+				trap(EXC_ILLEGAL_INSTRUCTION, csr, false);
+				break;
+			}
+			fcsr.fields.frm = val;
+			break;
+		}
 
 		case CSR_MVENDORID:
 		case CSR_MARCHID:
@@ -291,6 +321,33 @@ uint64_t Hart::csr_read(uint16_t csr)
 			return csrs[csr - 0x100]; // get M versions
 		case CSR_STIMECMP:
 			return timecmp_get(&stimecmp);
+		case CSR_FCSR:
+		{
+			if(!status.fields.FS)
+			{
+				trap(EXC_ILLEGAL_INSTRUCTION, csr, false);
+				return 0;
+			}
+			return fcsr.raw;
+		}
+		case CSR_FFLAGS:
+		{
+			if(!status.fields.FS)
+			{
+				trap(EXC_ILLEGAL_INSTRUCTION, csr, false);
+				return 0;
+			}
+			return fcsr.fields.fflags;
+		}
+		case CSR_FRM:
+		{
+			if(!status.fields.FS)
+			{
+				trap(EXC_ILLEGAL_INSTRUCTION, csr, false);
+				return 0;
+			}
+			return fcsr.fields.frm;
+		}
 		default:
 			return csrs[csr];
 	}

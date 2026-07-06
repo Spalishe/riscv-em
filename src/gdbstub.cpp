@@ -447,7 +447,7 @@ void GDB_parsePacket(const char* buffer)
 				{
 					gdb_exec   = true;
 					gdb_execth = thread([]()
-										{
+					{
           while (gdb_exec) {
 			  if(!gdb_cpu->gdb_single_step)
 			  {
@@ -488,7 +488,7 @@ void GDB_parsePacket(const char* buffer)
 		{
 			gdb_exec   = true;
 			gdb_execth = thread([]()
-								{
+			{
         while (gdb_exec) {
           if (!gdb_cpu->gdb_single_step) {
             uint64_t pc = gdb_hart->pc;
@@ -565,7 +565,7 @@ void GDB_parsePacket(const char* buffer)
 // fpu
 #ifdef USE_FPU
 				GDB_sendPacket(to_little_endian_hex(
-					std::bit_cast<uint64_t>(gdb_hart->FPR[idx - 33].val)));
+					std::bit_cast<uint64_t>(gdb_hart->FPR[idx - 33])));
 #endif
 			}
 			else if(idx >= 64)
