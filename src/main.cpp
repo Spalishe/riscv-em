@@ -38,7 +38,7 @@ Copyright 2026 Spalishe
 
 /*
  *		   TODO:
- *		    -RV64F
+ *		    -Zicboz
  *		    -RV64D
  *		    -Machine suspend
  *          -Device:

@@ -26,11 +26,18 @@ The emulator supports the following features:
   - [x] RV64I
   - [x] RV64M
   - [x] RV64A (No atomicity for now)
-  - [ ] RV64F
+  - [x] RV64F
   - [ ] RV64D
   - [x] Zifencei
   - [x] Zicsr
 - [ ] RV64C
+- [ ] Bit manipulations
+  - [x] Zba
+  - [x] Zbb
+  - [x] Zbc
+  - [x] Zbs
+  - [ ] Zbkb
+- [ ] Zicboz (for faster memory zeroing)
 - [x] Privileged ISA
 - [x] Control and status registers (CSRs)
   - [x] Machine-level CSRs
