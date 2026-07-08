@@ -19,6 +19,7 @@ Copyright 2026 Spalishe
 #include "defines/traps.hpp"
 #include <array>
 #include <cstdint>
+#include <immintrin.h>
 #include <string>
 #include <vector>
 
@@ -74,7 +75,9 @@ struct InstructionCache
 struct InstructionDecoder
 {
 	std::vector<Instruction> instructions;
-	std::array<std::vector<Instruction>, 128> opcode_table;
+	static constexpr size_t LUT_SIZE	= 1 << 22;
+	const Instruction* lut[LUT_SIZE]	= { nullptr };
+	static constexpr uint32_t HASH_MASK = 0xFFF0707F;
 	InstructionCache cache[32768];
 	InstructionCache& decode_inst_slow(uint64_t pc, uint32_t inst);
 	inline InstructionCache& decode_inst(uint64_t pc, uint32_t inst)
@@ -88,8 +91,13 @@ struct InstructionDecoder
 		return decode_inst_slow(pc, inst);
 	}
 
+	uint32_t global_hash_mask = 0;
+	void build_lut();
 	void register_instr(std::string mask, ExecReturn (*func)(Hart&, InstructionData&), uint64_t (*imm_decode_func)(uint32_t inst) = NULL);
-
+	static inline uint32_t get_lut_index(uint32_t inst)
+	{
+		return _pext_u32(inst, HASH_MASK);
+	}
 	// This function will call on init, calling all sets functions to initialize
 	void init_all_instrs();
 	void init_rv64i();

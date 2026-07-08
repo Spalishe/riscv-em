@@ -97,18 +97,10 @@ __attribute__((noinline)) InstructionCache& InstructionDecoder::decode_inst_slow
 {
 	size_t idx = (pc >> 2) & (32768 - 1);
 
-	const Instruction* dinst;
-	bool f			= false;
-	uint32_t opcode = inst & 0x7F;
-	for(const auto& ins : opcode_table[opcode])
-	{
-		if((inst & ins.mask) == ins.match)
-		{
-			dinst = &ins;
-			f	  = true;
-			break;
-		}
-	}
+	uint32_t lut_idx		 = get_lut_index(inst);
+	const Instruction* dinst = lut[lut_idx];
+
+	bool f = (dinst != nullptr) && ((inst & dinst->mask) == dinst->match);
 	InstructionData data;
 	data.inst = inst;
 	data.rd	  = d_rd(inst);
@@ -118,9 +110,18 @@ __attribute__((noinline)) InstructionCache& InstructionDecoder::decode_inst_slow
 	data.rs3 = d_rs3(inst);
 	data.rm	 = d_rm(inst);
 #endif
-	data.imm = f ? dinst->imm_decode_func(inst) : 0;
+	if(f) [[likely]]
+	{
+		data.imm   = dinst->imm_decode_func(inst);
+		cache[idx] = { pc, inst, *dinst, data, true };
+	}
+	else
+	{
+		data.imm = 0;
+		Instruction invalid_inst{};
+		cache[idx] = { pc, inst, invalid_inst, data, false };
+	}
 
-	cache[idx] = { pc, inst, *dinst, data, f };
 	// printf("inst=0x%lx match=0x%lx mask=0x%lx func=%p\n", inst, dinst->match, dinst->mask, dinst->func);
 	return cache[idx];
 }
@@ -155,15 +156,17 @@ void InstructionDecoder::register_instr(std::string mask, ExecReturn (*func)(Har
 		(imm_decode_func == NULL) ? imm_I : imm_decode_func, // default decode func if user dont provide such
 	};
 	// printf("Registered instr mask=0x%dx match=0x%dx with func=%p, imm_decode_func=%p\n", inst_mask, inst_match, func, imm_decode_func);
-	// instructions.push_back(inst);
-	std::string opcode_str = mask.substr(mask.length() - 7);
-	std::bitset<7> bits(opcode_str);
-	unsigned long opcode = bits.to_ulong();
-	opcode_table[opcode].push_back(inst);
+	instructions.push_back(inst);
+	// std::string opcode_str = mask.substr(mask.length() - 7);
+	// std::bitset<7> bits(opcode_str);
+	// unsigned long opcode = bits.to_ulong();
+	// opcode_table[opcode].push_back(inst);
+	global_hash_mask |= inst_mask;
 }
 
 void InstructionDecoder::init_all_instrs()
 {
+	instructions.reserve(512);
 	init_rv64i();
 	init_rv64m();
 	init_rv64a();
@@ -178,4 +181,41 @@ void InstructionDecoder::init_all_instrs()
 	init_zbc();
 	init_zbs();
 	init_zicboz();
+	build_lut();
+}
+void InstructionDecoder::build_lut()
+{
+	for(const auto& inst : instructions)
+	{
+		uint32_t effective_mask = inst.mask & HASH_MASK;
+		uint32_t dont_care_bits = HASH_MASK & (~effective_mask);
+
+		uint32_t sub_mask = 0;
+		do
+		{
+			uint32_t test_inst = (inst.match & HASH_MASK) | sub_mask;
+
+			uint32_t lut_idx = _pext_u32(test_inst, HASH_MASK);
+
+			if(lut_idx >= LUT_SIZE)
+			{
+				printf("[CRITICAL] Index %u out of bounds!\n", lut_idx);
+				continue;
+			}
+
+			if(lut[lut_idx] != nullptr)
+			{
+				if(__builtin_popcount(inst.mask) > __builtin_popcount(lut[lut_idx]->mask))
+				{
+					lut[lut_idx] = &inst;
+				}
+			}
+			else
+			{
+				lut[lut_idx] = &inst;
+			}
+
+			sub_mask = (sub_mask - dont_care_bits) & dont_care_bits;
+		} while(sub_mask != 0);
+	}
 }
