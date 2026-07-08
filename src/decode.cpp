@@ -172,6 +172,7 @@ void InstructionDecoder::init_all_instrs()
 	init_rv64a();
 #ifdef USE_FPU
 	init_rv64f();
+	init_rv64d();
 #endif
 	init_priv();
 	init_zicsr();

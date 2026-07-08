@@ -91,7 +91,7 @@ void Machine::init_fdt()
 		fdt_node_add_prop_u32(cpu, "reg", hart.id);
 		fdt_node_add_prop_u32(cpu, "cboz-block-size", 64);
 		fdt_node_add_prop_str(cpu, "compatible", "riscv");
-		fdt_node_add_prop_str(cpu, "riscv,isa", "rv64imaf_zicsr_zifencei_zicboz_zba_zbb_zbc_zbs");
+		fdt_node_add_prop_str(cpu, "riscv,isa", "rv64imafd_zicsr_zifencei_zicboz_zba_zbb_zbc_zbs");
 		fdt_node_add_prop_str(cpu, "mmu-type", "riscv,none");
 		fdt_node_add_prop_str(cpu, "status", "okay");
 

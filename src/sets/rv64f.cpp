@@ -299,8 +299,6 @@ ExecReturn exec_FSGNJN_S(Hart& hart, InstructionData& inst)
 }
 ExecReturn exec_FSGNJX_S(Hart& hart, InstructionData& inst)
 {
-	float f_src1				 = f32_in(hart.FPR[inst.rs1]);
-	float f_src2				 = f32_in(hart.FPR[inst.rs2]);
 	uint32_t bits1				 = std::bit_cast<uint32_t>(f32_in(hart.FPR[inst.rs1]));
 	uint32_t bits2				 = std::bit_cast<uint32_t>(f32_in(hart.FPR[inst.rs2]));
 	constexpr uint32_t sign_mask = 0x80000000;

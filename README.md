@@ -22,12 +22,12 @@ Running:
 ## Features List
 
 The emulator supports the following features:
-- [ ] RV64G ISA
+- [x] RV64G ISA
   - [x] RV64I
   - [x] RV64M
   - [x] RV64A (No atomicity for now)
   - [x] RV64F
-  - [ ] RV64D
+  - [x] RV64D
   - [x] Zifencei
   - [x] Zicsr
 - [ ] RV64C

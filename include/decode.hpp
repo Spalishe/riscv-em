@@ -105,6 +105,7 @@ struct InstructionDecoder
 	void init_rv64a();
 #ifdef USE_FPU
 	void init_rv64f();
+	void init_rv64d();
 #endif
 	void init_priv();
 	void init_zicsr();
