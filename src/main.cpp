@@ -38,8 +38,11 @@ Copyright 2026 Spalishe
 
 /*
  *		   TODO:
- *		    -Zicboz
  *		    -RV64D
+ *		    -Zawrs
+ *		    -Zabha
+ *		    -Zacas
+ *		    -Zbkb
  *		    -Machine suspend
  *          -Device:
  *            1. RTC GoldFish

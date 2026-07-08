@@ -61,7 +61,7 @@ void Hart::tick()
 	GPR[0] = 0;
 	csrs[CSR_MCYCLE]++;
 	check_ints();
-	if(WFI)
+	if(WFI) [[unlikely]]
 	{
 		// We must continue execution even if we has locally pending interruptions
 		if(int_local_pending()) WFI = false;
@@ -72,7 +72,7 @@ void Hart::tick()
 	uint64_t prevpc = pc;
 #ifdef USE_JIT
 	JIT_Function& jit_entry = jctx->jits[jctx->jit_index(pc)];
-	if(jit_entry.valid && jit_entry.pc == pc)
+	if(jit_entry.valid && jit_entry.pc == pc) [[unlikely]]
 	{
 		hctx.exit_pc = 0;
 		jit_entry.func(&hctx);
@@ -80,40 +80,38 @@ void Hart::tick()
 			pc = hctx.exit_pc;
 		else
 			pc += jit_entry.inst_size;
+		return;
+	}
+#endif
+	uint32_t inst			= fetch(pc);
+	InstructionCache& cache = idec->decode_inst(pc, inst);
+	if(!cache.valid)
+	{
+#ifdef USE_JIT
+		jctx->stopBlock();
+#endif
+		trap(EXC_ILLEGAL_INSTRUCTION, inst, false);
+		return;
+	}
+
+	// Run single instruction
+	auto out = single_inst(cache);
+	if(!out.is_success)
+	{
+#ifdef USE_JIT
+		jctx->stopBlock();
+#endif
+		trap(out.cause, out.tval, false);
+		return;
 	}
 	else
-#endif
 	{
-		uint32_t inst			= fetch(pc);
-		InstructionCache& cache = idec->decode_inst(pc, inst);
-		if(!cache.valid)
-		{
-#ifdef USE_JIT
-			jctx->stopBlock();
-#endif
-			trap(EXC_ILLEGAL_INSTRUCTION, inst, false);
-			return;
-		}
-
-		// Run single instruction
-		auto out = single_inst(cache);
-		if(!out.is_success)
-		{
-#ifdef USE_JIT
-			jctx->stopBlock();
-#endif
-			trap(out.cause, out.tval, false);
-			return;
-		}
-		else
-		{
-			csrs[CSR_MINSTRET]++;
-			pc += out.increase_pc;
-		}
-#ifdef USE_JIT
-		jctx->handleInstruction(*this, cache, prevpc);
-#endif
+		csrs[CSR_MINSTRET]++;
+		pc += out.increase_pc;
 	}
+#ifdef USE_JIT
+	jctx->handleInstruction(*this, cache, prevpc);
+#endif
 }
 
 bool Hart::int_local_pending()

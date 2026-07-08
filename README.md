@@ -37,7 +37,8 @@ The emulator supports the following features:
   - [x] Zbc
   - [x] Zbs
   - [ ] Zbkb
-- [ ] Zicboz (for faster memory zeroing)
+- [ ] Other instruction sets
+  - [x] Zicboz (for faster memory zeroing)
 - [x] Privileged ISA
 - [x] Control and status registers (CSRs)
   - [x] Machine-level CSRs

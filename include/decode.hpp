@@ -75,8 +75,19 @@ struct InstructionDecoder
 {
 	std::vector<Instruction> instructions;
 	std::array<std::vector<Instruction>, 128> opcode_table;
-	InstructionCache cache[8192];
-	InstructionCache& decode_inst(uint64_t pc, uint32_t inst);
+	InstructionCache cache[32768];
+	InstructionCache& decode_inst_slow(uint64_t pc, uint32_t inst);
+	inline InstructionCache& decode_inst(uint64_t pc, uint32_t inst)
+	{
+		size_t idx = (pc >> 2) & (32768 - 1);
+		if(cache[idx].valid && cache[idx].pc == pc) [[likely]]
+		{
+			return cache[idx];
+		}
+
+		return decode_inst_slow(pc, inst);
+	}
+
 	void register_instr(std::string mask, ExecReturn (*func)(Hart&, InstructionData&), uint64_t (*imm_decode_func)(uint32_t inst) = NULL);
 
 	// This function will call on init, calling all sets functions to initialize
@@ -94,4 +105,5 @@ struct InstructionDecoder
 	void init_zbb();
 	void init_zbc();
 	void init_zbs();
+	void init_zicboz();
 };

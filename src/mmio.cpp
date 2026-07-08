@@ -47,6 +47,22 @@ MemoryReturn MMIO::write(Hart& h, uint64_t vaddr, MemorySize size, uint64_t val)
 	// h.trap(EXC_STORE_ACCESS_FAULT, vaddr, false);
 	return { false, EXC_STORE_ACCESS_FAULT, vaddr };
 }
+inline uint64_t MMIO::read_dram_fast(uint64_t vaddr, MemorySize size)
+{
+	unsigned char* ptr = mmap->ram_direct->data + (vaddr - 0x80000000ULL);
+	switch(size)
+	{
+		case MemorySize::Byte:
+			return *(uint8_t*)ptr;
+		case MemorySize::Short:
+			return *(uint16_t*)ptr;
+		case MemorySize::Int:
+			return *(uint32_t*)ptr;
+		case MemorySize::Long:
+			return *(uint64_t*)ptr;
+	}
+	return 0;
+}
 MemoryReturn MMIO::read(Hart& h, uint64_t vaddr, MemorySize size, void* val)
 {
 	uint64_t out;
@@ -55,7 +71,8 @@ MemoryReturn MMIO::read(Hart& h, uint64_t vaddr, MemorySize size, void* val)
 	if(vaddr >= 0x80000000ULL && (vaddr + (uint64_t)size) <= end) [[likely]] // We subtracting by size to exclude chance of buffer overflow
 	{
 		// DRAM
-		out = mmap->load(vaddr, (int)size * 8);
+		// out = mmap->load(vaddr, (int)size * 8);
+		out = read_dram_fast(vaddr, size);
 		goto success;
 	}
 	// Looking up for devices in this range

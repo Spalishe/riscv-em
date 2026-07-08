@@ -93,44 +93,36 @@ uint64_t shamt64(uint32_t inst)
 	return (uint32_t)(imm_I(inst) & 0x3f);
 }
 
-InstructionCache& InstructionDecoder::decode_inst(uint64_t pc, uint32_t inst)
+__attribute__((noinline)) InstructionCache& InstructionDecoder::decode_inst_slow(uint64_t pc, uint32_t inst)
 {
-	size_t idx				= (pc >> 2) & (8192 - 1);
-	InstructionCache& entry = cache[idx];
+	size_t idx = (pc >> 2) & (32768 - 1);
 
-	if(entry.valid && entry.pc == pc) [[likely]]
+	const Instruction* dinst;
+	bool f			= false;
+	uint32_t opcode = inst & 0x7F;
+	for(const auto& ins : opcode_table[opcode])
 	{
-		return entry;
-	}
-	else
-	{
-		const Instruction* dinst;
-		bool f			= false;
-		uint32_t opcode = inst & 0x7F;
-		for(const auto& ins : opcode_table[opcode])
+		if((inst & ins.mask) == ins.match)
 		{
-			if((inst & ins.mask) == ins.match)
-			{
-				dinst = &ins;
-				f	  = true;
-				break;
-			}
+			dinst = &ins;
+			f	  = true;
+			break;
 		}
-		InstructionData data;
-		data.inst = inst;
-		data.rd	  = d_rd(inst);
-		data.rs1  = d_rs1(inst);
-		data.rs2  = d_rs2(inst);
-#ifdef USE_FPU
-		data.rs3 = d_rs3(inst);
-		data.rm	 = d_rm(inst);
-#endif
-		data.imm = f ? dinst->imm_decode_func(inst) : 0;
-
-		cache[idx] = { pc, inst, *dinst, data, f };
-		// printf("inst=0x%lx match=0x%lx mask=0x%lx func=%p\n", inst, dinst->match, dinst->mask, dinst->func);
-		return cache[idx];
 	}
+	InstructionData data;
+	data.inst = inst;
+	data.rd	  = d_rd(inst);
+	data.rs1  = d_rs1(inst);
+	data.rs2  = d_rs2(inst);
+#ifdef USE_FPU
+	data.rs3 = d_rs3(inst);
+	data.rm	 = d_rm(inst);
+#endif
+	data.imm = f ? dinst->imm_decode_func(inst) : 0;
+
+	cache[idx] = { pc, inst, *dinst, data, f };
+	// printf("inst=0x%lx match=0x%lx mask=0x%lx func=%p\n", inst, dinst->match, dinst->mask, dinst->func);
+	return cache[idx];
 }
 
 void InstructionDecoder::register_instr(std::string mask, ExecReturn (*func)(Hart&, InstructionData&), uint64_t (*imm_decode_func)(uint32_t inst))
@@ -185,4 +177,5 @@ void InstructionDecoder::init_all_instrs()
 	init_zbb();
 	init_zbc();
 	init_zbs();
+	init_zicboz();
 }

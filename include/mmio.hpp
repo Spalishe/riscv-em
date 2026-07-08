@@ -84,4 +84,5 @@ struct MMIO
 
   private:
 	MemoryMap* mmap;
+	inline uint64_t read_dram_fast(uint64_t vaddr, MemorySize size);
 };
