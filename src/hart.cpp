@@ -27,7 +27,7 @@ void Hart::init(uint64_t dtb_pos_at_memory, uint64_t entry_pc)
 	mode			  = PrivilegeMode::Machine;
 	GPR[10]			  = id;
 	GPR[11]			  = dtb_pos_at_memory;
-	csrs[CSR_MISA]	  = (1ULL << 63) | (1ULL << 8) | (1ULL << 12) | (1ULL << 0) | (1ULL << 18) | (1ULL << 20); // RV64IMASU
+	csrs[CSR_MISA]	  = (1ULL << 63) | (1ULL << 8) | (1ULL << 12) | (1ULL << 0) | (1ULL << 5) | (1ULL << 18) | (1ULL << 20); // RV64IMAFSU
 	csrs[CSR_MHARTID] = id;
 	status.fields.SXL = 2;
 	status.fields.UXL = 2;

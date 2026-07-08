@@ -316,7 +316,6 @@ ExecReturn exec_FMIN_S(Hart& hart, InstructionData& inst)
 	bool nan1 = std::isnan(s1);
 	bool nan2 = std::isnan(s2);
 
-	// 1. СНАЧАЛА ТОЛЬКО ВЗВОДИМ ФЛАГИ (sNaN триггерит NV в любом случае)
 	if((nan1 && issnan(s1)) || (nan2 && issnan(s2))) [[unlikely]]
 	{
 		hart.fcsr.fields.fflags |= (1 << 4); // NV флаг (16)
@@ -324,28 +323,23 @@ ExecReturn exec_FMIN_S(Hart& hart, InstructionData& inst)
 
 	float res;
 
-	// 2. ВЫБОР РЕЗУЛЬТАТА (Правило фильтрации одинаково для всех типов NaN!)
 	if(nan1 && nan2) [[unlikely]]
 	{
-		// Только если ОБА аргумента NaN — возвращаем канонический quiet
 		res = std::bit_cast<float>(0x7FC00000U);
 	}
 	else if(nan1)
 	{
-		// Первый NaN (хоть qNaN, хоть sNaN) — выбираем живое число s2!
 		res = s2;
 	}
 	else if(nan2)
 	{
-		// Второй NaN — выбираем живое число s1!
 		res = s1;
 	}
 	else [[likely]]
 	{
-		// Штатная ситуация: оба числа нормальные
 		if(s1 == 0.0f && s2 == 0.0f)
 		{
-			res = std::signbit(s1) ? s1 : s2; // -0.0f меньше чем +0.0f
+			res = std::signbit(s1) ? s1 : s2;
 		}
 		else
 		{
@@ -364,7 +358,6 @@ ExecReturn exec_FMAX_S(Hart& hart, InstructionData& inst)
 	bool nan1 = std::isnan(s1);
 	bool nan2 = std::isnan(s2);
 
-	// Взводим флаг NV при наличии sNaN
 	if((nan1 && issnan(s1)) || (nan2 && issnan(s2))) [[unlikely]]
 	{
 		hart.fcsr.fields.fflags |= (1 << 4);
@@ -388,7 +381,7 @@ ExecReturn exec_FMAX_S(Hart& hart, InstructionData& inst)
 	{
 		if(s1 == 0.0f && s2 == 0.0f)
 		{
-			res = !std::signbit(s1) ? s1 : s2; // +0.0f больше чем -0.0f
+			res = !std::signbit(s1) ? s1 : s2;
 		}
 		else
 		{
