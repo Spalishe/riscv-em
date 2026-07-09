@@ -286,7 +286,7 @@ int main(int argc, char* argv[])
 #ifdef USE_FRAMEBUFFER
 	if(fb_w != 0 && fb_h != 0)
 	{
-		window.kb = (HID_Keyboard*)kb.get();
+		window.kb = std::static_pointer_cast<HID_Keyboard>(kb);
 	}
 #endif
 

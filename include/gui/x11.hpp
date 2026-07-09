@@ -20,17 +20,17 @@ Copyright 2026 Spalishe
 
 #include "../devices/hid/hid_keyboard.hpp"
 #include "window.hpp"
+#include <X11/Xatom.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
-#include <X11/Xatom.h>
-#include <vulkan/vulkan_xlib.h>
+#include <atomic>
+#include <cstring>
+#include <iostream>
 #include <linux/input-event-codes.h>
 #include <mutex>
 #include <thread>
-#include <atomic>
 #include <unordered_map>
-#include <cstring>
-#include <iostream>
+#include <vulkan/vulkan_xlib.h>
 
 static constexpr std::array<int, 256> x11_input_conv_table = []
 {
@@ -119,210 +119,207 @@ static constexpr std::array<int, 256> x11_input_conv_table = []
 
 struct AppWindow
 {
-    Display* x11Display = nullptr;
-    Window x11Window    = 0;
-    InputState input;
-    HID_Keyboard* kb = nullptr;
-    int width  = 800;
-    int height = 600;
+	Display* x11Display = nullptr;
+	Window x11Window	= 0;
+	InputState input;
+	std::shared_ptr<HID_Keyboard> kb;
+	int width  = 800;
+	int height = 600;
 
-    GC gc = None;
-    XImage* image = nullptr;
-    Atom wmDeleteMessage = None;
-    std::atomic<bool> running{true};
-    std::mutex* window_mutex = nullptr;
+	GC gc				 = None;
+	XImage* image		 = nullptr;
+	Atom wmDeleteMessage = None;
+	std::atomic<bool> running{ true };
+	std::mutex* window_mutex = nullptr;
 };
 
 inline bool InitializeNativeWindow(AppWindow& appWindow, const std::string& title)
 {
-    appWindow.x11Display = XOpenDisplay(nullptr);
-    if (!appWindow.x11Display)
-        return false;
+	appWindow.x11Display = XOpenDisplay(nullptr);
+	if(!appWindow.x11Display)
+		return false;
 
-    appWindow.window_mutex = new std::mutex();
+	appWindow.window_mutex = new std::mutex();
 
-    int screen = DefaultScreen(appWindow.x11Display);
-    Window root = RootWindow(appWindow.x11Display, screen);
+	int screen	= DefaultScreen(appWindow.x11Display);
+	Window root = RootWindow(appWindow.x11Display, screen);
 
-    appWindow.x11Window = XCreateSimpleWindow(
-        appWindow.x11Display, root,
-        0, 0, appWindow.width, appWindow.height, 1,
-        BlackPixel(appWindow.x11Display, screen),
-        WhitePixel(appWindow.x11Display, screen));
+	appWindow.x11Window = XCreateSimpleWindow(
+		appWindow.x11Display, root,
+		0, 0, appWindow.width, appWindow.height, 1,
+		BlackPixel(appWindow.x11Display, screen),
+		WhitePixel(appWindow.x11Display, screen));
 
-    XStoreName(appWindow.x11Display, appWindow.x11Window, title.c_str());
+	XStoreName(appWindow.x11Display, appWindow.x11Window, title.c_str());
 
-    XSelectInput(appWindow.x11Display, appWindow.x11Window,
-                 KeyPressMask | KeyReleaseMask | StructureNotifyMask);
+	XSelectInput(appWindow.x11Display, appWindow.x11Window,
+				 KeyPressMask | KeyReleaseMask | StructureNotifyMask);
 
-    appWindow.wmDeleteMessage = XInternAtom(appWindow.x11Display, "WM_DELETE_WINDOW", False);
-    XSetWMProtocols(appWindow.x11Display, appWindow.x11Window, &appWindow.wmDeleteMessage, 1);
+	appWindow.wmDeleteMessage = XInternAtom(appWindow.x11Display, "WM_DELETE_WINDOW", False);
+	XSetWMProtocols(appWindow.x11Display, appWindow.x11Window, &appWindow.wmDeleteMessage, 1);
 
-    appWindow.gc = XCreateGC(appWindow.x11Display, appWindow.x11Window, 0, nullptr);
+	appWindow.gc = XCreateGC(appWindow.x11Display, appWindow.x11Window, 0, nullptr);
 
-    XMapWindow(appWindow.x11Display, appWindow.x11Window);
-    XFlush(appWindow.x11Display);
+	XMapWindow(appWindow.x11Display, appWindow.x11Window);
+	XFlush(appWindow.x11Display);
 
-    appWindow.running = true;
-    return true;
+	appWindow.running = true;
+	return true;
 }
 
 inline bool CreateVulkanSurface(VkInstance instance, const AppWindow& appWindow, VkSurfaceKHR& outSurface)
 {
-    VkXlibSurfaceCreateInfoKHR createInfo{};
-    createInfo.sType  = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR;
-    createInfo.dpy    = appWindow.x11Display;
-    createInfo.window = appWindow.x11Window;
+	VkXlibSurfaceCreateInfoKHR createInfo{};
+	createInfo.sType  = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR;
+	createInfo.dpy	  = appWindow.x11Display;
+	createInfo.window = appWindow.x11Window;
 
-    VkResult result = vkCreateXlibSurfaceKHR(instance, &createInfo, nullptr, &outSurface);
-    return result == VK_SUCCESS;
+	VkResult result = vkCreateXlibSurfaceKHR(instance, &createInfo, nullptr, &outSurface);
+	return result == VK_SUCCESS;
 }
 
 inline void TerminateNativeWindow(AppWindow& appWindow)
 {
-    appWindow.running = false;
+	appWindow.running = false;
 
-    if (appWindow.x11Display)
-    {
-        if (appWindow.image)
-        {
-            XDestroyImage(appWindow.image);
-            appWindow.image = nullptr;
-        }
-        if (appWindow.gc != None)
-        {
-            XFreeGC(appWindow.x11Display, appWindow.gc);
-            appWindow.gc = None;
-        }
-        XDestroyWindow(appWindow.x11Display, appWindow.x11Window);
-        XCloseDisplay(appWindow.x11Display);
-        appWindow.x11Display = nullptr;
-    }
+	if(appWindow.x11Display)
+	{
+		if(appWindow.image)
+		{
+			XDestroyImage(appWindow.image);
+			appWindow.image = nullptr;
+		}
+		if(appWindow.gc != None)
+		{
+			XFreeGC(appWindow.x11Display, appWindow.gc);
+			appWindow.gc = None;
+		}
+		XDestroyWindow(appWindow.x11Display, appWindow.x11Window);
+		XCloseDisplay(appWindow.x11Display);
+		appWindow.x11Display = nullptr;
+	}
 
-    if (appWindow.window_mutex)
-    {
-        delete appWindow.window_mutex;
-        appWindow.window_mutex = nullptr;
-    }
+	if(appWindow.window_mutex)
+	{
+		delete appWindow.window_mutex;
+		appWindow.window_mutex = nullptr;
+	}
 }
 
 inline void StartEventLoop(AppWindow& appWindow)
 {
-    std::thread([&appWindow]()
-    {
-        XEvent ev;
-        while (appWindow.running)
-        {
-            if (!appWindow.x11Display)
-                break;
+	std::thread([&appWindow]()
+	{
+		XEvent ev;
+		while(appWindow.running)
+		{
+			if(!appWindow.x11Display)
+				break;
 
-            XNextEvent(appWindow.x11Display, &ev);
+			XNextEvent(appWindow.x11Display, &ev);
 
-            std::lock_guard<std::mutex> lock(*appWindow.window_mutex);
+			std::lock_guard<std::mutex> lock(*appWindow.window_mutex);
 
-            switch (ev.type)
-            {
-                case KeyPress:
-                case KeyRelease:
-                {
-                    XKeyEvent* keyEv = &ev.xkey;
-                    uint8_t key = keyEv->keycode - 8;
+			switch(ev.type)
+			{
+				case KeyPress:
+				case KeyRelease:
+				{
+					XKeyEvent* keyEv = &ev.xkey;
+					uint8_t key		 = keyEv->keycode - 8;
 
-                    if (ev.type == KeyPress)
-                        key_press(appWindow.input, key);
-                    else
-                        key_release(appWindow.input, key);
+					if(ev.type == KeyPress)
+						key_press(appWindow.input, key);
+					else
+						key_release(appWindow.input, key);
 
-                    uint8_t out[6] = {0};
-                    build_report_keys(appWindow.input, out);
+					uint8_t out[6] = { 0 };
+					build_report_keys(appWindow.input, out);
 
-                    uint8_t key1 = x11_input_conv_table[out[0]];
-                    uint8_t key2 = x11_input_conv_table[out[1]];
-                    uint8_t key3 = x11_input_conv_table[out[2]];
-                    uint8_t key4 = x11_input_conv_table[out[3]];
-                    uint8_t key5 = x11_input_conv_table[out[4]];
-                    uint8_t key6 = x11_input_conv_table[out[5]];
+					uint8_t key1 = x11_input_conv_table[out[0]];
+					uint8_t key2 = x11_input_conv_table[out[1]];
+					uint8_t key3 = x11_input_conv_table[out[2]];
+					uint8_t key4 = x11_input_conv_table[out[3]];
+					uint8_t key5 = x11_input_conv_table[out[4]];
+					uint8_t key6 = x11_input_conv_table[out[5]];
 
-                    uint8_t mods = (appWindow.input.lctrl << 0)
-                                 | (appWindow.input.lshift << 1)
-                                 | (appWindow.input.lalt << 2)
-                                 | (appWindow.input.rctrl << 4)
-                                 | (appWindow.input.rshift << 5)
-                                 | (appWindow.input.ralt << 6);
+					uint8_t mods = (appWindow.input.lctrl << 0)
+								   | (appWindow.input.lshift << 1)
+								   | (appWindow.input.lalt << 2)
+								   | (appWindow.input.rctrl << 4)
+								   | (appWindow.input.rshift << 5)
+								   | (appWindow.input.ralt << 6);
 
-                    if (appWindow.kb)
-                    {
-                        appWindow.kb->update(mods, key1, key2, key3, key4, key5, key6,
-                                             appWindow.input.pressed_count > 6);
-                    }
-                    break;
-                }
+					if(appWindow.kb)
+					{
+						appWindow.kb->update(mods, key1, key2, key3, key4, key5, key6,
+											 appWindow.input.pressed_count > 6);
+					}
+					break;
+				}
 
-                case ClientMessage:
-                {
-                    if ((Atom)ev.xclient.data.l[0] == appWindow.wmDeleteMessage)
-                    {
-                        appWindow.running = false;
-                    }
-                    break;
-                }
+				case ClientMessage:
+				{
+					if((Atom)ev.xclient.data.l[0] == appWindow.wmDeleteMessage)
+					{
+						appWindow.running = false;
+					}
+					break;
+				}
 
-                default:
-                    break;
-            }
-        }
-    }).detach();
+				default:
+					break;
+			}
+		}
+	}).detach();
 }
 
 inline void UpdateFrame(AppWindow& appWindow, const uint8_t* raw_pixels)
 {
-    if (!appWindow.running || !appWindow.x11Display || !appWindow.x11Window || !raw_pixels)
-        return;
+	if(!appWindow.running || !appWindow.x11Display || !appWindow.x11Window || !raw_pixels)
+		return;
 
-    std::lock_guard<std::mutex> lock(*appWindow.window_mutex);
+	std::lock_guard<std::mutex> lock(*appWindow.window_mutex);
 
-    if (!appWindow.image ||
-        appWindow.image->width != appWindow.width ||
-        appWindow.image->height != appWindow.height)
-    {
-        if (appWindow.image)
-            XDestroyImage(appWindow.image);
+	if(!appWindow.image || appWindow.image->width != appWindow.width || appWindow.image->height != appWindow.height)
+	{
+		if(appWindow.image)
+			XDestroyImage(appWindow.image);
 
-        int depth = DefaultDepth(appWindow.x11Display, DefaultScreen(appWindow.x11Display));
-        
-        appWindow.image = XCreateImage(
-            appWindow.x11Display,
-            DefaultVisual(appWindow.x11Display, DefaultScreen(appWindow.x11Display)),
-            depth,
-            ZPixmap,
-            0,
-            nullptr,
-            appWindow.width,
-            appWindow.height,
-            32,
-            appWindow.width * 4
-        );
-        if (!appWindow.image)
-            return;
+		int depth = DefaultDepth(appWindow.x11Display, DefaultScreen(appWindow.x11Display));
 
-        if (appWindow.image->data == nullptr)
-        {
-            appWindow.image->data = (char*)malloc(appWindow.image->bytes_per_line * appWindow.height);
-            if (!appWindow.image->data)
-            {
-                XDestroyImage(appWindow.image);
-                appWindow.image = nullptr;
-                return;
-            }
-        }
-    }
+		appWindow.image = XCreateImage(
+			appWindow.x11Display,
+			DefaultVisual(appWindow.x11Display, DefaultScreen(appWindow.x11Display)),
+			depth,
+			ZPixmap,
+			0,
+			nullptr,
+			appWindow.width,
+			appWindow.height,
+			32,
+			appWindow.width * 4);
+		if(!appWindow.image)
+			return;
 
-    memcpy(appWindow.image->data, raw_pixels, appWindow.image->bytes_per_line * appWindow.height);
+		if(appWindow.image->data == nullptr)
+		{
+			appWindow.image->data = (char*)malloc(appWindow.image->bytes_per_line * appWindow.height);
+			if(!appWindow.image->data)
+			{
+				XDestroyImage(appWindow.image);
+				appWindow.image = nullptr;
+				return;
+			}
+		}
+	}
 
-    XPutImage(appWindow.x11Display, appWindow.x11Window, appWindow.gc,
-              appWindow.image, 0, 0, 0, 0, appWindow.width, appWindow.height);
+	memcpy(appWindow.image->data, raw_pixels, appWindow.image->bytes_per_line * appWindow.height);
 
-    XFlush(appWindow.x11Display);
+	XPutImage(appWindow.x11Display, appWindow.x11Window, appWindow.gc,
+			  appWindow.image, 0, 0, 0, 0, appWindow.width, appWindow.height);
+
+	XFlush(appWindow.x11Display);
 }
 
 #endif // __PKG_X11

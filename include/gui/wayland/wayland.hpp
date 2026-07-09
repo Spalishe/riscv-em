@@ -153,7 +153,7 @@ struct WaylandWindow
 	int height								 = 0;
 
 	InputState* input;
-	HID_Keyboard** kb;
+	std::shared_ptr<HID_Keyboard> kb;
 };
 namespace
 {
@@ -204,23 +204,26 @@ namespace
 	static void keyboard_handle_key(void* data, struct wl_keyboard* wl_keyboard, uint32_t serial, uint32_t time, uint32_t key, uint32_t state)
 	{
 		auto* window = static_cast<WaylandWindow*>(data);
+		if(window && window->kb)
+		{
 
-		if(state == WL_KEYBOARD_KEY_STATE_PRESSED)
-			key_press(*window->input, key);
-		else
-			key_release(*window->input, key);
+			if(state == WL_KEYBOARD_KEY_STATE_PRESSED)
+				key_press(*window->input, key);
+			else
+				key_release(*window->input, key);
 
-		uint8_t out[6] = { 0 };
-		build_report_keys(*window->input, out);
-		uint8_t key1 = wl_input_conv_table[out[0]];
-		uint8_t key2 = wl_input_conv_table[out[1]];
-		uint8_t key3 = wl_input_conv_table[out[2]];
-		uint8_t key4 = wl_input_conv_table[out[3]];
-		uint8_t key5 = wl_input_conv_table[out[4]];
-		uint8_t key6 = wl_input_conv_table[out[5]];
+			uint8_t out[6] = { 0 };
+			build_report_keys(*window->input, out);
+			uint8_t key1 = wl_input_conv_table[out[0]];
+			uint8_t key2 = wl_input_conv_table[out[1]];
+			uint8_t key3 = wl_input_conv_table[out[2]];
+			uint8_t key4 = wl_input_conv_table[out[3]];
+			uint8_t key5 = wl_input_conv_table[out[4]];
+			uint8_t key6 = wl_input_conv_table[out[5]];
 
-		uint8_t mods = (window->input->lctrl << 0) | (window->input->lshift << 1) | (window->input->lalt << 2) | (window->input->rctrl << 4) | (window->input->rshift << 5) | (window->input->ralt << 6);
-		(*window->kb)->update(mods, key1, key2, key3, key4, key5, key6, window->input->pressed_count > 6);
+			uint8_t mods = (window->input->lctrl << 0) | (window->input->lshift << 1) | (window->input->lalt << 2) | (window->input->rctrl << 4) | (window->input->rshift << 5) | (window->input->ralt << 6);
+			window->kb->update(mods, key1, key2, key3, key4, key5, key6, window->input->pressed_count > 6);
+		}
 	}
 	static void keyboard_handle_modifiers(void* data, struct wl_keyboard* wl_keyboard, uint32_t serial, uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked, uint32_t group)
 	{
@@ -479,7 +482,7 @@ struct AppWindow
 {
 	WaylandWindow wl;
 	InputState input;
-	HID_Keyboard* kb;
+	std::shared_ptr<HID_Keyboard> kb;
 	int width  = 800;
 	int height = 600;
 };
@@ -487,7 +490,7 @@ inline bool InitializeNativeWindow(AppWindow& appWindow, const std::string& titl
 {
 	(void)title;
 	WaylandWindow window = {};
-	window.kb			 = &appWindow.kb;
+	window.kb			 = appWindow.kb;
 	window.input		 = &appWindow.input;
 	bool out			 = InitializeWaylandScreen(window, appWindow.width, appWindow.height);
 	if(out)
