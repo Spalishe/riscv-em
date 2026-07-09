@@ -26,7 +26,7 @@ ExecReturn exec_cbo_zero(Hart& hart, InstructionData& inst)
 	if(addr >= 0x80000000)
 	{
 		// Effectively zero the memory
-		memset(hart.mmap->ram_direct + (addr - 0x80000000), 0, 64);
+		memset(hart.mmap->ram_direct->data + (addr - 0x80000000), 0, 64);
 	}
 	else
 	{
@@ -41,5 +41,5 @@ ExecReturn exec_cbo_zero(Hart& hart, InstructionData& inst)
 
 void InstructionDecoder::init_zicboz()
 {
-	register_instr("000000000000*****010000000111111", exec_cbo_zero);
+	register_instr("000000000100*****010000000001111", exec_cbo_zero);
 }
