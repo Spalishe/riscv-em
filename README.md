@@ -50,6 +50,9 @@ The emulator supports the following features:
   - [x] PLIC: platform level interrupt controller
   - [x] Virtio-BLK: virtual I/O Block Device
   - [x] Framebuffer: virtual simple screen
+  - [x] OpenCores I2C: Inter-Integrated Circuit
+  - [x] HID-over-I2C: Human Interface Device over Inter-Integrated Circuit
+    - [x] Boot keyboard: Basic usable keyboard(for now without Numpad support)
 - [x] FDT
 
 ## Build

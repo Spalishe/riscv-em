@@ -38,7 +38,6 @@ Copyright 2026 Spalishe
 
 /*
  *		   TODO:
- *		    -RV64D
  *		    -Zawrs
  *		    -Zabha
  *		    -Zacas
