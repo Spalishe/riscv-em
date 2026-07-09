@@ -78,12 +78,9 @@ void I2C::tick()
 {
 	if(!op_active) return;
 
+	_delay++;
+	if(_delay < _run_delay) return;
 	execute_command();
-
-	sr.fields.TIP = 0;
-	sr.fields.IF  = 1;
-
-	raise_interrupt();
 
 	op_active = false;
 }
@@ -95,6 +92,12 @@ void I2C::execute_command()
 	{
 		sr.fields.IF = 0;
 		lower_interrupt();
+		cr.fields.IACK = 0;
+	}
+
+	if(!cr.fields.STA && !cr.fields.STO && !cr.fields.RD && !cr.fields.WR)
+	{
+		return;
 	}
 
 	bool transaction_started = false;
@@ -232,6 +235,7 @@ void I2C::write(uint64_t addr, MemorySize size, uint64_t val)
 			{
 				sr.raw			= 0;
 				device_selected = false;
+				current_address = 0xFFFF;
 				lower_interrupt();
 			}
 			break;
@@ -243,6 +247,7 @@ void I2C::write(uint64_t addr, MemorySize size, uint64_t val)
 			if(!(ctr & (1 << 7))) return;
 			cr.raw	  = val;
 			op_active = true;
+			_delay	  = 0;
 
 			sr.fields.TIP = 1;
 			sr.fields.IF  = 0;

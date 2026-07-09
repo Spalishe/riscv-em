@@ -20,8 +20,8 @@ Copyright 2026 Spalishe
 #include <cstdint>
 HID_Keyboard::HID_Keyboard(Machine& cpu, fdt_node* fdt) : HIDOverI2C(cpu, fdt, generate_report_descriptor(HID_Keyboard::report_descriptor_items), 10)
 {
-	hid_descriptor[0xb] = (input_report_size & 0xFF);		 // 0x0A
-	hid_descriptor[0xa] = ((input_report_size >> 8) & 0xFF); // 0x00
+	hid_descriptor[0xa] = (input_report_size & 0xFF);		 // 0x0A
+	hid_descriptor[0xb] = ((input_report_size >> 8) & 0xFF); // 0x00
 }
 
 void HID_Keyboard::hid_event_output_report_write()
@@ -43,6 +43,8 @@ void HID_Keyboard::hid_event_command_register_write()
 
 			input_report[0x00] = 0x00;
 			input_report[0x01] = 0x00;
+			std::queue<std::vector<uint8_t>> empty;
+			report_queue.swap(empty);
 			plic->set_pending(irq_num, true);
 			break;
 		}
@@ -63,6 +65,10 @@ void HID_Keyboard::hid_event_command_register_write()
 
 void HID_Keyboard::update(uint8_t modifiers, uint8_t key_1, uint8_t key_2, uint8_t key_3, uint8_t key_4, uint8_t key_5, uint8_t key_6, bool rollover)
 {
+	if(report_queue.size() >= 64)
+	{
+		return;
+	}
 	if(rollover)
 		report_queue.push({ modifiers, 0x00, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1 });
 	else
@@ -72,5 +78,8 @@ void HID_Keyboard::update(uint8_t modifiers, uint8_t key_1, uint8_t key_2, uint8
 	{
 		hid_input_report_write(report_queue.front());
 	}
-	plic->set_pending(irq_num, true);
+	if(!is_transmitting)
+	{
+		plic->set_pending(irq_num, true);
+	}
 }

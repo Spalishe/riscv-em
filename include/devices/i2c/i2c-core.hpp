@@ -80,7 +80,7 @@ struct I2C : public Device
 	i2c_sr sr;				// status register
 
 	bool device_selected				  = false;
-	uint16_t current_address			  = 0;
+	uint16_t current_address			  = 0xFFFF;
 	std::shared_ptr<I2CSlave> current_dev = 0;
 	bool is_read_operation				  = false;
 	bool int_line						  = false;
@@ -107,4 +107,8 @@ struct I2C : public Device
 	uint64_t read(uint64_t addr, MemorySize size);
 	void write(uint64_t addr, MemorySize size, uint64_t val);
 	static std::shared_ptr<I2C> init_auto(Machine& cpu);
+
+  private:
+	const int _run_delay = 100;
+	int _delay			 = 0;
 };

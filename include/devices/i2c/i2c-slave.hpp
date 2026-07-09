@@ -36,10 +36,12 @@ struct I2CSlave
 	uint16_t buffer_size;
 	uint16_t buffer_ind;
 	uint8_t* buffer;
+	bool is_transmitting = false;
 
 	virtual void stop_transmit()
 	{
-		buffer_ind = 0;
+		buffer_ind		= 0;
+		is_transmitting = false;
 	};
 	virtual uint8_t dev_read(bool m_ack)
 	{
@@ -54,6 +56,7 @@ struct I2CSlave
 	}
 	virtual void start_transmit()
 	{
-		buffer_ind = 0;
+		buffer_ind		= 0;
+		is_transmitting = true;
 	}
 };

@@ -48,8 +48,8 @@ HIDOverI2C::HIDOverI2C(Machine& cpu, fdt_node* fdt, std::vector<uint8_t> report_
 
 void HIDOverI2C::stop_transmit()
 {
-	io_offset = 0;
-	cur_reg	  = 0x03;
+	is_transmitting = false;
+	cur_reg			= 0x03;
 	switch(last_event)
 	{
 		case(WriteEvent::COMMAND):
@@ -64,12 +64,14 @@ void HIDOverI2C::stop_transmit()
 		default:
 			break;
 	}
+	if(report_queue.size() > 0)
+		plic->set_pending(irq_num, true);
 };
 void HIDOverI2C::start_transmit()
 {
-	io_offset = 0;
-
-	last_event = WriteEvent::NONE;
+	io_offset		= 0;
+	is_transmitting = true;
+	last_event		= WriteEvent::NONE;
 };
 
 uint8_t HIDOverI2C::dev_read(bool m_ack)
@@ -102,7 +104,6 @@ uint8_t HIDOverI2C::dev_read(bool m_ack)
 			if(report_queue.size() > 0)
 			{
 				hid_input_report_write(report_queue.front());
-				io_offset = 0;
 				plic->set_pending(irq_num, true);
 
 				return val;
@@ -122,7 +123,7 @@ uint8_t HIDOverI2C::dev_read(bool m_ack)
 		if(io_offset < 1024) val = data_register[io_offset];
 	}
 
-	if(!m_ack) io_offset++;
+	io_offset++;
 	return val;
 }
 void HIDOverI2C::dev_write(uint8_t val)
