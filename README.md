@@ -30,7 +30,7 @@ The emulator supports the following features:
   - [x] RV64D
   - [x] Zifencei
   - [x] Zicsr
-- [ ] RV64C
+- [x] RV64C
 - [ ] Bit manipulations
   - [x] Zba
   - [x] Zbb

@@ -20,85 +20,23 @@ Copyright 2026 Spalishe
 #include <bitset>
 #include <cstdio>
 
-int32_t sext(uint32_t val, int bits)
-{
-	int32_t shift = 32 - bits;
-	return (int32_t)(val << shift) >> shift;
-}
-uint32_t get_bits(uint32_t inst, int hi, int lo)
-{
-	return (inst >> lo) & ((1u << (hi - lo + 1)) - 1);
-}
-uint64_t d_rd(uint32_t inst)
-{
-	return (inst >> 7) & 0x1f; // rd in bits 11..7
-}
-uint64_t d_rs1(uint32_t inst)
-{
-	return (inst >> 15) & 0x1f; // rs1 in bits 19..15
-}
-uint64_t d_rs2(uint32_t inst)
-{
-	return (inst >> 20) & 0x1f; // rs2 in bits 24..20
-}
-uint64_t d_rs3(uint32_t inst)
-{
-	return (inst >> 27) & 0x1f; // rs3 in bits 31..27
-}
-uint64_t d_rm(uint32_t inst)
-{
-	return (inst >> 12) & 0x7; // rm in bits 13..15
-}
-uint64_t imm_Zicsr(uint32_t inst)
-{
-	return (inst >> 20);
-}
-uint64_t imm_I(uint32_t inst)
-{
-	// imm[11:0] = inst[31:20]
-	return sext(inst >> 20, 12);
-}
-uint64_t imm_S(uint32_t inst)
-{
-	// imm[11:5] = inst[31:25], imm[4:0] = inst[11:7]
-	return sext((get_bits(inst, 11, 7) | (get_bits(inst, 31, 25) << 5)), 12);
-}
-uint64_t imm_B(uint32_t inst)
-{
-	// imm[12|10:5|4:1|11] = inst[31|30:25|11:8|7]
-	return sext(((get_bits(inst, 11, 8) << 1) | (get_bits(inst, 30, 25) << 5) | (get_bits(inst, 7, 7) << 11) | (get_bits(inst, 31, 31) << 12)),
-				13);
-}
-uint64_t imm_U(uint32_t inst)
-{
-	// imm[31:12] = inst[31:12]
-	return (int64_t)(int32_t)(inst & 0xFFFFF000u) >> 12;
-}
-uint64_t imm_J(uint32_t inst)
-{
-	// imm[20|10:1|11|19:12] = inst[31|30:21|20|19:12]
-	return sext((get_bits(inst, 30, 21) << 1) | (get_bits(inst, 20, 20) << 11) | (get_bits(inst, 19, 12) << 12) | (get_bits(inst, 31, 31) << 20),
-				21);
-}
-uint64_t shamt(uint32_t inst)
-{
-	// shamt(shift amount) only required for immediate shift instructions
-	// shamt[4:5] = imm[5:0]
-	return (uint32_t)(imm_I(inst) & 0x1f);
-}
-uint64_t shamt64(uint32_t inst)
-{
-	// shamt(shift amount) only required for immediate shift instructions
-	// shamt[4:5] = imm[5:0]
-	return (uint32_t)(imm_I(inst) & 0x3f);
-}
-
 __attribute__((noinline)) InstructionCache& InstructionDecoder::decode_inst_slow(uint64_t pc, uint32_t inst)
 {
 	size_t idx = (pc >> 2) & (32768 - 1);
 
-	uint32_t lut_idx		 = get_lut_index(inst);
-	const Instruction* dinst = lut[lut_idx];
+	const Instruction* dinst = nullptr;
+
+	if((inst & 0x3) != 0x3)
+	{
+		uint32_t lut_idx = _pext_u32(inst & 0xFFFF, HASH_MASK_16);
+		dinst			 = lut16[lut_idx];
+	}
+
+	if(!dinst)
+	{
+		uint32_t lut_idx = _pext_u32(inst, HASH_MASK);
+		dinst			 = lut[lut_idx];
+	}
 
 	bool f = (dinst != nullptr) && ((inst & dinst->mask) == dinst->match);
 	InstructionData data;
@@ -128,12 +66,12 @@ __attribute__((noinline)) InstructionCache& InstructionDecoder::decode_inst_slow
 
 void InstructionDecoder::register_instr(std::string mask, ExecReturn (*func)(Hart&, InstructionData&), uint64_t (*imm_decode_func)(uint32_t inst))
 {
-	assert(mask.size() == 32 && "Instruction mask size isn't 32 bits, good luck finding this broken instruction.");
+	assert((mask.size() == 16 || mask.size() == 32) && "Instruction mask size isn't 32 or 16 bits, good luck finding this broken instruction.");
 	uint32_t inst_mask	= 0;
 	uint32_t inst_match = 0;
-	for(int i = 0; i < 32; i++)
+	for(int i = 0; i < mask.size(); i++)
 	{
-		char c = mask[31 - i];
+		char c = mask[(mask.size() - 1) - i];
 		if(c == '1')
 		{
 			inst_match |= (1u << i);
@@ -153,7 +91,7 @@ void InstructionDecoder::register_instr(std::string mask, ExecReturn (*func)(Har
 		inst_mask,
 		inst_match,
 		func,
-		(imm_decode_func == NULL) ? imm_I : imm_decode_func, // default decode func if user dont provide such
+		(imm_decode_func == NULL) ? imm_I : imm_decode_func, (uint8_t)(mask.size() / 8) // default decode func if user dont provide such
 	};
 	// printf("Registered instr mask=0x%dx match=0x%dx with func=%p, imm_decode_func=%p\n", inst_mask, inst_match, func, imm_decode_func);
 	instructions.push_back(inst);
@@ -174,6 +112,7 @@ void InstructionDecoder::init_all_instrs()
 	init_rv64f();
 	init_rv64d();
 #endif
+	init_rv64c();
 	init_priv();
 	init_zicsr();
 	init_zifencei();
@@ -188,32 +127,38 @@ void InstructionDecoder::build_lut()
 {
 	for(const auto& inst : instructions)
 	{
-		uint32_t effective_mask = inst.mask & HASH_MASK;
-		uint32_t dont_care_bits = HASH_MASK & (~effective_mask);
+		bool is_16bit = (inst.size == 2);
+
+		uint32_t current_hash_mask		= is_16bit ? HASH_MASK_16 : HASH_MASK;
+		size_t current_lut_size			= is_16bit ? LUT_SIZE_16 : LUT_SIZE;
+		const Instruction** current_lut = is_16bit ? lut16 : lut;
+
+		uint32_t effective_mask = inst.mask & current_hash_mask;
+		uint32_t dont_care_bits = current_hash_mask & (~effective_mask);
 
 		uint32_t sub_mask = 0;
 		do
 		{
-			uint32_t test_inst = (inst.match & HASH_MASK) | sub_mask;
+			uint32_t test_inst = (inst.match & current_hash_mask) | sub_mask;
+			uint32_t lut_idx   = _pext_u32(test_inst, current_hash_mask);
 
-			uint32_t lut_idx = _pext_u32(test_inst, HASH_MASK);
-
-			if(lut_idx >= LUT_SIZE)
+			if(lut_idx >= current_lut_size)
 			{
-				printf("[CRITICAL] Index %u out of bounds!\n", lut_idx);
+				printf("[CRITICAL] Index %u out of bounds for %s LUT!\n",
+					   lut_idx, is_16bit ? "16-bit" : "32-bit");
 				continue;
 			}
 
-			if(lut[lut_idx] != nullptr)
+			if(current_lut[lut_idx] != nullptr)
 			{
-				if(__builtin_popcount(inst.mask) > __builtin_popcount(lut[lut_idx]->mask))
+				if(__builtin_popcount(inst.mask) > __builtin_popcount(current_lut[lut_idx]->mask))
 				{
-					lut[lut_idx] = &inst;
+					current_lut[lut_idx] = &inst;
 				}
 			}
 			else
 			{
-				lut[lut_idx] = &inst;
+				current_lut[lut_idx] = &inst;
 			}
 
 			sub_mask = (sub_mask - dont_care_bits) & dont_care_bits;

@@ -351,7 +351,7 @@ ExecReturn exec_BEQ(Hart& hart, InstructionData& inst)
 {
 	if((int64_t)hart.GPR[inst.rs1] == (int64_t)hart.GPR[inst.rs2])
 	{
-		if((hart.pc + (int64_t)inst.imm) % 4 != 0)
+		if((hart.pc + (int64_t)inst.imm) % 2 != 0)
 		{
 			return { false, false, 0, EXC_INST_ADDR_MISALIGNED, hart.pc + (int64_t)inst.imm };
 		}
@@ -365,7 +365,7 @@ ExecReturn exec_BNE(Hart& hart, InstructionData& inst)
 {
 	if((int64_t)hart.GPR[inst.rs1] != (int64_t)hart.GPR[inst.rs2])
 	{
-		if((hart.pc + (int64_t)inst.imm) % 4 != 0)
+		if((hart.pc + (int64_t)inst.imm) % 2 != 0)
 		{
 			return { false, false, 0, EXC_INST_ADDR_MISALIGNED, hart.pc + (int64_t)inst.imm };
 		}
@@ -379,7 +379,7 @@ ExecReturn exec_BLT(Hart& hart, InstructionData& inst)
 {
 	if((int64_t)hart.GPR[inst.rs1] < (int64_t)hart.GPR[inst.rs2])
 	{
-		if((hart.pc + (int64_t)inst.imm) % 4 != 0)
+		if((hart.pc + (int64_t)inst.imm) % 2 != 0)
 		{
 			return { false, false, 0, EXC_INST_ADDR_MISALIGNED, hart.pc + (int64_t)inst.imm };
 		}
@@ -395,7 +395,7 @@ ExecReturn exec_BGE(Hart& hart, InstructionData& inst)
 {
 	if((int64_t)hart.GPR[inst.rs1] >= (int64_t)hart.GPR[inst.rs2])
 	{
-		if((hart.pc + (int64_t)inst.imm) % 4 != 0)
+		if((hart.pc + (int64_t)inst.imm) % 2 != 0)
 		{
 			return { false, false, 0, EXC_INST_ADDR_MISALIGNED, hart.pc + (int64_t)inst.imm };
 		}
@@ -409,7 +409,7 @@ ExecReturn exec_BLTU(Hart& hart, InstructionData& inst)
 {
 	if(hart.GPR[inst.rs1] < hart.GPR[inst.rs2])
 	{
-		if((hart.pc + (int64_t)inst.imm) % 4 != 0)
+		if((hart.pc + (int64_t)inst.imm) % 2 != 0)
 		{
 			return { false, false, 0, EXC_INST_ADDR_MISALIGNED, hart.pc + (int64_t)inst.imm };
 		}
@@ -424,7 +424,7 @@ ExecReturn exec_BGEU(Hart& hart, InstructionData& inst)
 {
 	if(hart.GPR[inst.rs1] >= hart.GPR[inst.rs2])
 	{
-		if((hart.pc + (int64_t)inst.imm) % 4 != 0)
+		if((hart.pc + (int64_t)inst.imm) % 2 != 0)
 		{
 			return { false, false, 0, EXC_INST_ADDR_MISALIGNED, hart.pc + (int64_t)inst.imm };
 		}
@@ -440,7 +440,7 @@ ExecReturn exec_BGEU(Hart& hart, InstructionData& inst)
 ExecReturn exec_JAL(Hart& hart, InstructionData& inst)
 {
 	uint64_t tmp = hart.pc;
-	if((hart.pc + (int64_t)inst.imm) % 4 != 0)
+	if((hart.pc + (int64_t)inst.imm) % 2 != 0)
 	{
 		return { false, true, 0, EXC_INST_ADDR_MISALIGNED, hart.pc + (int64_t)inst.imm };
 	}
@@ -454,8 +454,8 @@ ExecReturn exec_JAL(Hart& hart, InstructionData& inst)
 ExecReturn exec_JALR(Hart& hart, InstructionData& inst)
 {
 	uint64_t tmp	= hart.pc;
-	uint64_t target = (hart.GPR[inst.rs1] + (int64_t)inst.imm) & ~3;
-	if(target % 4 != 0)
+	uint64_t target = (hart.GPR[inst.rs1] + (int64_t)inst.imm) & ~1;
+	if(target % 2 != 0)
 	{
 		return { false, true, 0, EXC_INST_ADDR_MISALIGNED, target };
 	}
@@ -471,12 +471,12 @@ ExecReturn exec_JALR(Hart& hart, InstructionData& inst)
 
 ExecReturn exec_LUI(Hart& hart, InstructionData& inst)
 {
-	hart.GPR[inst.rd] = (int64_t)((uint64_t)inst.imm << 12);
+	hart.GPR[inst.rd] = (int64_t)((uint64_t)inst.imm);
 	return { true, false, 4, 0, 0 };
 }
 ExecReturn exec_AUIPC(Hart& hart, InstructionData& inst)
 {
-	hart.GPR[inst.rd] = hart.pc + (int64_t)((uint64_t)inst.imm << 12);
+	hart.GPR[inst.rd] = hart.pc + (int64_t)((uint64_t)inst.imm);
 	return { true, false, 4, 0, 0 };
 }
 
