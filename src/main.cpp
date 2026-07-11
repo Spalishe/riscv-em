@@ -38,6 +38,10 @@ Copyright 2026 Spalishe
 
 /*
  *		   TODO:
+ *		    -JIT:
+ *				- AUIPC
+ *				- LUI
+ *				- RVC
  *		    -Zawrs
  *		    -Zabha
  *		    -Zacas

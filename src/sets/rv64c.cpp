@@ -133,17 +133,17 @@ ExecReturn exec_C_NOP(Hart& hart, InstructionData& inst)
 }
 ExecReturn exec_C_ADDI(Hart& hart, InstructionData& inst)
 {
-	hart.GPR[inst.rd] += (int32_t)inst.imm;
+	hart.GPR[inst.rd] += inst.imm;
 	return { true, false, 2, 0, 0 };
 }
 ExecReturn exec_C_ADDIW(Hart& hart, InstructionData& inst)
 {
-	hart.GPR[inst.rd] = (int32_t)(hart.GPR[inst.rd] + (int32_t)inst.imm);
+	hart.GPR[inst.rd] = (int64_t)(int32_t)(hart.GPR[inst.rd] + inst.imm);
 	return { true, false, 2, 0, 0 };
 }
 ExecReturn exec_C_LI(Hart& hart, InstructionData& inst)
 {
-	hart.GPR[inst.rd] = (int32_t)inst.imm;
+	hart.GPR[inst.rd] = inst.imm;
 	return { true, false, 2, 0, 0 };
 }
 ExecReturn exec_C_LUI_ADDI16SP(Hart& hart, InstructionData& inst)
@@ -151,12 +151,12 @@ ExecReturn exec_C_LUI_ADDI16SP(Hart& hart, InstructionData& inst)
 	if(inst.rd == 2)
 	{
 		// C.ADDI16SP
-		hart.GPR[2] += (int32_t)(d_c_nzimm_9(inst.inst));
+		hart.GPR[2] += sext(d_c_nzimm_9(inst.inst), 10);
 	}
 	else
 	{
 		// C.LUI
-		hart.GPR[inst.rd] = (int32_t)(inst.imm << 12);
+		hart.GPR[inst.rd] = inst.imm << 12;
 	}
 	return { true, false, 2, 0, 0 };
 }
@@ -172,7 +172,7 @@ ExecReturn exec_C_SRAI(Hart& hart, InstructionData& inst)
 }
 ExecReturn exec_C_ANDI(Hart& hart, InstructionData& inst)
 {
-	hart.GPR[8 + (inst.rd & 0x7)] &= (int32_t)inst.imm;
+	hart.GPR[8 + (inst.rd & 0x7)] &= (int32_t)sext(inst.imm, 6);
 	return { true, false, 2, 0, 0 };
 }
 ExecReturn exec_C_SUB(Hart& hart, InstructionData& inst)
@@ -285,7 +285,7 @@ ExecReturn exec_C_FLDSP(Hart& hart, InstructionData& inst)
 #endif
 ExecReturn exec_C_JR(Hart& hart, InstructionData& inst)
 {
-	hart.pc = hart.GPR[inst.rd];
+	hart.pc = hart.GPR[inst.rd] & ~1ULL;
 	return { true, true, 0, 0, 0 };
 }
 ExecReturn exec_C_MV(Hart& hart, InstructionData& inst)
@@ -299,8 +299,9 @@ ExecReturn exec_C_EBREAK(Hart& hart, InstructionData& inst)
 }
 ExecReturn exec_C_JALR(Hart& hart, InstructionData& inst)
 {
-	uint64_t t	= hart.pc + 2;
-	hart.pc		= hart.GPR[inst.rd];
+	uint64_t t = hart.pc + 2;
+	hart.pc	   = hart.GPR[inst.rd] & ~1ULL;
+	;
 	hart.GPR[1] = t;
 	return { true, true, 0, 0, 0 };
 }
@@ -377,21 +378,21 @@ void InstructionDecoder::init_rv64c()
 	register_instr("110***********01", exec_C_BEQZ, d_c_b_imm);
 	register_instr("111***********01", exec_C_BNEZ, d_c_b_imm);
 	register_instr("000***********10", exec_C_SLLI, d_c_uimm_arith);
-	register_instr("010***********10", exec_C_LWSP, d_c_uimm_lsp);
-	register_instr("011***********10", exec_C_LDSP, d_c_uimm_lsp);
+	register_instr("010***********10", exec_C_LWSP, d_c_uimm_lwsp);
+	register_instr("011***********10", exec_C_LDSP, d_c_uimm_ldsp);
 	register_instr("1000*****0000010", exec_C_JR);
 	register_instr("1000**********10", exec_C_MV);
 	register_instr("1001000000000010", exec_C_EBREAK);
 	register_instr("1001*****0000010", exec_C_JALR);
 	register_instr("1001**********10", exec_C_ADD);
-	register_instr("110***********10", exec_C_SWSP, d_c_uimm_ssp);
-	register_instr("111***********10", exec_C_SDSP, d_c_uimm_ssp);
+	register_instr("110***********10", exec_C_SWSP, d_c_uimm_swsp);
+	register_instr("111***********10", exec_C_SDSP, d_c_uimm_sdsp);
 #ifdef USE_FPU
 	// Note: only RV64DC are made. If you planning to make RV32, make sure to make C.FSW, C.FLW, etc.
 	register_instr("001***********00", exec_C_FLD, d_c_uimm_cl1);
 	register_instr("101***********00", exec_C_FSD, d_c_uimm_cl1);
-	register_instr("001***********10", exec_C_FLDSP, d_c_uimm_lsp);
-	register_instr("101***********10", exec_C_FSDSP, d_c_uimm_ssp);
+	register_instr("001***********10", exec_C_FLDSP, d_c_uimm_ldsp);
+	register_instr("101***********10", exec_C_FSDSP, d_c_uimm_sdsp);
 
 #endif
 }

@@ -114,7 +114,11 @@ static FORCE_INLINE uint8_t d_c_rs2(uint16_t inst)
 }
 static FORCE_INLINE uint64_t d_c_uimm(uint32_t inst)
 {
-	return ((get_bits(inst, 6, 6) << 2) | (get_bits(inst, 5, 5) << 3) | (get_bits(inst, 11, 11) << 4) | (get_bits(inst, 12, 12) << 5) | (((inst >> 7) & 15) << 6));
+	// return ((get_bits(inst, 6, 6) << 2) | (get_bits(inst, 5, 5) << 3) | (get_bits(inst, 11, 11) << 4) | (get_bits(inst, 12, 12) << 5) | (((inst >> 7) & 15) << 6));
+	return ((inst >> 1) & 0x3c0)
+		   | ((inst >> 7) & 0x30)
+		   | ((inst >> 2) & 0x8)
+		   | ((inst >> 4) & 0x4);
 }
 static FORCE_INLINE uint64_t d_c_uimm_cl(uint32_t inst)
 {
@@ -130,7 +134,7 @@ static FORCE_INLINE uint64_t d_c_nzimm(uint32_t inst)
 }
 static FORCE_INLINE uint64_t d_c_uimm_arith(uint32_t inst)
 {
-	return sext(((inst >> 2) & 0x1f) | (((inst >> 12) & 0x1) << 5), 6);
+	return ((inst >> 2) & 0x1f) | (((inst >> 12) & 0x1) << 5);
 }
 static FORCE_INLINE uint64_t d_c_nzimm_9(uint32_t inst)
 {
@@ -144,13 +148,21 @@ static FORCE_INLINE uint64_t d_c_b_imm(uint32_t inst)
 {
 	return sext((((inst >> 3 & 0x3) << 1) | ((inst >> 10 & 0x3) << 3) | ((inst >> 2 & 0x1) << 5) | ((inst >> 5 & 0x3) << 6) | ((inst >> 12 & 0x1) << 8)), 9);
 }
-static FORCE_INLINE uint64_t d_c_uimm_lsp(uint32_t inst)
+static FORCE_INLINE uint64_t d_c_uimm_lwsp(uint32_t inst)
 {
 	return (((inst >> 4 & 0x7) << 2) | ((inst >> 12 & 0x1) << 5) | ((inst >> 2 & 0x3) << 6));
 }
-static FORCE_INLINE uint64_t d_c_uimm_ssp(uint32_t inst)
+static FORCE_INLINE uint64_t d_c_uimm_ldsp(uint32_t inst)
+{
+	return (((inst >> 5 & 0x3) << 3) | ((inst >> 12 & 0x1) << 5) | ((inst >> 2 & 0x3) << 6) | ((inst >> 4 & 0x1) << 8));
+}
+static FORCE_INLINE uint64_t d_c_uimm_swsp(uint32_t inst)
 {
 	return (((inst >> 9 & 0xf) << 2) | ((inst >> 7 & 0x1) << 6) | ((inst >> 8 & 0x1) << 7));
+}
+static FORCE_INLINE uint64_t d_c_uimm_sdsp(uint32_t inst)
+{
+	return (((inst >> 10 & 0x7) << 3) | ((inst >> 7 & 0x1) << 6) | ((inst >> 8 & 0x1) << 7) | ((inst >> 9 & 0x1) << 8));
 }
 
 struct Hart;
@@ -181,11 +193,18 @@ struct InstructionCache
 {
 	uint64_t pc;
 	uint32_t inst_raw = 0;
-	Instruction inst;
+	const Instruction* inst;
 	InstructionData data;
 	bool valid = false;
 };
 
+struct CacheSet
+{
+	InstructionCache ways[2];
+	uint8_t victim;
+};
+
+static constexpr uint32_t CACHE_SIZE = 65536;
 struct InstructionDecoder
 {
 	std::vector<Instruction> instructions;
@@ -198,14 +217,27 @@ struct InstructionDecoder
 	const Instruction* lut16[LUT_SIZE_16]  = { nullptr };
 	static constexpr uint32_t HASH_MASK_16 = 0x0000FFFF;
 
-	InstructionCache cache[32768];
+	CacheSet cache[CACHE_SIZE];
+
 	InstructionCache& decode_inst_slow(uint64_t pc, uint32_t inst);
 	inline InstructionCache& decode_inst(uint64_t pc, uint32_t inst)
 	{
-		size_t idx = (pc >> 2) & (32768 - 1);
-		if(cache[idx].valid && cache[idx].pc == pc) [[likely]]
+		size_t idx	  = (pc >> 2) & (CACHE_SIZE - 1);
+		/*if(cache[idx].valid && cache[idx].pc == pc) [[likely]]
 		{
+			hit++;
 			return cache[idx];
+		}*/
+		CacheSet& set = cache[idx];
+
+		if(set.ways[0].valid && set.ways[0].pc == pc && set.ways[0].inst_raw == inst)
+		{
+			return set.ways[0];
+		}
+
+		if(set.ways[1].valid && set.ways[1].pc == pc && set.ways[1].inst_raw == inst)
+		{
+			return set.ways[1];
 		}
 
 		return decode_inst_slow(pc, inst);

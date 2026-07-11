@@ -21,16 +21,19 @@ Copyright 2026 Spalishe
 
 ExecReturn exec_FENCE_I(Hart& hart, InstructionData& inst)
 {
-	for(int i = 0; i < 8192; i++)
+	for(int i = 0; i < CACHE_SIZE; i++)
 	{
 		// if (hart->instr_cache[i] == NULL) continue;
-		hart.idec->cache[i].valid = false;
+		hart.idec->cache[i].ways[0].valid = false;
+		hart.idec->cache[i].ways[1].valid = false;
+		hart.idec->cache[i].victim		  = 0;
 	}
 #ifdef USE_JIT
 	// FIXME: Make JIT dirty system so frequent calls of fence.i will not make JIT system suffer
 	memset(hart.jctx->jits, 0, sizeof(hart.jctx->jits));
 	memset(hart.jctx->ignore_pc, 0, sizeof(hart.jctx->ignore_pc));
 	hart.jctx->arenas.clear();
+	hart.jctx->count   = 0;
 	hart.jctx->block_c = false;
 	__builtin___clear_cache(nullptr, nullptr);
 	hart.jctx->last_arena = 0;

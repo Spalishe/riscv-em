@@ -58,12 +58,13 @@ void JIT_Context::handleInstruction(Hart& h, InstructionCache& cache, uint64_t p
 				func.inst_size		= block.size;
 				func.pc				= block.pc;
 				jits[jit_index(pc)] = std::move(func);
+				count++;
 			}
 			ignore_pc[pc & ((1 << 20) - 1)] = true;
 			return;
 		}
 		jc.inst.func(h, jc.data, block, emitter);
-		block.size += cache.inst.size;
+		block.size += cache.inst->size;
 		block.count++;
 		return;
 	}
@@ -81,7 +82,7 @@ void JIT_Context::handleInstruction(Hart& h, InstructionCache& cache, uint64_t p
 			block.byte_pos = 0;
 			block.valid	   = true;
 			block.pc	   = pc;
-			block.size	   = cache.inst.size;
+			block.size	   = cache.inst->size;
 			block.count	   = 1;
 			block.jmp_labels.clear();
 

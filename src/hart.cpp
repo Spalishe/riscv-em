@@ -52,7 +52,7 @@ uint32_t Hart::fetch(uint64_t inst_pc)
 
 ExecReturn Hart::single_inst(InstructionCache& cache)
 {
-	ExecReturn out = cache.inst.func(*this, cache.data);
+	ExecReturn out = cache.inst->func(*this, cache.data);
 	return out;
 }
 
@@ -60,7 +60,8 @@ void Hart::tick()
 {
 	GPR[0] = 0;
 	csrs[CSR_MCYCLE]++;
-	check_ints();
+	if((ip.raw & ie.raw) != 0) [[unlikely]]
+		check_ints();
 	if(WFI) [[unlikely]]
 	{
 		// We must continue execution even if we has locally pending interruptions
@@ -71,16 +72,20 @@ void Hart::tick()
 
 	uint64_t prevpc = pc;
 #ifdef USE_JIT
-	JIT_Function& jit_entry = jctx->jits[jctx->jit_index(pc)];
-	if(jit_entry.valid && jit_entry.pc == pc) [[unlikely]]
+	if(jctx->count != 0)
 	{
-		hctx.exit_pc = 0;
-		jit_entry.func(&hctx);
-		if(hctx.exit_pc != 0)
-			pc = hctx.exit_pc;
-		else
-			pc += jit_entry.inst_size;
-		return;
+		JIT_Function& jit_entry = jctx->jits[jctx->jit_index(pc)];
+
+		if(jit_entry.valid && jit_entry.pc == pc) [[unlikely]]
+		{
+			hctx.exit_pc = 0;
+			jit_entry.func(&hctx);
+			if(hctx.exit_pc != 0)
+				pc = hctx.exit_pc;
+			else
+				pc += jit_entry.inst_size;
+			return;
+		}
 	}
 #endif
 	uint32_t inst			= fetch(pc);

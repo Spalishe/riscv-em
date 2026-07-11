@@ -24,10 +24,10 @@ JIT_InstructionCache JIT_InstructionDecoder::decode_inst(InstructionCache cache)
 	JIT_Instruction inst;
 	InstructionData data;
 	bool valid = false;
-	if(auto val = conversion_tbl.find(cache.inst.func); val != conversion_tbl.end())
+	if(auto val = conversion_tbl.find(cache.inst->func); val != conversion_tbl.end())
 	{
 		valid	 = true;
-		inst	 = { val->second, cache.inst.imm_decode_func };
+		inst	 = { val->second, cache.inst->imm_decode_func };
 		data	 = { cache.data.inst, cache.data.rs1, cache.data.rs2, cache.data.rd, cache.data.imm };
 		inst_raw = cache.inst_raw;
 	}

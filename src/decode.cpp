@@ -22,7 +22,7 @@ Copyright 2026 Spalishe
 
 __attribute__((noinline)) InstructionCache& InstructionDecoder::decode_inst_slow(uint64_t pc, uint32_t inst)
 {
-	size_t idx = (pc >> 2) & (32768 - 1);
+	size_t idx = (pc >> 2) & (CACHE_SIZE - 1);
 
 	const Instruction* dinst = nullptr;
 
@@ -48,20 +48,35 @@ __attribute__((noinline)) InstructionCache& InstructionDecoder::decode_inst_slow
 	data.rs3 = d_rs3(inst);
 	data.rm	 = d_rm(inst);
 #endif
+
+	CacheSet& set			= cache[idx];
+	InstructionCache& entry = set.ways[set.victim];
+	set.victim ^= 1;
+
 	if(f) [[likely]]
 	{
-		data.imm   = dinst->imm_decode_func(inst);
-		cache[idx] = { pc, inst, *dinst, data, true };
+		data.imm	   = dinst->imm_decode_func(inst);
+		// cache[idx] = { pc, inst, dinst, data, true };
+		entry.pc	   = pc;
+		entry.inst_raw = inst;
+		entry.inst	   = dinst;
+		entry.data	   = data;
+		entry.valid	   = true;
 	}
 	else
 	{
 		data.imm = 0;
-		Instruction invalid_inst{};
-		cache[idx] = { pc, inst, invalid_inst, data, false };
+		Instruction* invalid_inst{};
+		// cache[idx] = { pc, inst, invalid_inst, data, false };
+		entry.pc	   = pc;
+		entry.inst_raw = inst;
+		entry.inst	   = invalid_inst;
+		entry.data	   = data;
+		entry.valid	   = false;
 	}
 
 	// printf("inst=0x%lx match=0x%lx mask=0x%lx func=%p\n", inst, dinst->match, dinst->mask, dinst->func);
-	return cache[idx];
+	return entry;
 }
 
 void InstructionDecoder::register_instr(std::string mask, ExecReturn (*func)(Hart&, InstructionData&), uint64_t (*imm_decode_func)(uint32_t inst))
