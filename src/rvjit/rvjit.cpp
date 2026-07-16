@@ -43,18 +43,19 @@ void JIT_Context::handleInstruction(Hart& h, InstructionCache& cache, uint64_t p
 					// Create new arena
 					createNewArena();
 				}
+				auto& arena = arenas[last_arena];
 
 				emitter.rvjit_emit_epilogue(block);
 
-				// char name[64];
-				// snprintf(name, 64, "/tmp/jit_0x%lx.bin", block.pc);
-				// FILE* f = fopen("/tmp/jit.bin", "wb");
-				// fwrite(block.bytes, 1, block.byte_pos, f);
-				// fclose(f);
-				// printf("jit: 0x%lx\n", block.pc);
+				/*char name[64];
+				snprintf(name, 64, "/tmp/jit_0x%lx.bin", block.pc);
+				FILE* f = fopen(name, "wb");
+				fwrite(block.bytes, 1, block.byte_pos, f);
+				fclose(f);
+				printf("jit: 0x%lx\n", block.pc);*/
 
 				// We built block sized enough. Go go gadget w^x allocations
-				JIT_Function func	= arenas[last_arena].push_function(block.bytes, block.byte_pos);
+				JIT_Function func	= arena.push_function(block.bytes, block.byte_pos);
 				func.inst_size		= block.size;
 				func.pc				= block.pc;
 				jits[jit_index(pc)] = std::move(func);
@@ -79,6 +80,7 @@ void JIT_Context::handleInstruction(Hart& h, InstructionCache& cache, uint64_t p
 		{
 			block_c = true;
 			memset(&block.bytes, 0, sizeof(block.bytes));
+			memset(&block.inst_addr_jmp, 0xFF, sizeof(block.inst_addr_jmp));
 			block.byte_pos = 0;
 			block.valid	   = true;
 			block.pc	   = pc;
@@ -109,7 +111,9 @@ void JIT_Context::createNewArena()
 {
 	last_arena++;
 	arenas.insert({ last_arena, JIT_Arena() });
-	arenas.at(last_arena).init();
+	JIT_Arena& arena	= arenas.at(last_arena);
+	arena.page_versions = page_verion_bitmap;
+	arena.init();
 }
 
 void JIT_Arena::allocate()
@@ -133,7 +137,7 @@ void JIT_Arena::allocate()
 		fprintf(stderr, "[RVJIT] Failed to change region permission to RX.\n");
 		return;
 	}
-	base	  = reinterpret_cast<JITCompilatedFunc>(buffer);
+	base	  = buffer;
 	valid	  = true;
 	used_size = 0;
 }
@@ -151,8 +155,7 @@ JIT_Function JIT_Arena::push_function(const void* code, size_t code_size)
 		return JIT_Function{};
 	}
 
-	void* buffer	  = reinterpret_cast<void*>(base);
-	uint8_t* func_pos = static_cast<uint8_t*>(buffer) + used_size;
+	uint8_t* func_pos = static_cast<uint8_t*>(base) + used_size;
 
 	uintptr_t page_addr	 = reinterpret_cast<uintptr_t>(func_pos);
 	uintptr_t page_start = page_addr - (page_addr % _page_size);
@@ -177,9 +180,10 @@ JIT_Function JIT_Arena::push_function(const void* code, size_t code_size)
 
 	used_size += RVJIT_FUNC_SIZE;
 	JIT_Function result;
-	result.func	 = reinterpret_cast<JITCompilatedFunc>(func_pos);
-	result.size	 = code_size;
-	result.valid = true;
+	result.func			= reinterpret_cast<JITCompilatedFunc>(func_pos);
+	result.size			= code_size;
+	result.valid		= true;
+	result.page_version = page_versions[(result.pc - 0x80000000) >> 12];
 	return result;
 }
 

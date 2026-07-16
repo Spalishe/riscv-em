@@ -37,7 +37,7 @@ Machine::Machine(uint64_t mem_size, uint8_t hart_count) : memory_size(mem_size),
 	// Init harts
 	for(int i = 0; i < hart_count; i++)
 	{
-		Hart hart = Hart(i);
+		Hart hart = Hart(i, mem_size);
 		harts.push_back(hart);
 	}
 };
@@ -268,7 +268,7 @@ void Machine::work()
 			uint64_t dtb_path_in_memory = 0x80000000 + memory_size - 0x20000;
 			for(int i = 0; i < harts_count; i++)
 			{
-				Hart hart = Hart(i);
+				Hart hart = Hart(i, memory_size);
 				hart.mmap = mmap;
 				hart.mmio = mmio;
 				hart.idec = idec;
@@ -366,7 +366,7 @@ void Machine::reset()
 		uint64_t dtb_path_in_memory = 0x80000000 + memory_size - 0x20000;
 		for(int i = 0; i < harts_count; i++)
 		{
-			Hart hart = Hart(i);
+			Hart hart = Hart(i, memory_size);
 			hart.mmap = mmap;
 			hart.mmio = mmio;
 			hart.idec = idec;

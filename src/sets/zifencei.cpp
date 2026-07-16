@@ -29,15 +29,15 @@ ExecReturn exec_FENCE_I(Hart& hart, InstructionData& inst)
 		hart.idec->cache[i].victim		  = 0;
 	}
 #ifdef USE_JIT
-	// FIXME: Make JIT dirty system so frequent calls of fence.i will not make JIT system suffer
-	memset(hart.jctx->jits, 0, sizeof(hart.jctx->jits));
+	// FIXED: This block is not more in use, now blocks remove themself automatically
+	/*memset(hart.jctx->jits, 0, sizeof(hart.jctx->jits));
 	memset(hart.jctx->ignore_pc, 0, sizeof(hart.jctx->ignore_pc));
 	hart.jctx->arenas.clear();
 	hart.jctx->count   = 0;
 	hart.jctx->block_c = false;
 	__builtin___clear_cache(nullptr, nullptr);
 	hart.jctx->last_arena = 0;
-	hart.jctx->createNewArena();
+	hart.jctx->createNewArena();*/
 #endif
 	return { true, false, 4, 0, 0 };
 }

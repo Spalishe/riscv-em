@@ -74,16 +74,24 @@ void Hart::tick()
 #ifdef USE_JIT
 	if(jctx->count != 0)
 	{
-		JIT_Function& jit_entry = jctx->jits[jctx->jit_index(pc)];
+		JIT_Function& jit_entry = jctx->jits[jit_index(pc)];
 
 		if(jit_entry.valid && jit_entry.pc == pc) [[unlikely]]
 		{
+			if(jit_entry.page_version != jctx->page_verion_bitmap[(pc - 0x80000000) >> 12]) [[unlikely]]
+			{
+				jit_entry.valid						  = false;
+				jctx->ignore_pc[pc & ((1 << 20) - 1)] = 0;
+				jctx->pc_hits[(pc >> 2) & 0x1FFFF]	  = 0;
+				return;
+			}
 			hctx.exit_pc = 0;
 			jit_entry.func(&hctx);
 			if(hctx.exit_pc != 0)
 				pc = hctx.exit_pc;
 			else
 				pc += jit_entry.inst_size;
+
 			return;
 		}
 	}

@@ -15,6 +15,7 @@ Copyright 2026 Spalishe
 
 */
 #pragma once
+#include <unordered_map>
 #ifdef USE_JIT
 #include "../decode.hpp"
 #include "../host.hpp"
@@ -48,8 +49,9 @@ struct JumpLabel
 {
 	std::string label;
 	uint64_t offs;
-	bool is_opcode_2 = false;
-	size_t size		 = 4;
+	bool is_opcode_2	   = false;
+	size_t size			   = 4;
+	int64_t determined_pos = INT64_MIN;
 };
 struct Hart;
 struct JIT_Block
@@ -57,6 +59,7 @@ struct JIT_Block
 	uint8_t bytes[RVJIT_FUNC_SIZE];
 	uint16_t byte_pos = 0;
 	std::vector<JumpLabel> jmp_labels;
+	uint64_t inst_addr_jmp[RVJIT_FUNC_SIZE];
 
 	uint64_t pc;
 	uint64_t size  = 0;
@@ -70,6 +73,9 @@ struct JIT_Emitter;
 using ROpFunction = void (*)(JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2, uint64_t pc, void* tmp);
 using IOpFunction = void (*)(JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, uint64_t imm, uint64_t pc, void* tmp);
 using SOpFunction = void (*)(JIT_Emitter& em, JIT_Block& blk, VReg& rs1, VReg& rs2, uint64_t imm, uint64_t pc, void* tmp);
+using BOpFunction = void (*)(JIT_Emitter& em, JIT_Block& blk, VReg& rs1, VReg& rs2, uint64_t imm, uint64_t pc, void* tmp);
+using JOpFunction = void (*)(JIT_Emitter& em, JIT_Block& blk, VReg& rd, uint64_t imm, uint64_t pc, void* tmp);
+using UOpFunction = void (*)(JIT_Emitter& em, JIT_Block& blk, VReg& rd, uint64_t imm, uint64_t pc, void* tmp);
 
 struct JIT_Emitter
 {
@@ -88,6 +94,9 @@ struct JIT_Emitter
 	void inst_emit_r_type(Hart& h, InstructionData& inst, JIT_Block& blk, bool optimize_if_rsz, ROpFunction emit_op, uint64_t pc = 0, void* tmp = nullptr);
 	void inst_emit_i_type(Hart& h, InstructionData& inst, JIT_Block& blk, bool optimize_if_rsz, IOpFunction emit_op, uint64_t pc = 0, void* tmp = nullptr);
 	void inst_emit_s_type(Hart& h, InstructionData& inst, JIT_Block& blk, SOpFunction emit_op, uint64_t pc = 0, void* tmp = nullptr);
+	void inst_emit_b_type(Hart& h, InstructionData& inst, JIT_Block& blk, BOpFunction emit_op, uint64_t pc = 0, void* tmp = nullptr);
+	void inst_emit_j_type(Hart& h, InstructionData& inst, JIT_Block& blk, JOpFunction emit_op, uint64_t pc = 0, void* tmp = nullptr);
+	void inst_emit_u_type(Hart& h, InstructionData& inst, JIT_Block& blk, UOpFunction emit_op, uint64_t pc = 0, void* tmp = nullptr);
 };
 
 #endif

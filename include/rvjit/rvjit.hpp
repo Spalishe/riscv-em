@@ -25,7 +25,7 @@ Copyright 2026 Spalishe
 
 #define RVJIT_MIN_INSTRUCTIONS 1
 #define RVJIT_MAX_INSTRUCTIONS 48
-#define RVJIT_PC_CAP		   0x1000
+#define RVJIT_PC_CAP		   100
 #define RVJIT_FUNC_SIZE		   0x1000 // DONT CHANGE IT IF YOU DONT KNOW WHAT YOU'RE DOING! If emitted function will overflow arena's buffer, it will be your fault
 #define RVJIT_ARENA_PAGES	   0x400  // Linux default page size is 4096, then 1024 * 4096 = 4194304 bytes, 4 MB
 static constexpr size_t JIT_CACHE_SIZE = 1 << 20;
@@ -40,6 +40,8 @@ struct JIT_HartContext
 	uint64_t exit_pc = 0;
 };
 
+static constexpr size_t JIT_DIRTY_PAGE_SHIFT = 12;
+
 using JITCompilatedFunc = void (*)(JIT_HartContext*);
 
 struct JIT_Function
@@ -50,6 +52,7 @@ struct JIT_Function
 	uint64_t pc			   = 0;
 	uint16_t inst_size	   = 0;
 	bool valid			   = false;
+	uint64_t page_version  = 0; // at which page version this function was created
 
 	JIT_Function(const JIT_Function&)			 = delete;
 	JIT_Function& operator=(const JIT_Function&) = delete;
@@ -118,10 +121,12 @@ struct JIT_Arena
 		  base(other.base), valid(other.valid)
 	{
 		// Strip resource away from the old object so its destructor does nothing
-		other.base		= nullptr;
-		other.size		= 0;
-		other.valid		= false;
-		other.used_size = 0;
+		other.base			= nullptr;
+		other.size			= 0;
+		other.valid			= false;
+		other.used_size		= 0;
+		other._page_size	= _page_size;
+		other.page_versions = page_versions;
 	}
 	// Move assigment
 	JIT_Arena& operator=(JIT_Arena&& other) noexcept
@@ -132,24 +137,27 @@ struct JIT_Arena
 			if(base && size > 0) munmap(reinterpret_cast<void*>(base), size);
 
 			// Copy data
-			base	  = other.base;
-			size	  = other.size;
-			valid	  = other.valid;
-			used_size = other.used_size;
+			base		  = other.base;
+			size		  = other.size;
+			valid		  = other.valid;
+			used_size	  = other.used_size;
+			page_versions = other.page_versions;
 
 			// Reset other
-			other.base		= nullptr;
-			other.size		= 0;
-			other.valid		= false;
-			other.used_size = 0;
+			other.base			= nullptr;
+			other.size			= 0;
+			other.valid			= false;
+			other.used_size		= 0;
+			other.page_versions = nullptr;
 		}
 		return *this;
 	}
 
-	bool valid = true;
-	JITCompilatedFunc base;
+	bool valid		   = true;
+	void* base		   = nullptr;
 	uint64_t size	   = 0;
 	uint64_t used_size = 0;
+	uint64_t* page_versions;
 
 	JIT_Function push_function(const void* code, size_t code_size);
 	void init()
@@ -161,13 +169,18 @@ struct JIT_Arena
 	uint64_t _page_size = 0;
 	void allocate();
 };
+inline uint64_t jit_index(uint64_t pc)
+{
+	return (pc >> 2) & (JIT_CACHE_SIZE - 1);
+}
 struct JIT_Context
 {
-	JIT_Context()
+	JIT_Context(uint64_t memory_size)
 	{
-		last_arena = 0;
-		emitter	   = JIT_Emitter();
-		jits	   = new JIT_Function[JIT_CACHE_SIZE];
+		last_arena		   = 0;
+		emitter			   = JIT_Emitter();
+		jits			   = new JIT_Function[JIT_CACHE_SIZE];
+		page_verion_bitmap = new uint64_t[memory_size];
 		createNewArena();
 	};
 
@@ -213,6 +226,8 @@ struct JIT_Context
 	bool block_c	= false;
 	JIT_Block block = { 0 };
 
+	uint64_t* page_verion_bitmap;
+
 	uint64_t last_arena = 0;
 	uint64_t count		= 0;
 
@@ -222,10 +237,5 @@ struct JIT_Context
 	void handleInstruction(Hart& h, InstructionCache& cache, uint64_t prev_pc);
 	void stopBlock();
 	void createNewArena();
-
-	inline uint64_t jit_index(uint64_t pc)
-	{
-		return (pc >> 2) & (JIT_CACHE_SIZE - 1);
-	}
 };
 #endif

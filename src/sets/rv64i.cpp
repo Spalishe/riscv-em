@@ -1102,6 +1102,131 @@ void execjit_SD(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& 
 	jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&mov_mr));
 }
 
+void jit_branch(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter, void* func)
+{
+	emitter.inst_emit_b_type(hart, inst, blk, [](JIT_Emitter& em, JIT_Block& blk, VReg& rs1, VReg& rs2, uint64_t imm, uint64_t pc, void* tmp)
+	{
+		cmp(blk, rs1.host_reg, rs2.host_reg);
+
+		blk.jmp_labels.push_back({ "taken",
+								   blk.byte_pos,
+								   false,
+								   1 });
+
+		auto function_ptr = reinterpret_cast<Jmp8Signature>(tmp);
+		function_ptr(blk, 0);
+
+		// not taken
+		blk.jmp_labels.push_back({ "end",
+								   blk.byte_pos,
+								   false,
+								   1 });
+		jmp8(blk, 0);
+
+		// taken handler
+		em.realize_label(blk, "taken");
+		blk.jmp_labels.push_back({ "branch",
+								   blk.byte_pos,
+								   false,
+								   4,
+								   (int64_t)blk.size + (int64_t)imm });
+		jmp32(blk, 0);
+		{
+			// Slow path, make interpreter work instead
+			mov_imm64(blk, REG_RCX, pc);
+			mov_mr(blk, REG_RCX, REG_R12, NO_INDEX, 0, 32);
+			blk.jmp_labels.push_back({ "epilogue", blk.byte_pos, false });
+			jmp32(blk, 0);
+		}
+
+		em.realize_label(blk, "end");
+	}, blk.pc + blk.size, func);
+}
+
+void execjit_BEQ(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	jit_branch(hart, inst, blk, emitter, reinterpret_cast<void*>(&je8));
+}
+void execjit_BNE(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	jit_branch(hart, inst, blk, emitter, reinterpret_cast<void*>(&jne8));
+}
+void execjit_BLT(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	jit_branch(hart, inst, blk, emitter, reinterpret_cast<void*>(&jl8));
+}
+void execjit_BGE(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	jit_branch(hart, inst, blk, emitter, reinterpret_cast<void*>(&jge8));
+}
+void execjit_BLTU(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	jit_branch(hart, inst, blk, emitter, reinterpret_cast<void*>(&jb8));
+}
+void execjit_BGEU(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	jit_branch(hart, inst, blk, emitter, reinterpret_cast<void*>(&jae8));
+}
+void execjit_JAL(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	emitter.inst_emit_j_type(hart, inst, blk, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, uint64_t imm, uint64_t pc, void* tmp)
+	{
+		// Move PC+4 to RD
+		mov_imm64(blk, rd.host_reg, imm);
+		add_r64imm8(blk, rd.host_reg, 4);
+		blk.jmp_labels.push_back({ "branch",
+								   blk.byte_pos,
+								   false,
+								   4,
+								   (int64_t)blk.size + (int64_t)imm });
+		jmp32(blk, 0);
+		{
+			// Slow path, make interpreter work instead
+			mov_imm64(blk, REG_RCX, pc);
+			mov_mr(blk, REG_RCX, REG_R12, NO_INDEX, 0, 32);
+			blk.jmp_labels.push_back({ "epilogue", blk.byte_pos, false });
+			jmp32(blk, 0);
+		}
+	}, blk.pc + blk.size);
+}
+void execjit_JALR(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	emitter.inst_emit_i_type(hart, inst, blk, false, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, uint64_t imm, uint64_t pc, void* tmp)
+	{
+		// Move PC+4 to RD
+		mov_imm64(blk, rd.host_reg, imm);
+		add_r64imm8(blk, rd.host_reg, 4);
+
+		{
+			// Slow path, make interpreter work instead
+			mov_imm64(blk, REG_RCX, pc);
+			mov_mr(blk, REG_RCX, REG_R12, NO_INDEX, 0, 32);
+			blk.jmp_labels.push_back({ "epilogue", blk.byte_pos, false });
+			jmp32(blk, 0);
+		}
+	}, blk.pc + blk.size);
+}
+void execjit_LUI(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	emitter.inst_emit_u_type(hart, inst, blk, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, uint64_t imm, uint64_t pc, void* tmp)
+	{
+		// RD = IMM << 12
+		mov_imm64(blk, rd.host_reg, imm);
+		shl_rimm8(blk, rd.host_reg, 12);
+	}, blk.pc + blk.size);
+}
+void execjit_AUIPC(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	emitter.inst_emit_u_type(hart, inst, blk, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, uint64_t imm, uint64_t pc, void* tmp)
+	{
+		// RD = IMM << 12
+		mov_imm64(blk, rd.host_reg, imm);
+		shl_rimm8(blk, rd.host_reg, 12);
+		mov_imm64(blk, REG_RCX, pc);
+		add_rr(blk, rd.host_reg, REG_RCX);
+	}, blk.pc + blk.size);
+}
+
 void JIT_InstructionDecoder::init_rv64i()
 {
 	conversion_tbl[&exec_ADD]	= &execjit_ADD;
@@ -1141,5 +1266,15 @@ void JIT_InstructionDecoder::init_rv64i()
 	conversion_tbl[&exec_SH]	= &execjit_SH;
 	conversion_tbl[&exec_SW]	= &execjit_SW;
 	conversion_tbl[&exec_SD]	= &execjit_SD;
+	conversion_tbl[&exec_BEQ]	= &execjit_BEQ;
+	conversion_tbl[&exec_BNE]	= &execjit_BNE;
+	conversion_tbl[&exec_BLT]	= &execjit_BLT;
+	conversion_tbl[&exec_BGE]	= &execjit_BGE;
+	conversion_tbl[&exec_BLTU]	= &execjit_BLTU;
+	conversion_tbl[&exec_BGEU]	= &execjit_BGEU;
+	conversion_tbl[&exec_JAL]	= &execjit_JAL;
+	conversion_tbl[&exec_JALR]	= &execjit_JALR;
+	conversion_tbl[&exec_LUI]	= &execjit_LUI;
+	conversion_tbl[&exec_AUIPC] = &execjit_AUIPC;
 }
 #endif

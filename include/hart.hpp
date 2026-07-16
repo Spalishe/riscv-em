@@ -46,10 +46,10 @@ struct Reservation
 
 struct Hart
 {
-	Hart(uint8_t id) : id(id)
+	Hart(uint8_t id, uint64_t memsize) : id(id)
 	{
 #ifdef USE_JIT
-		jctx = new JIT_Context();
+		jctx = new JIT_Context(memsize);
 		hctx = JIT_HartContext();
 #endif
 	};

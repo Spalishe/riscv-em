@@ -204,6 +204,15 @@ inline void add_r32imm32(JIT_Block& blk, char dest, int32_t imm32)
 	blk.bytes[blk.byte_pos++] = (imm32 >> 16) & 0xFF;
 	blk.bytes[blk.byte_pos++] = (imm32 >> 24) & 0xFF;
 }
+// ADD r64, imm8
+inline void add_r64imm8(JIT_Block& blk, char dest, uint8_t imm)
+{
+	// dest is RM, source is
+	blk.bytes[blk.byte_pos++] = rex(1, 0, 0, (dest > 7));
+	blk.bytes[blk.byte_pos++] = 0x83;
+	blk.bytes[blk.byte_pos++] = modrm(3, 0, (dest & 7));
+	blk.bytes[blk.byte_pos++] = imm;
+}
 // ADD r/m32, r32
 inline void add_rr32(JIT_Block& blk, char dest, char source)
 {
@@ -570,24 +579,24 @@ inline void cmp(JIT_Block& blk, char dest, char source)
 	blk.bytes[blk.byte_pos++] = 0x39;
 	blk.bytes[blk.byte_pos++] = modrm(3, source & 7, dest & 7);
 }
-// CMP r/m64,r64
-inline void cmp_mr(JIT_Block& blk, char source, char reg_base, char reg_index, char scale, int32_t disp = 0)
+// CMP r64,r/m64
+inline void cmp_rm(JIT_Block& blk, char dest, char reg_base, char reg_index, char scale, int32_t disp = 0)
 {
 	// dest is RM, source is REG
-	blk.bytes[blk.byte_pos++] = rex(1, source > 7, reg_index > 7, reg_base > 7);
+	blk.bytes[blk.byte_pos++] = rex(1, dest > 7, reg_index > 7, reg_base > 7);
 
-	blk.bytes[blk.byte_pos++] = 0x39; // CMP r/m64, r64
+	blk.bytes[blk.byte_pos++] = 0x3B;
 
 	sib_helper(
 		blk,
-		source,
+		dest,
 		reg_base,
 		reg_index,
 		scale,
 		disp);
 }
-// CMP r64,r/m64
-inline void cmp_rm(JIT_Block& blk, char dest, char reg_base, char reg_index, char scale, int32_t disp = 0)
+// CMP r/m64,r64
+inline void cmp_mr(JIT_Block& blk, char dest, char reg_base, char reg_index, char scale, int32_t disp = 0)
 {
 	// dest is RM, source is REG
 	blk.bytes[blk.byte_pos++] = rex(1, dest > 7, reg_index > 7, reg_base > 7);
@@ -623,6 +632,37 @@ inline void setb(JIT_Block& blk, char dest)
 	blk.bytes[blk.byte_pos++] = 0x0F;
 	blk.bytes[blk.byte_pos++] = 0x92;
 	blk.bytes[blk.byte_pos++] = modrm(3, 0, dest & 7);
+}
+using Jmp8Signature = void (*)(JIT_Block&, int8_t);
+// JE rel8
+inline void je8(JIT_Block& blk, int8_t rel8)
+{
+	blk.bytes[blk.byte_pos++] = 0x74;
+	blk.bytes[blk.byte_pos++] = rel8;
+}
+// JNE rel8
+inline void jne8(JIT_Block& blk, int8_t rel8)
+{
+	blk.bytes[blk.byte_pos++] = 0x75;
+	blk.bytes[blk.byte_pos++] = rel8;
+}
+// JL rel8
+inline void jl8(JIT_Block& blk, int8_t rel8)
+{
+	blk.bytes[blk.byte_pos++] = 0x7C;
+	blk.bytes[blk.byte_pos++] = rel8;
+}
+// JB rel8
+inline void jb8(JIT_Block& blk, int8_t rel8)
+{
+	blk.bytes[blk.byte_pos++] = 0x72;
+	blk.bytes[blk.byte_pos++] = rel8;
+}
+// JGE rel8
+inline void jge8(JIT_Block& blk, int8_t rel8)
+{
+	blk.bytes[blk.byte_pos++] = 0x7D;
+	blk.bytes[blk.byte_pos++] = rel8;
 }
 // JAE rel8
 inline void jae8(JIT_Block& blk, int8_t rel8)
@@ -693,6 +733,7 @@ inline void JIT_Emitter::rvjit_emit_prologue(JIT_Block& blk)
 inline void JIT_Emitter::rvjit_emit_epilogue(JIT_Block& blk)
 {
 	realize_label(blk, "epilogue");
+	realize_label(blk, "branch");
 	for(auto& vreg : vregs)
 	{
 		if(!vreg.allocated)
@@ -750,6 +791,31 @@ inline void JIT_Emitter::realize_label(JIT_Block& blk, const std::string& label)
 
 		uint32_t patch_pos = lbl.offs + (lbl.is_opcode_2 ? 2 : 1);
 		uint32_t insn_size = lbl.size + (lbl.is_opcode_2 ? 2 : 1);
+
+		if(lbl.determined_pos != INT64_MIN)
+		{
+			int64_t target = lbl.determined_pos;
+
+			if(target >= 0 && target < RVJIT_FUNC_SIZE)
+			{
+				uint64_t host = blk.inst_addr_jmp[target];
+
+				if(host != UINT64_MAX)
+				{
+					// fast path
+					cur_pos = host;
+				}
+				else
+				{
+					// slow path
+					cur_pos = lbl.offs + insn_size;
+				}
+			}
+			else
+			{
+				cur_pos = lbl.offs + insn_size;
+			}
+		}
 
 		if(lbl.size == 1)
 		{
@@ -849,11 +915,13 @@ inline VReg& JIT_Emitter::rvjit_alloc_reg(JIT_Block& blk, uint8_t user_reg, uint
 // Instruction emit part
 inline void JIT_Emitter::inst_emit_r_type(Hart& h, InstructionData& inst, JIT_Block& blk, bool optimize_if_rsz, ROpFunction emit_op, uint64_t pc, void* tmp)
 {
+	blk.inst_addr_jmp[blk.size] = blk.byte_pos;
 	if(inst.rd == 0)
 	{
 		// x0 write ignored
 		return;
 	}
+
 	bool rs1_zero = optimize_if_rsz ? (inst.rs1 == 0) : false;
 	bool rs2_zero = optimize_if_rsz ? (inst.rs2 == 0) : false;
 
@@ -895,11 +963,13 @@ inline void JIT_Emitter::inst_emit_r_type(Hart& h, InstructionData& inst, JIT_Bl
 }
 inline void JIT_Emitter::inst_emit_i_type(Hart& h, InstructionData& inst, JIT_Block& blk, bool optimize_if_rsz, IOpFunction emit_op, uint64_t pc, void* tmp)
 {
+	blk.inst_addr_jmp[blk.size] = blk.byte_pos;
 	if(inst.rd == 0)
 	{
 		// x0 write ignored
 		return;
 	}
+
 	bool rs1_zero = optimize_if_rsz ? (inst.rs1 == 0) : false;
 	bool imm_zero = optimize_if_rsz ? (inst.imm == 0) : false;
 
@@ -936,6 +1006,8 @@ inline void JIT_Emitter::inst_emit_i_type(Hart& h, InstructionData& inst, JIT_Bl
 }
 inline void JIT_Emitter::inst_emit_s_type(Hart& h, InstructionData& inst, JIT_Block& blk, SOpFunction emit_op, uint64_t pc, void* tmp)
 {
+	blk.inst_addr_jmp[blk.size] = blk.byte_pos;
+
 	// We don't need any zero optimizations here: we dont have any RD
 	VReg& rs1 = rvjit_alloc_reg(
 		blk,
@@ -947,6 +1019,47 @@ inline void JIT_Emitter::inst_emit_s_type(Hart& h, InstructionData& inst, JIT_Bl
 		inst.rs2,
 		(1ULL << rs1.host_reg));
 	emit_op(*this, blk, rs1, rs2, inst.imm, pc, tmp);
+}
+inline void JIT_Emitter::inst_emit_b_type(Hart& h, InstructionData& inst, JIT_Block& blk, BOpFunction emit_op, uint64_t pc, void* tmp)
+{
+	blk.inst_addr_jmp[blk.size] = blk.byte_pos;
+
+	// We don't need any zero optimizations here: we dont have any RD
+	VReg& rs1 = rvjit_alloc_reg(
+		blk,
+		inst.rs1,
+		0);
+
+	VReg& rs2 = rvjit_alloc_reg(
+		blk,
+		inst.rs2,
+		(1ULL << rs1.host_reg));
+	emit_op(*this, blk, rs1, rs2, inst.imm, pc, tmp);
+}
+inline void JIT_Emitter::inst_emit_j_type(Hart& h, InstructionData& inst, JIT_Block& blk, JOpFunction emit_op, uint64_t pc, void* tmp)
+{
+	blk.inst_addr_jmp[blk.size] = blk.byte_pos;
+
+	VReg& rd = rvjit_alloc_reg(blk, inst.rd, 0);
+
+	VReg& rs1 = rvjit_alloc_reg(
+		blk,
+		inst.rs1,
+		(1ULL << rd.host_reg));
+
+	emit_op(*this, blk, rd, inst.imm, pc, tmp);
+
+	rd.dirty = true;
+}
+inline void JIT_Emitter::inst_emit_u_type(Hart& h, InstructionData& inst, JIT_Block& blk, JOpFunction emit_op, uint64_t pc, void* tmp)
+{
+	blk.inst_addr_jmp[blk.size] = blk.byte_pos;
+
+	VReg& rd = rvjit_alloc_reg(blk, inst.rd, 0);
+
+	emit_op(*this, blk, rd, inst.imm, pc, tmp);
+
+	rd.dirty = true;
 }
 
 #endif

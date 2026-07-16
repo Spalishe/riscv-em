@@ -38,7 +38,12 @@ Copyright 2026 Spalishe
 
 /*
  *		   TODO:
+ *			-MMU
+ *			-PMP
+ *			-SPMP
  *		    -JIT:
+ *				- MMU support(Software TLB)
+ *				- 2-Pass Branch tags
  *				- AUIPC
  *				- LUI
  *				- RVC
