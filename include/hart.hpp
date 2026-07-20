@@ -49,8 +49,9 @@ struct Hart
 	Hart(uint8_t id, uint64_t memsize) : id(id)
 	{
 #ifdef USE_JIT
-		jctx = new JIT_Context(memsize);
-		hctx = JIT_HartContext();
+		jctx	  = new JIT_Context(memsize);
+		hctx	  = JIT_HartContext();
+		hctx.hart = this;
 #endif
 	};
 	Hart(const Hart&)			 = delete;
@@ -106,10 +107,6 @@ struct Hart
 	timecmp_st stimecmp;
 	fcsr_t fcsr;
 	bool WFI = false;
-
-	// Fetch buffer
-	uint32_t fetch_buffer[8];
-	uint64_t fetch_buffer_pc;
 
 	Reservation reservation;
 	inline void amo_check_reservation(uint64_t va)

@@ -87,6 +87,7 @@ void Hart::tick()
 				return;
 			}
 			hctx.exit_pc = 0;
+			hctx.hart	 = this;
 			jit_entry.func(&hctx);
 			if(hctx.exit_pc != 0)
 			{

@@ -314,7 +314,7 @@ inline void mov_imm32(JIT_Block& blk, char dest, int32_t imm32)
 	blk.bytes[blk.byte_pos++] = (imm32 >> 24) & 0xFF;
 }
 // MOV r/m64, imm64
-inline void mov_imm64(JIT_Block& blk, char dest, int32_t imm64)
+inline void mov_imm64(JIT_Block& blk, char dest, int64_t imm64)
 {
 	// dest is RM, REG must be 0
 	blk.bytes[blk.byte_pos++] = rex(1, 0, 0, (dest > 7));
@@ -719,6 +719,13 @@ inline void pop(JIT_Block& blk, char reg)
 inline void ret(JIT_Block& blk)
 {
 	blk.bytes[blk.byte_pos++] = 0xC3;
+}
+// CALL
+inline void call(JIT_Block& blk, char reg)
+{
+	blk.bytes[blk.byte_pos++] = rex(1, 0, 0, (reg >> 3) & 1);
+	blk.bytes[blk.byte_pos++] = 0xFF;
+	blk.bytes[blk.byte_pos++] = modrm(0b11, 2, reg & 7);
 }
 
 inline void JIT_Emitter::rvjit_emit_prologue(JIT_Block& blk)

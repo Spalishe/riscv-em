@@ -38,6 +38,7 @@ struct JIT_HartContext
 	MMIO* mmio;
 	uint64_t memsize;
 	uint64_t exit_pc = 0;
+	Hart* hart;
 };
 
 using JITCompilatedFunc = void (*)(JIT_HartContext*);

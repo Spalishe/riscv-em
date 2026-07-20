@@ -1029,8 +1029,122 @@ bool execjit_SRAIW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitte
 	return false;
 }
 
-bool jit_load(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter, void* func)
+uint64_t jit_slow_lb(Hart* h, uint64_t addr)
 {
+	// We only know about phys addr
+	addr += 0x80000000;
+	for(const auto& dev : h->mmio->devs)
+	{
+		if(addr >= dev->start && addr < (dev->start + dev->size - (int)MemorySize::Byte + 1))
+		{
+			// found a device
+			int8_t out = dev->read(addr, MemorySize::Byte);
+			return (uint64_t)out;
+		}
+	}
+	return 0;
+}
+uint64_t jit_slow_lbu(Hart* h, uint64_t addr)
+{
+	// We only know about phys addr
+	addr += 0x80000000;
+	for(const auto& dev : h->mmio->devs)
+	{
+		if(addr >= dev->start && addr < (dev->start + dev->size - (int)MemorySize::Byte + 1))
+		{
+			// found a device
+			uint8_t out = dev->read(addr, MemorySize::Byte);
+			return (uint64_t)out;
+		}
+	}
+	return 0;
+}
+uint64_t jit_slow_lh(Hart* h, uint64_t addr)
+{
+	// We only know about phys addr
+	addr += 0x80000000;
+	for(const auto& dev : h->mmio->devs)
+	{
+		if(addr >= dev->start && addr < (dev->start + dev->size - (int)MemorySize::Short + 1))
+		{
+			// found a device
+			int16_t out = dev->read(addr, MemorySize::Short);
+			return (uint64_t)out;
+		}
+	}
+	return 0;
+}
+uint64_t jit_slow_lhu(Hart* h, uint64_t addr)
+{
+	// We only know about phys addr
+	addr += 0x80000000;
+	for(const auto& dev : h->mmio->devs)
+	{
+		if(addr >= dev->start && addr < (dev->start + dev->size - (int)MemorySize::Short + 1))
+		{
+			// found a device
+			uint16_t out = dev->read(addr, MemorySize::Short);
+			return (uint64_t)out;
+		}
+	}
+	return 0;
+}
+uint64_t jit_slow_lw(Hart* h, uint64_t addr)
+{
+	// We only know about phys addr
+	addr += 0x80000000;
+	for(const auto& dev : h->mmio->devs)
+	{
+		if(addr >= dev->start && addr < (dev->start + dev->size - (int)MemorySize::Int + 1))
+		{
+			// found a device
+			int32_t out = dev->read(addr, MemorySize::Int);
+			return (uint64_t)out;
+		}
+	}
+	return 0;
+}
+uint64_t jit_slow_lwu(Hart* h, uint64_t addr)
+{
+	// We only know about phys addr
+	addr += 0x80000000;
+	for(const auto& dev : h->mmio->devs)
+	{
+		if(addr >= dev->start && addr < (dev->start + dev->size - (int)MemorySize::Int + 1))
+		{
+			// found a device
+			uint32_t out = dev->read(addr, MemorySize::Int);
+			return (uint64_t)out;
+		}
+	}
+	return 0;
+}
+uint64_t jit_slow_ld(Hart* h, uint64_t addr)
+{
+	// We only know about phys addr
+	addr += 0x80000000;
+	for(const auto& dev : h->mmio->devs)
+	{
+		if(addr >= dev->start && addr < (dev->start + dev->size - (int)MemorySize::Long + 1))
+		{
+			// found a device
+			uint64_t out = dev->read(addr, MemorySize::Long);
+			return out;
+		}
+	}
+	return 0;
+}
+
+using SlowMemFunc = uint64_t (*)(Hart*, uint64_t);
+struct jit_memory_op
+{
+	void* fast_mov;
+	void* slow_find;
+};
+
+bool jit_load(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter, void* func, void* func_slow)
+{
+	jit_memory_op stru = jit_memory_op{ func, func_slow };
 	emitter.inst_emit_i_type(hart, inst, blk, false, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, uint64_t imm, uint64_t pc, void* tmp)
 	{
 		mov(blk, REG_RCX, rs1.host_reg);
@@ -1042,51 +1156,124 @@ bool jit_load(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& em
 		blk.jmp_labels.push_back({ "fast_path", blk.byte_pos, false, 1 });
 		jbe8(blk, 0);
 
+		auto function_data = *reinterpret_cast<jit_memory_op*>(tmp);
 		{
 			// Slow path, make interpreter work instead
-			mov_imm64(blk, REG_RCX, pc);
+			/*mov_imm64(blk, REG_RCX, pc);
 			mov_mr(blk, REG_RCX, REG_R12, NO_INDEX, 0, 32);
 			blk.jmp_labels.push_back({ "epilogue", blk.byte_pos, false });
-			jmp32(blk, 0);
+			jmp32(blk, 0);*/
+			// old method, returning to interpreter
+			push(blk, REG_RDI);
+			push(blk, REG_RSI);
+			push(blk, REG_RAX);
+			mov(blk, REG_RSI, REG_RCX);
+			mov_rm(blk, REG_RDI, REG_R12, NO_INDEX, 0, offsetof(JIT_HartContext, hart));
+			mov_imm64(blk, REG_RAX, (uint64_t)function_data.slow_find);
+			call(blk, REG_RAX);
+			mov(blk, rd.host_reg, REG_RAX);
+			pop(blk, REG_RAX);
+			pop(blk, REG_RSI);
+			pop(blk, REG_RDI);
+
+			blk.jmp_labels.push_back({ "end", blk.byte_pos, false, 1 });
+			jmp8(blk, 0);
 		}
 
 		em.realize_label(blk, "fast_path");
 
-		auto function_ptr = reinterpret_cast<MovSignature>(tmp);
+		auto function_ptr = reinterpret_cast<MovSignature>(function_data.fast_mov);
 		function_ptr(blk, rd.host_reg, REG_R14, REG_RCX, 0, 0);
-	}, blk.pc + blk.size, func);
+		em.realize_label(blk, "end");
+	}, blk.pc + blk.size, reinterpret_cast<void*>(&stru));
 	return false;
 }
 bool execjit_LB(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
-	return jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&movsx_r64m8));
+	return jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&movsx_r64m8), reinterpret_cast<void*>(&jit_slow_lb));
 }
 bool execjit_LBU(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
-	return jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&movzx_r32m8));
+	return jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&movzx_r32m8), reinterpret_cast<void*>(&jit_slow_lbu));
 }
 bool execjit_LH(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
-	return jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&movsx_r64m16));
+	return jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&movsx_r64m16), reinterpret_cast<void*>(&jit_slow_lh));
 }
 bool execjit_LHU(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
-	return jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&movzx_r32m16));
+	return jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&movzx_r32m16), reinterpret_cast<void*>(&jit_slow_lhu));
 }
 bool execjit_LW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
-	return jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&movsxd_r64m32));
+	return jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&movsxd_r64m32), reinterpret_cast<void*>(&jit_slow_lw));
 }
 bool execjit_LWU(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
-	return jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&mov_r32m));
+	return jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&mov_r32m), reinterpret_cast<void*>(&jit_slow_lwu));
 }
 bool execjit_LD(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
-	return jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&mov_rm));
+	return jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&mov_rm), reinterpret_cast<void*>(&jit_slow_ld));
 }
-bool jit_store(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter, void* func)
+void jit_slow_sb(Hart* h, uint64_t addr, uint64_t val)
 {
+	// We only know about phys addr
+	addr += 0x80000000;
+	for(const auto& dev : h->mmio->devs)
+	{
+		if(addr >= dev->start && addr < (dev->start + dev->size - (int)MemorySize::Byte + 1))
+		{
+			// found a device
+			dev->write(addr, MemorySize::Byte, val);
+		}
+	}
+}
+
+void jit_slow_sh(Hart* h, uint64_t addr, uint64_t val)
+{
+	// We only know about phys addr
+	addr += 0x80000000;
+	for(const auto& dev : h->mmio->devs)
+	{
+		if(addr >= dev->start && addr < (dev->start + dev->size - (int)MemorySize::Short + 1))
+		{
+			// found a device
+			dev->write(addr, MemorySize::Short, val);
+		}
+	}
+}
+
+void jit_slow_sw(Hart* h, uint64_t addr, uint64_t val)
+{
+	// We only know about phys addr
+	addr += 0x80000000;
+	for(const auto& dev : h->mmio->devs)
+	{
+		if(addr >= dev->start && addr < (dev->start + dev->size - (int)MemorySize::Int + 1))
+		{
+			// found a device
+			dev->write(addr, MemorySize::Int, val);
+		}
+	}
+}
+
+void jit_slow_sd(Hart* h, uint64_t addr, uint64_t val)
+{
+	// We only know about phys addr
+	addr += 0x80000000;
+	for(const auto& dev : h->mmio->devs)
+	{
+		if(addr >= dev->start && addr < (dev->start + dev->size - (int)MemorySize::Long + 1))
+		{
+			// found a device
+			dev->write(addr, MemorySize::Long, val);
+		}
+	}
+}
+bool jit_store(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter, void* func, void* func_slow)
+{
+	jit_memory_op stru = jit_memory_op{ func, func_slow };
 	emitter.inst_emit_s_type(hart, inst, blk, [](JIT_Emitter& em, JIT_Block& blk, VReg& rs1, VReg& rs2, uint64_t imm, uint64_t pc, void* tmp)
 	{
 		mov(blk, REG_RCX, rs1.host_reg);
@@ -1098,36 +1285,54 @@ bool jit_store(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& e
 		blk.jmp_labels.push_back({ "fast_path", blk.byte_pos, false, 1 });
 		jbe8(blk, 0);
 
+		auto function_data = *reinterpret_cast<jit_memory_op*>(tmp);
 		{
 			// Slow path, make interpreter work instead
-			mov_imm64(blk, REG_RCX, pc);
+			/*mov_imm64(blk, REG_RCX, pc);
 			mov_mr(blk, REG_RCX, REG_R12, NO_INDEX, 0, 32);
 			blk.jmp_labels.push_back({ "epilogue", blk.byte_pos, false });
-			jmp32(blk, 0);
+			jmp32(blk, 0);*/
+
+			push(blk, REG_RDI);
+			push(blk, REG_RSI);
+			push(blk, REG_RAX);
+			push(blk, REG_RDX);
+			mov(blk, REG_RSI, REG_RCX);
+			mov_rm(blk, REG_RDI, REG_R12, NO_INDEX, 0, offsetof(JIT_HartContext, hart));
+			mov(blk, REG_RDX, rs2.host_reg);
+			mov_imm64(blk, REG_RAX, (uint64_t)function_data.slow_find);
+			call(blk, REG_RAX);
+			pop(blk, REG_RDX);
+			pop(blk, REG_RAX);
+			pop(blk, REG_RSI);
+			pop(blk, REG_RDI);
+			blk.jmp_labels.push_back({ "end", blk.byte_pos, false, 1 });
+			jmp8(blk, 0);
 		}
 
 		em.realize_label(blk, "fast_path");
 
-		auto function_ptr = reinterpret_cast<MovSignature>(tmp);
+		auto function_ptr = reinterpret_cast<MovSignature>(function_data.fast_mov);
 		function_ptr(blk, rs2.host_reg, REG_R14, REG_RCX, 0, 0);
-	}, blk.pc + blk.size, func);
+		em.realize_label(blk, "end");
+	}, blk.pc + blk.size, reinterpret_cast<void*>(&stru));
 	return false;
 }
 bool execjit_SB(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
-	return jit_store(hart, inst, blk, emitter, reinterpret_cast<void*>(&mov_m8r8));
+	return jit_store(hart, inst, blk, emitter, reinterpret_cast<void*>(&mov_m8r8), reinterpret_cast<void*>(&jit_slow_sb));
 }
 bool execjit_SH(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
-	return jit_store(hart, inst, blk, emitter, reinterpret_cast<void*>(&mov_m16r16));
+	return jit_store(hart, inst, blk, emitter, reinterpret_cast<void*>(&mov_m16r16), reinterpret_cast<void*>(&jit_slow_sh));
 }
 bool execjit_SW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
-	return jit_store(hart, inst, blk, emitter, reinterpret_cast<void*>(&mov_m32r32));
+	return jit_store(hart, inst, blk, emitter, reinterpret_cast<void*>(&mov_m32r32), reinterpret_cast<void*>(&jit_slow_sw));
 }
 bool execjit_SD(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
-	return jit_store(hart, inst, blk, emitter, reinterpret_cast<void*>(&mov_mr));
+	return jit_store(hart, inst, blk, emitter, reinterpret_cast<void*>(&mov_mr), reinterpret_cast<void*>(&jit_slow_sd));
 }
 
 bool jit_branch(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter, void* func)
@@ -1162,7 +1367,7 @@ bool jit_branch(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& 
 		{
 			// Slow path, make interpreter work instead
 			mov_imm64(blk, REG_RCX, pc);
-			mov_mr(blk, REG_RCX, REG_R12, NO_INDEX, 0, 32);
+			mov_mr(blk, REG_RCX, REG_R12, NO_INDEX, 0, offsetof(JIT_HartContext, exit_pc));
 			blk.jmp_labels.push_back({ "epilogue", blk.byte_pos, false });
 			jmp32(blk, 0);
 		}
@@ -1212,7 +1417,7 @@ bool execjit_JAL(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter&
 		{
 			// Slow path, make interpreter work instead
 			mov_imm64(blk, REG_RCX, pc);
-			mov_mr(blk, REG_RCX, REG_R12, NO_INDEX, 0, 32);
+			mov_mr(blk, REG_RCX, REG_R12, NO_INDEX, 0, offsetof(JIT_HartContext, exit_pc));
 			blk.jmp_labels.push_back({ "epilogue", blk.byte_pos, false });
 			jmp32(blk, 0);
 		}
@@ -1230,7 +1435,7 @@ bool execjit_JALR(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter
 		{
 			// Slow path, make interpreter work instead
 			mov_imm64(blk, REG_RCX, pc);
-			mov_mr(blk, REG_RCX, REG_R12, NO_INDEX, 0, 32);
+			mov_mr(blk, REG_RCX, REG_R12, NO_INDEX, 0, offsetof(JIT_HartContext, exit_pc));
 			blk.jmp_labels.push_back({ "epilogue", blk.byte_pos, false });
 			jmp32(blk, 0);
 		}
