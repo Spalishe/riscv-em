@@ -61,14 +61,19 @@ CLINT::CLINT(uint64_t start, uint64_t size, Machine& cpu, fdt_node* fdt)
 			{
 				// missing interrupt controller in hart i
 			}
+			fdt_node_free(cpu_irq);
+			fdt_node_free(cpu);
 		}
+		fdt_node_free(cpus);
 
 		struct fdt_node* clint_fdt = fdt_node_create_reg("clint", start);
 		fdt_node_add_prop_reg(clint_fdt, "reg", start, size);
 		fdt_node_add_prop(clint_fdt, "compatible", "sifive,clint0\0riscv,clint0\0", 27);
 		fdt_node_add_prop_cells(clint_fdt, "interrupts-extended", irq_ext, irq_ext.size());
 
-		fdt_node_add_child(fdt_node_find(fdt, "soc"), clint_fdt);
+		fdt_node* soc = fdt_node_find(fdt, "soc");
+		fdt_node_add_child(soc, clint_fdt);
+		fdt_node_free(soc);
 	}
 }
 

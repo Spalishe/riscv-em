@@ -578,7 +578,7 @@ void InstructionDecoder::init_rv64i()
 }
 #ifdef USE_JIT
 #include "../../include/rvjit/rvjit_x86_64.hpp"
-void execjit_ADD(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_ADD(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
 	emitter.inst_emit_r_type(hart, inst, blk, true, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2, uint64_t pc, void* tmp)
 	{
@@ -596,8 +596,9 @@ void execjit_ADD(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter&
 			add_rr(blk, rd.host_reg, rs1.host_reg);
 		}
 	}, blk.pc + blk.size);
+	return false;
 }
-void execjit_ADDW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_ADDW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
 	emitter.inst_emit_r_type(hart, inst, blk, true, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2, uint64_t pc, void* tmp)
 	{
@@ -617,8 +618,9 @@ void execjit_ADDW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter
 
 		movsxd(blk, rd.host_reg, rd.host_reg);
 	}, blk.pc + blk.size);
+	return false;
 }
-void execjit_SUB(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_SUB(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
 	emitter.inst_emit_r_type(hart, inst, blk, true, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2, uint64_t pc, void* tmp)
 	{
@@ -638,8 +640,9 @@ void execjit_SUB(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter&
 			sub_rr(blk, rd.host_reg, REG_RCX);
 		}
 	}, blk.pc + blk.size);
+	return false;
 }
-void execjit_SUBW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_SUBW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
 	emitter.inst_emit_r_type(hart, inst, blk, true, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2, uint64_t pc, void* tmp)
 	{
@@ -660,8 +663,9 @@ void execjit_SUBW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter
 		}
 		movsxd(blk, rd.host_reg, rd.host_reg);
 	}, blk.pc + blk.size);
+	return false;
 }
-void execjit_XOR(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_XOR(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
 	emitter.inst_emit_r_type(hart, inst, blk, true, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2, uint64_t pc, void* tmp)
 	{
@@ -679,8 +683,9 @@ void execjit_XOR(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter&
 
 		xor_rr(blk, rd.host_reg, rs2.host_reg);
 	}, blk.pc + blk.size);
+	return false;
 }
-void execjit_OR(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_OR(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
 	emitter.inst_emit_r_type(hart, inst, blk, true, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2, uint64_t pc, void* tmp)
 	{
@@ -698,8 +703,9 @@ void execjit_OR(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& 
 
 		or_rr(blk, rd.host_reg, rs2.host_reg);
 	}, blk.pc + blk.size);
+	return false;
 }
-void execjit_AND(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_AND(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
 	emitter.inst_emit_r_type(hart, inst, blk, false, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2, uint64_t pc, void* tmp)
 	{
@@ -722,8 +728,9 @@ void execjit_AND(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter&
 
 		and_rr(blk, rd.host_reg, rs2.host_reg);
 	}, blk.pc + blk.size);
+	return false;
 }
-void execjit_SLL(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_SLL(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
 	emitter.inst_emit_r_type(hart, inst, blk, true, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2, uint64_t pc, void* tmp)
 	{
@@ -741,8 +748,9 @@ void execjit_SLL(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter&
 
 		shl_rc(blk, rd.host_reg, rs2.host_reg);
 	}, blk.pc + blk.size);
+	return false;
 }
-void execjit_SLLW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_SLLW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
 	emitter.inst_emit_r_type(hart, inst, blk, true, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2, uint64_t pc, void* tmp)
 	{
@@ -762,8 +770,9 @@ void execjit_SLLW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter
 		shl_rc32(blk, rd.host_reg, rs2.host_reg);
 		movsxd(blk, rd.host_reg, rd.host_reg);
 	}, blk.pc + blk.size);
+	return false;
 }
-void execjit_SRL(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_SRL(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
 	emitter.inst_emit_r_type(hart, inst, blk, true, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2, uint64_t pc, void* tmp)
 	{
@@ -781,8 +790,9 @@ void execjit_SRL(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter&
 
 		shr_rc(blk, rd.host_reg, rs2.host_reg);
 	}, blk.pc + blk.size);
+	return false;
 }
-void execjit_SRLW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_SRLW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
 	emitter.inst_emit_r_type(hart, inst, blk, true, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2, uint64_t pc, void* tmp)
 	{
@@ -802,8 +812,9 @@ void execjit_SRLW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter
 		shr_rc32(blk, rd.host_reg, rs2.host_reg);
 		movsxd(blk, rd.host_reg, rd.host_reg);
 	}, blk.pc + blk.size);
+	return false;
 }
-void execjit_SRA(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_SRA(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
 	emitter.inst_emit_r_type(hart, inst, blk, true, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2, uint64_t pc, void* tmp)
 	{
@@ -821,8 +832,9 @@ void execjit_SRA(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter&
 
 		sar_rc(blk, rd.host_reg, rs2.host_reg);
 	}, blk.pc + blk.size);
+	return false;
 }
-void execjit_SRAW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_SRAW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
 	emitter.inst_emit_r_type(hart, inst, blk, true, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2, uint64_t pc, void* tmp)
 	{
@@ -842,8 +854,9 @@ void execjit_SRAW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter
 		sar_rc32(blk, rd.host_reg, rs2.host_reg);
 		movsxd(blk, rd.host_reg, rd.host_reg);
 	}, blk.pc + blk.size);
+	return false;
 }
-void execjit_SLT(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_SLT(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
 	emitter.inst_emit_r_type(hart, inst, blk, false,
 							 [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2, uint64_t pc, void* tmp)
@@ -852,8 +865,9 @@ void execjit_SLT(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter&
 		setl(blk, rd.host_reg);
 		movzx(blk, rd.host_reg, rd.host_reg);
 	}, blk.pc + blk.size);
+	return false;
 }
-void execjit_SLTU(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_SLTU(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
 	emitter.inst_emit_r_type(hart, inst, blk, false, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2, uint64_t pc, void* tmp)
 	{
@@ -861,9 +875,10 @@ void execjit_SLTU(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter
 		setb(blk, rd.host_reg);
 		movzx(blk, rd.host_reg, rd.host_reg);
 	}, blk.pc + blk.size);
+	return false;
 }
 
-void execjit_ADDI(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_ADDI(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
 	emitter.inst_emit_i_type(hart, inst, blk, true, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, uint64_t imm, uint64_t pc, void* tmp)
 	{
@@ -873,8 +888,9 @@ void execjit_ADDI(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter
 		}
 		add_rimm32(blk, rd.host_reg, imm);
 	}, blk.pc + blk.size);
+	return false;
 }
-void execjit_ADDIW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_ADDIW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
 	emitter.inst_emit_i_type(hart, inst, blk, true, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, uint64_t imm, uint64_t pc, void* tmp)
 	{
@@ -886,8 +902,9 @@ void execjit_ADDIW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitte
 		add_r32imm32(blk, rd.host_reg, imm);
 		movsxd(blk, rd.host_reg, rd.host_reg);
 	}, blk.pc + blk.size);
+	return false;
 }
-void execjit_XORI(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_XORI(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
 	emitter.inst_emit_i_type(hart, inst, blk, true, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, uint64_t imm, uint64_t pc, void* tmp)
 	{
@@ -897,8 +914,9 @@ void execjit_XORI(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter
 		}
 		xor_rimm32(blk, rd.host_reg, imm);
 	}, blk.pc + blk.size);
+	return false;
 }
-void execjit_ORI(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_ORI(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
 	emitter.inst_emit_i_type(hart, inst, blk, true, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, uint64_t imm, uint64_t pc, void* tmp)
 	{
@@ -909,8 +927,9 @@ void execjit_ORI(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter&
 
 		or_rimm32(blk, rd.host_reg, imm);
 	}, blk.pc + blk.size);
+	return false;
 }
-void execjit_ANDI(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_ANDI(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
 	emitter.inst_emit_i_type(hart, inst, blk, false, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, uint64_t imm, uint64_t pc, void* tmp)
 	{
@@ -926,8 +945,9 @@ void execjit_ANDI(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter
 
 		and_rimm32(blk, rd.host_reg, imm);
 	}, blk.pc + blk.size);
+	return false;
 }
-void execjit_SLLI(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_SLLI(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
 	emitter.inst_emit_i_type(hart, inst, blk, true, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, uint64_t imm, uint64_t pc, void* tmp)
 	{
@@ -938,8 +958,9 @@ void execjit_SLLI(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter
 
 		shl_rimm8(blk, rd.host_reg, imm & 0x3F);
 	}, blk.pc + blk.size);
+	return false;
 }
-void execjit_SLLIW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_SLLIW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
 	emitter.inst_emit_i_type(hart, inst, blk, true, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, uint64_t imm, uint64_t pc, void* tmp)
 	{
@@ -951,8 +972,9 @@ void execjit_SLLIW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitte
 		shl_r32imm8(blk, rd.host_reg, imm & 0x1F);
 		movsxd(blk, rd.host_reg, rd.host_reg);
 	}, blk.pc + blk.size);
+	return false;
 }
-void execjit_SRLI(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_SRLI(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
 	emitter.inst_emit_i_type(hart, inst, blk, true, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, uint64_t imm, uint64_t pc, void* tmp)
 	{
@@ -963,8 +985,9 @@ void execjit_SRLI(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter
 
 		shr_rimm8(blk, rd.host_reg, imm & 0x3F);
 	}, blk.pc + blk.size);
+	return false;
 }
-void execjit_SRLIW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_SRLIW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
 	emitter.inst_emit_i_type(hart, inst, blk, true, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, uint64_t imm, uint64_t pc, void* tmp)
 	{
@@ -976,8 +999,9 @@ void execjit_SRLIW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitte
 		shr_r32imm8(blk, rd.host_reg, imm & 0x1F);
 		movsxd(blk, rd.host_reg, rd.host_reg);
 	}, blk.pc + blk.size);
+	return false;
 }
-void execjit_SRAI(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_SRAI(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
 	emitter.inst_emit_i_type(hart, inst, blk, true, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, uint64_t imm, uint64_t pc, void* tmp)
 	{
@@ -988,8 +1012,9 @@ void execjit_SRAI(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter
 
 		sar_rimm8(blk, rd.host_reg, imm & 0x3F);
 	}, blk.pc + blk.size);
+	return false;
 }
-void execjit_SRAIW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_SRAIW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
 	emitter.inst_emit_i_type(hart, inst, blk, true, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, uint64_t imm, uint64_t pc, void* tmp)
 	{
@@ -1001,9 +1026,10 @@ void execjit_SRAIW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitte
 		sar_r32imm8(blk, rd.host_reg, imm & 0x1F);
 		movsxd(blk, rd.host_reg, rd.host_reg);
 	}, blk.pc + blk.size);
+	return false;
 }
 
-void jit_load(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter, void* func)
+bool jit_load(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter, void* func)
 {
 	emitter.inst_emit_i_type(hart, inst, blk, false, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, uint64_t imm, uint64_t pc, void* tmp)
 	{
@@ -1029,36 +1055,37 @@ void jit_load(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& em
 		auto function_ptr = reinterpret_cast<MovSignature>(tmp);
 		function_ptr(blk, rd.host_reg, REG_R14, REG_RCX, 0, 0);
 	}, blk.pc + blk.size, func);
+	return false;
 }
-void execjit_LB(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_LB(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
-	jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&movsx_r64m8));
+	return jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&movsx_r64m8));
 }
-void execjit_LBU(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_LBU(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
-	jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&movzx_r32m8));
+	return jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&movzx_r32m8));
 }
-void execjit_LH(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_LH(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
-	jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&movsx_r64m16));
+	return jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&movsx_r64m16));
 }
-void execjit_LHU(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_LHU(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
-	jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&movzx_r32m16));
+	return jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&movzx_r32m16));
 }
-void execjit_LW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_LW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
-	jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&movsxd_r64m32));
+	return jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&movsxd_r64m32));
 }
-void execjit_LWU(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_LWU(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
-	jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&mov_r32m));
+	return jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&mov_r32m));
 }
-void execjit_LD(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_LD(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
-	jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&mov_rm));
+	return jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&mov_rm));
 }
-void jit_store(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter, void* func)
+bool jit_store(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter, void* func)
 {
 	emitter.inst_emit_s_type(hart, inst, blk, [](JIT_Emitter& em, JIT_Block& blk, VReg& rs1, VReg& rs2, uint64_t imm, uint64_t pc, void* tmp)
 	{
@@ -1084,25 +1111,26 @@ void jit_store(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& e
 		auto function_ptr = reinterpret_cast<MovSignature>(tmp);
 		function_ptr(blk, rs2.host_reg, REG_R14, REG_RCX, 0, 0);
 	}, blk.pc + blk.size, func);
+	return false;
 }
-void execjit_SB(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_SB(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
-	jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&mov_m8r8));
+	return jit_store(hart, inst, blk, emitter, reinterpret_cast<void*>(&mov_m8r8));
 }
-void execjit_SH(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_SH(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
-	jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&mov_m16r16));
+	return jit_store(hart, inst, blk, emitter, reinterpret_cast<void*>(&mov_m16r16));
 }
-void execjit_SW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_SW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
-	jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&mov_m32r32));
+	return jit_store(hart, inst, blk, emitter, reinterpret_cast<void*>(&mov_m32r32));
 }
-void execjit_SD(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_SD(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
-	jit_load(hart, inst, blk, emitter, reinterpret_cast<void*>(&mov_mr));
+	return jit_store(hart, inst, blk, emitter, reinterpret_cast<void*>(&mov_mr));
 }
 
-void jit_branch(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter, void* func)
+bool jit_branch(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter, void* func)
 {
 	emitter.inst_emit_b_type(hart, inst, blk, [](JIT_Emitter& em, JIT_Block& blk, VReg& rs1, VReg& rs2, uint64_t imm, uint64_t pc, void* tmp)
 	{
@@ -1141,33 +1169,34 @@ void jit_branch(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& 
 
 		em.realize_label(blk, "end");
 	}, blk.pc + blk.size, func);
+	return false;
 }
 
-void execjit_BEQ(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_BEQ(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
-	jit_branch(hart, inst, blk, emitter, reinterpret_cast<void*>(&je8));
+	return jit_branch(hart, inst, blk, emitter, reinterpret_cast<void*>(&je8));
 }
-void execjit_BNE(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_BNE(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
-	jit_branch(hart, inst, blk, emitter, reinterpret_cast<void*>(&jne8));
+	return jit_branch(hart, inst, blk, emitter, reinterpret_cast<void*>(&jne8));
 }
-void execjit_BLT(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_BLT(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
-	jit_branch(hart, inst, blk, emitter, reinterpret_cast<void*>(&jl8));
+	return jit_branch(hart, inst, blk, emitter, reinterpret_cast<void*>(&jl8));
 }
-void execjit_BGE(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_BGE(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
-	jit_branch(hart, inst, blk, emitter, reinterpret_cast<void*>(&jge8));
+	return jit_branch(hart, inst, blk, emitter, reinterpret_cast<void*>(&jge8));
 }
-void execjit_BLTU(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_BLTU(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
-	jit_branch(hart, inst, blk, emitter, reinterpret_cast<void*>(&jb8));
+	return jit_branch(hart, inst, blk, emitter, reinterpret_cast<void*>(&jb8));
 }
-void execjit_BGEU(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_BGEU(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
-	jit_branch(hart, inst, blk, emitter, reinterpret_cast<void*>(&jae8));
+	return jit_branch(hart, inst, blk, emitter, reinterpret_cast<void*>(&jae8));
 }
-void execjit_JAL(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_JAL(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
 	emitter.inst_emit_j_type(hart, inst, blk, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, uint64_t imm, uint64_t pc, void* tmp)
 	{
@@ -1188,8 +1217,9 @@ void execjit_JAL(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter&
 			jmp32(blk, 0);
 		}
 	}, blk.pc + blk.size);
+	return true;
 }
-void execjit_JALR(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_JALR(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
 	emitter.inst_emit_i_type(hart, inst, blk, false, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, uint64_t imm, uint64_t pc, void* tmp)
 	{
@@ -1205,8 +1235,9 @@ void execjit_JALR(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter
 			jmp32(blk, 0);
 		}
 	}, blk.pc + blk.size);
+	return true;
 }
-void execjit_LUI(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_LUI(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
 	emitter.inst_emit_u_type(hart, inst, blk, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, uint64_t imm, uint64_t pc, void* tmp)
 	{
@@ -1214,8 +1245,9 @@ void execjit_LUI(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter&
 		mov_imm64(blk, rd.host_reg, imm);
 		shl_rimm8(blk, rd.host_reg, 12);
 	}, blk.pc + blk.size);
+	return false;
 }
-void execjit_AUIPC(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+bool execjit_AUIPC(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
 {
 	emitter.inst_emit_u_type(hart, inst, blk, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, uint64_t imm, uint64_t pc, void* tmp)
 	{
@@ -1225,6 +1257,7 @@ void execjit_AUIPC(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitte
 		mov_imm64(blk, REG_RCX, pc);
 		add_rr(blk, rd.host_reg, REG_RCX);
 	}, blk.pc + blk.size);
+	return false;
 }
 
 void JIT_InstructionDecoder::init_rv64i()

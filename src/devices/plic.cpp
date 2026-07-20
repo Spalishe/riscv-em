@@ -66,6 +66,8 @@ PLIC::PLIC(uint64_t start, uint64_t size, Machine& cpu, uint32_t max_sources, fd
 
 			uint32_t irq_phandle = fdt_node_get_phandle(cpu_irq);
 			if(!irq_phandle) continue;
+			fdt_node_free(cpu_irq);
+			fdt_node_free(cpu_node);
 
 			// M-mode external interrupt
 			irq_ext.push_back(irq_phandle);
@@ -75,6 +77,7 @@ PLIC::PLIC(uint64_t start, uint64_t size, Machine& cpu, uint32_t max_sources, fd
 			irq_ext.push_back(irq_phandle);
 			irq_ext.push_back(MIE_SEIE_BIT);
 		}
+		fdt_node_free(cpus);
 
 		struct fdt_node* plic_fdt = fdt_node_create_reg("plic", start);
 		fdt_node_add_prop_reg(plic_fdt, "reg", start, size);
@@ -89,7 +92,9 @@ PLIC::PLIC(uint64_t start, uint64_t size, Machine& cpu, uint32_t max_sources, fd
 			fdt_node_add_prop_cells(plic_fdt, "interrupts-extended", irq_ext, irq_ext.size());
 		}
 
-		fdt_node_add_child(fdt_node_find(fdt, "soc"), plic_fdt);
+		fdt_node* soc = fdt_node_find(fdt, "soc");
+		fdt_node_add_child(soc, plic_fdt);
+		fdt_node_free(soc);
 	}
 }
 

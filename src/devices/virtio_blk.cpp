@@ -30,9 +30,13 @@ VirtIO_BLK::VirtIO_BLK(uint64_t base, uint64_t size, Machine& cpu, fdt_node* fdt
 	fdt_node* virtio_blk_node = fdt_node_create_reg("virtio_mmio", base);
 	fdt_node_add_prop(virtio_blk_node, "compatible", "virtio,mmio\0", 12);
 	fdt_node_add_prop_reg(virtio_blk_node, "reg", base, size);
-	fdt_node_add_prop_u32(virtio_blk_node, "interrupt-parent", fdt_node_get_phandle(fdt_node_find_reg(fdt_node_find(fdt, "soc"), "plic", 0x0C000000)));
+	fdt_node* soc  = fdt_node_find(fdt, "soc");
+	fdt_node* plic = fdt_node_find_reg(soc, "plic", 0x0C000000);
+	fdt_node_add_prop_u32(virtio_blk_node, "interrupt-parent", fdt_node_get_phandle(plic));
+	fdt_node_free(plic);
 	fdt_node_add_prop_u32(virtio_blk_node, "interrupts", irq_num);
-	fdt_node_add_child(fdt_node_find(fdt, "soc"), virtio_blk_node);
+	fdt_node_add_child(soc, virtio_blk_node);
+	fdt_node_free(soc);
 
 	// Device features
 	device_features = VIRTIO_F_VERSION_1;

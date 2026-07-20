@@ -34,7 +34,10 @@ I2C::I2C(uint64_t start, Machine& cpu, fdt_node* fdt)
 		struct fdt_node* i2c_fdt = fdt_node_create_reg("i2c", start);
 		fdt_node_add_prop_reg(i2c_fdt, "reg", start, size);
 		fdt_node_add_prop_str(i2c_fdt, "compatible", "opencores,i2c-ocores");
-		fdt_node_add_prop_u32(i2c_fdt, "interrupt-parent", fdt_node_get_phandle(fdt_node_find_reg(fdt_node_find(fdt, "soc"), "plic", 0x0C000000)));
+		fdt_node* soc  = fdt_node_find(fdt, "soc");
+		fdt_node* plic = fdt_node_find_reg(soc, "plic", 0x0C000000);
+		fdt_node_add_prop_u32(i2c_fdt, "interrupt-parent", fdt_node_get_phandle(plic));
+		fdt_node_free(plic);
 		fdt_node_add_prop_u32(i2c_fdt, "interrupts", irq_num);
 		fdt_node_add_prop_u32(i2c_fdt, "#address-cells", 1);
 		fdt_node_add_prop_u32(i2c_fdt, "#size-cells", 0);
@@ -44,7 +47,8 @@ I2C::I2C(uint64_t start, Machine& cpu, fdt_node* fdt)
 
 		fdt_node_add_prop_str(i2c_fdt, "status", "okay");
 
-		fdt_node_add_child(fdt_node_find(fdt, "soc"), i2c_fdt);
+		fdt_node_add_child(soc, i2c_fdt);
+		fdt_node_free(soc);
 	}
 }
 

@@ -53,6 +53,34 @@ struct Hart
 		hctx = JIT_HartContext();
 #endif
 	};
+	Hart(const Hart&)			 = delete;
+	Hart& operator=(const Hart&) = delete;
+	~Hart()
+	{
+#ifdef USE_JIT
+		delete jctx;
+#endif
+	};
+	Hart(Hart&& other) noexcept
+	{
+#ifdef USE_JIT
+		jctx	   = other.jctx;
+		other.jctx = nullptr;
+#endif
+	}
+
+	Hart& operator=(Hart&& other) noexcept
+	{
+		if(this != &other)
+		{
+#ifdef USE_JIT
+			delete jctx;
+			jctx	   = other.jctx;
+			other.jctx = nullptr;
+#endif
+		}
+		return *this;
+	}
 	uint8_t id;
 	uint64_t GPR[32];
 #ifdef USE_FPU
@@ -64,6 +92,7 @@ struct Hart
 	JIT_Context* jctx;
 	JIT_InstructionDecoder* jidec;
 	JIT_HartContext hctx;
+	uint64_t last_jit_pc_exit = 0;
 #endif
 	MemoryMap* mmap;
 	MMIO* mmio;

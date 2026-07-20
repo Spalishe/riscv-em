@@ -756,19 +756,21 @@ inline void JIT_Emitter::rvjit_emit_epilogue(JIT_Block& blk)
 }
 inline void JIT_Emitter::reset()
 {
-	uint8_t array[]	   = { REG_RAX, REG_RDX, REG_RSI, REG_RDI, REG_R8, REG_R9, REG_R10, REG_R11 };
-	global_use_counter = 0;
+	constexpr uint8_t array[] = { REG_RAX, REG_RDX, REG_RSI, REG_RDI, REG_R8, REG_R9, REG_R10, REG_R11 };
+	global_use_counter		  = 0;
 	for(int i = 0; i < HOST_REGS_COUNT; i++)
 	{
 		host_regs[i].host_reg = array[i];
 		host_regs[i].last_use = 0;
 		host_regs[i].vreg	  = 0xFF;
 		host_regs[i].used	  = false;
+		host_regs[i].idx	  = i;
 	}
 	for(int i = 0; i < 32; i++)
 	{
 		vregs[i].allocated = false;
 		vregs[i].host_reg  = 0xFF;
+		vregs[i].host_idx  = 0;
 		vregs[i].vreg	   = i;
 		vregs[i].dirty	   = false;
 		vregs[i].valid	   = false;
@@ -878,7 +880,7 @@ inline VReg& JIT_Emitter::rvjit_alloc_reg(JIT_Block& blk, uint8_t user_reg, uint
 	if(vregs[user_reg].allocated)
 	{
 		global_use_counter++;
-		host_regs[vregs[user_reg].host_reg].last_use = global_use_counter;
+		host_regs[vregs[user_reg].host_idx].last_use = global_use_counter;
 		ensure_loaded(blk, vregs[user_reg]);
 		return vregs[user_reg];
 	}
@@ -908,6 +910,7 @@ inline VReg& JIT_Emitter::rvjit_alloc_reg(JIT_Block& blk, uint8_t user_reg, uint
 	new_vreg.valid	   = false;
 	new_vreg.allocated = true;
 	new_vreg.host_reg  = victim->host_reg;
+	new_vreg.host_idx  = victim->idx;
 	ensure_loaded(blk, new_vreg);
 	return new_vreg;
 }

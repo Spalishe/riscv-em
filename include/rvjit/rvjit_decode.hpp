@@ -24,7 +24,7 @@ Copyright 2026 Spalishe
 
 struct JIT_Instruction
 {
-	void (*func)(Hart& h, InstructionData& data, JIT_Block& ctx, JIT_Emitter& emitter);
+	bool (*func)(Hart& h, InstructionData& data, JIT_Block& ctx, JIT_Emitter& emitter);
 	uint64_t (*imm_decode_func)(uint32_t inst);
 };
 
@@ -37,7 +37,7 @@ struct JIT_InstructionCache
 };
 struct JIT_InstructionDecoder
 {
-	std::unordered_map<ExecReturn (*)(Hart&, InstructionData&), void (*)(Hart&, InstructionData&, JIT_Block&, JIT_Emitter&)> conversion_tbl;
+	std::unordered_map<ExecReturn (*)(Hart&, InstructionData&), bool (*)(Hart&, InstructionData&, JIT_Block&, JIT_Emitter&)> conversion_tbl;
 	JIT_InstructionCache decode_inst(InstructionCache cache);
 
 	// This function will call on init, calling all sets functions to initialize

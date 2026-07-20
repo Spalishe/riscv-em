@@ -39,10 +39,16 @@ struct Machine
 	~Machine()
 	{
 		state = MachineState::Off;
-		void destroy_harts();
-		void destroy_devices();
-		void destroy_mmap();
+		destroy_harts();
+		destroy_devices();
+		destroy_mmap();
 		if(work_thread_w && !work_thread_joined) work_thread.join();
+		if(fdt)
+			fdt_node_free(fdt);
+		delete idec;
+#ifdef USE_JIT
+		delete jidec;
+#endif
 	}
 	uint64_t memory_size;
 	std::string append;

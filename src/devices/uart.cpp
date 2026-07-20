@@ -27,12 +27,12 @@ UART::UART(uint64_t start, uint64_t size, Machine& cpu, fdt_node* fdt, FILE* out
 	  dll(0),
 	  dlm(0),
 	  ier(0),
-	  iir(0x01), // IIR_NO_INT по спецификации
+	  iir(0x01),
 	  fcr(0),
 	  fifo_enabled(false),
 	  lcr(0),
 	  mcr(0),
-	  lsr(LSR_THR_EMPTY | LSR_TEMT), // изначально буфер пуст
+	  lsr(LSR_THR_EMPTY | LSR_TEMT),
 	  msr(0),
 	  scr(0),
 	  thr(0),
@@ -50,12 +50,17 @@ UART::UART(uint64_t start, uint64_t size, Machine& cpu, fdt_node* fdt, FILE* out
 	fdt_node_add_prop_u32(uart_fdt, "clock-frequency", 20000000);
 	fdt_node_add_prop_u32(uart_fdt, "fifo-size", 16);
 	fdt_node_add_prop_str(uart_fdt, "status", "okay");
-	fdt_node_add_prop_u32(uart_fdt, "interrupt-parent", fdt_node_get_phandle(fdt_node_find_reg(fdt_node_find(fdt, "soc"), "plic", 0x0C000000)));
+	fdt_node* soc  = fdt_node_find(fdt, "soc");
+	fdt_node* plic = fdt_node_find_reg(soc, "plic", 0x0C000000);
+	fdt_node_add_prop_u32(uart_fdt, "interrupt-parent", fdt_node_get_phandle(plic));
+	fdt_node_free(plic);
 	fdt_node_add_prop_u32(uart_fdt, "interrupts", irq_num);
-	fdt_node_add_child(fdt_node_find(fdt, "soc"), uart_fdt);
+	fdt_node_add_child(soc, uart_fdt);
+	fdt_node_free(soc);
 
 	struct fdt_node* chosen = fdt_node_find(fdt, "chosen");
 	fdt_node_add_prop_str(chosen, "stdout-path", "/soc/serial@10000000");
+	fdt_node_free(chosen);
 }
 
 std::shared_ptr<UART> UART::init_auto(Machine& cpu, FILE* out)
@@ -75,7 +80,7 @@ void UART::clear_irq()
 
 uint8_t UART::calc_iir_locked()
 {
-	// Priority: 1 = RX timeout (не эмулируем) -> 2 = RX data available -> 3 = TX empty
+	// Priority: 1 = RX timeout -> 2 = RX data available -> 3 = TX empty
 	if((ier & 0x01) && (lsr & LSR_DATA_READY))
 		return IIR_RX_AVAILABLE;
 	if((ier & 0x02) && (lsr & LSR_THR_EMPTY))
@@ -131,7 +136,7 @@ uint64_t UART::read(uint64_t addr, MemorySize size)
 							lsr &= ~LSR_DATA_READY;
 					}
 					else
-						value = 0; // нет данных
+						value = 0;
 				}
 				else
 				{

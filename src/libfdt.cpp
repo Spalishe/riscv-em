@@ -383,12 +383,14 @@ size_t serialize(Node* node, void* buffer, size_t size, uint32_t boot_cpuid)
 struct fdt_node
 {
 	std::unique_ptr<Node> inner;
+	Node* node;
 };
 
 fdt_node* fdt_node_create(const char* name)
 {
 	fdt_node* r = new fdt_node();
 	r->inner	= std::make_unique<Node>(name ? std::string(name) : std::string());
+	r->node		= r->inner.get();
 	return r;
 }
 
@@ -396,14 +398,19 @@ fdt_node* fdt_node_create_reg(const char* name, uint64_t addr)
 {
 	fdt_node* r = new fdt_node();
 	r->inner	= Node::create_reg(name ? std::string(name) : std::string(), addr);
+	r->node		= r->inner.get();
 	return r;
 }
 
 void fdt_node_add_child(fdt_node* node, fdt_node* child)
 {
 	if(!node || !child) return;
+	if(!child->inner)
+	{
+		return;
+	}
 	// move child's unique_ptr into parent's children
-	node->inner->add_child(std::move(child->inner));
+	node->node->add_child(std::move(child->inner));
 	// delete wrapper of child (it no longer owns inner)
 	delete child;
 }
@@ -421,85 +428,87 @@ fdt_node* to_wrapper(Node* n)
 fdt_node* fdt_node_find(fdt_node* node, const char* name)
 {
 	if(!node || !name) return nullptr;
-	Node* n		= node->inner.get();
-	Node* found = n->find(std::string(name));
+	Node* found = node->node->find(std::string(name));
 	if(!found) return nullptr;
 	fdt_node* w = new fdt_node();
-	w->inner	= std::unique_ptr<Node>(found);
+	w->inner	= nullptr;
+	w->node		= found;
 	return w;
 }
 
 fdt_node* fdt_node_find_reg(fdt_node* node, const char* name, uint64_t addr)
 {
 	if(!node || !name) return nullptr;
-	Node* found = node->inner->find_reg(std::string(name), addr);
+	Node* found = node->node->find_reg(std::string(name), addr);
 	if(!found) return nullptr;
 	fdt_node* w = new fdt_node();
-	w->inner	= std::unique_ptr<Node>(found);
+	w->inner	= nullptr;
+	w->node		= found;
 	return w;
 }
 
 fdt_node* fdt_node_find_reg_any(fdt_node* node, const char* name)
 {
 	if(!node || !name) return nullptr;
-	Node* found = node->inner->find_reg_any(std::string(name));
+	Node* found = node->node->find_reg_any(std::string(name));
 	if(!found) return nullptr;
 	fdt_node* w = new fdt_node();
-	w->inner	= std::unique_ptr<Node>(found);
+	w->inner	= nullptr;
+	w->node		= found;
 	return w;
 }
 
 uint32_t fdt_node_get_phandle(fdt_node* node)
 {
 	if(!node) return 0;
-	return node->inner->get_phandle();
+	return node->node->get_phandle();
 }
 
 void fdt_node_add_prop(fdt_node* node, const char* name, const void* data, uint32_t len)
 {
 	if(!node || !name) return;
-	node->inner->add_prop(std::string(name), data, len);
+	node->node->add_prop(std::string(name), data, len);
 }
 void fdt_node_add_prop_u32(fdt_node* node, const char* name, uint32_t val)
 {
 	if(!node || !name) return;
-	node->inner->add_prop_u32(std::string(name), val);
+	node->node->add_prop_u32(std::string(name), val);
 }
 void fdt_node_add_prop_u64(fdt_node* node, const char* name, uint64_t val)
 {
 	if(!node || !name) return;
-	node->inner->add_prop_u64(std::string(name), val);
+	node->node->add_prop_u64(std::string(name), val);
 }
 void fdt_node_add_prop_cells(fdt_node* node, const char* name, std::vector<uint32_t> cells, uint32_t count)
 {
 	if(!node || !name) return;
-	node->inner->add_prop_cells(std::string(name), cells, count);
+	node->node->add_prop_cells(std::string(name), cells, count);
 }
 void fdt_node_add_prop_str(fdt_node* node, const char* name, const char* val)
 {
 	if(!node || !name) return;
-	node->inner->add_prop_str(std::string(name), std::string(val ? val : ""));
+	node->node->add_prop_str(std::string(name), std::string(val ? val : ""));
 }
 void fdt_node_add_prop_reg(fdt_node* node, const char* name, uint64_t begin, uint64_t size)
 {
 	if(!node || !name) return;
-	node->inner->add_prop_reg(std::string(name), begin, size);
+	node->node->add_prop_reg(std::string(name), begin, size);
 }
 
 void* fdt_node_get_prop_data(fdt_node* node, const char* name)
 {
 	if(!node || !name) return nullptr;
-	return const_cast<void*>(node->inner->get_prop_data(std::string(name)));
+	return const_cast<void*>(node->node->get_prop_data(std::string(name)));
 }
 size_t fdt_node_get_prop_size(fdt_node* node, const char* name)
 {
 	if(!node || !name) return 0;
-	return node->inner->get_prop_size(std::string(name));
+	return node->node->get_prop_size(std::string(name));
 }
 bool fdt_node_del_prop(fdt_node* node, const char* name)
 {
 	if(!node || !name) return false;
-	return node->inner->del_prop(std::string(name));
+	return node->node->del_prop(std::string(name));
 }
 
 void fdt_node_free(fdt_node* node)
@@ -512,11 +521,11 @@ void fdt_node_free(fdt_node* node)
 size_t fdt_size(fdt_node* node)
 {
 	if(!node) return 0;
-	return size_of_tree(node->inner.get());
+	return size_of_tree(node->node);
 }
 
 size_t fdt_serialize(fdt_node* node, void* buffer, size_t size, uint32_t boot_cpuid)
 {
 	if(!node) return 0;
-	return serialize(node->inner.get(), buffer, size, boot_cpuid);
+	return serialize(node->node, buffer, size, boot_cpuid);
 }

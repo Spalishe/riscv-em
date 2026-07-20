@@ -20,81 +20,126 @@ Copyright 2026 Spalishe
 #include "../../include/hart.hpp"
 #include "../../include/rvjit/rvjit_emit.hpp"
 #include "../../include/rvjit/rvjit_x86_64.hpp"
+#include <cassert>
+
+#define assert_msg(condition, format_str, ...)                              \
+	do                                                                      \
+	{                                                                       \
+		if(!(condition))                                                    \
+		{                                                                   \
+			std::cerr << "Assertion failed: (" #condition "), message: "    \
+					  << std::format(format_str, __VA_ARGS__) << std::endl; \
+			assert(condition);                                              \
+		}                                                                   \
+	} while(false)
 
 void JIT_Context::handleInstruction(Hart& h, InstructionCache& cache, uint64_t prev_pc)
 {
 	// This function excepts it will run after instruction execution, so subtract from current pc instruction size to get previous one
 	uint64_t pc = prev_pc;
-	if(ignore_pc[pc & ((1 << 20) - 1)]) return;
+	if(prev_pc < 0x80000000) return;
 	if(jits[jit_index(pc)].valid) return;
-	pc_hits[(pc >> 2) & 0x1FFFF]++;
 
+	uint64_t page_idx = (pc - 0x80000000) >> 12;
+	assert_msg(page_idx < pc_hits.size(), "page_idx: {}; pc: {}", page_idx, pc);
+	if(!pc_hits[page_idx])
+	{
+		pc_hits[page_idx] = new HitPage{};
+	}
+	HitPage* hpage = pc_hits[page_idx];
+
+	if(hpage->is_ignore(pc)) return;
 	if(block_c)
 	{
 		auto jc = h.jidec->decode_inst(cache);
 		if(!jc.valid || block.count >= RVJIT_MAX_INSTRUCTIONS || pc != block.pc + block.size)
 		{
-			block_c = false;
-			if(block.count >= RVJIT_MIN_INSTRUCTIONS)
-			{
-				// Check if our arena is overfilled
-				if(arenas[last_arena].used_size == arenas[last_arena].size)
-				{
-					// Create new arena
-					createNewArena();
-				}
-				auto& arena = arenas[last_arena];
-
-				emitter.rvjit_emit_epilogue(block);
-
-				/*char name[64];
-				snprintf(name, 64, "/tmp/jit_0x%lx.bin", block.pc);
-				FILE* f = fopen(name, "wb");
-				fwrite(block.bytes, 1, block.byte_pos, f);
-				fclose(f);
-				printf("jit: 0x%lx\n", block.pc);*/
-
-				// We built block sized enough. Go go gadget w^x allocations
-				JIT_Function func	= arena.push_function(block.bytes, block.byte_pos);
-				func.inst_size		= block.size;
-				func.pc				= block.pc;
-				jits[jit_index(pc)] = std::move(func);
-				count++;
-			}
-			ignore_pc[pc & ((1 << 20) - 1)] = true;
+			goto end_block_gen;
 			return;
 		}
-		jc.inst.func(h, jc.data, block, emitter);
-		block.size += cache.inst->size;
-		block.count++;
+		if(!(pc < block.pc + block.size))
+		{
+			bool stop = jc.inst.func(h, jc.data, block, emitter);
+			block.size += cache.inst->size;
+			block.count++;
+			hpage->set_ignore(pc);
+			printf("set ignore pc2: 0x%lx\n", pc);
+			if(stop)
+				goto end_block_gen;
+		}
 		return;
 	}
 
-	// If not block creating rn
-	if(pc_hits[(pc >> 2) & 0x1FFFF] > RVJIT_PC_CAP && !block_c)
 	{
-		// Check if there any reference of this instruction in decoder
-		auto jc = h.jidec->decode_inst(cache);
-
-		if(jc.valid)
+		// If not block creating rn
+		uint16_t& hits = hpage->hits[(pc & 0xFFF) >> 1];
+		hits++;
+		if(hits > RVJIT_PC_CAP && !block_c)
 		{
-			block_c = true;
-			memset(&block.bytes, 0, sizeof(block.bytes));
-			memset(&block.inst_addr_jmp, 0xFF, sizeof(block.inst_addr_jmp));
-			block.byte_pos = 0;
-			block.valid	   = true;
-			block.pc	   = pc;
-			block.size	   = cache.inst->size;
-			block.count	   = 1;
-			block.jmp_labels.clear();
+			// Check if there any reference of this instruction in decoder
+			auto jc = h.jidec->decode_inst(cache);
 
-			emitter.reset();
-			emitter.rvjit_emit_prologue(block);
+			if(jc.valid)
+			{
+				block_c = true;
+				memset(&block.bytes, 0, sizeof(block.bytes));
+				memset(&block.inst_addr_jmp, 0xFF, sizeof(block.inst_addr_jmp));
+				block.byte_pos = 0;
+				block.valid	   = true;
+				block.pc	   = pc;
+				block.jmp_labels.clear();
 
-			jc.inst.func(h, jc.data, block, emitter);
+				emitter.reset();
+				emitter.rvjit_emit_prologue(block);
+
+				bool stop	= jc.inst.func(h, jc.data, block, emitter);
+				block.size	= cache.inst->size;
+				block.count = 1;
+				if(stop)
+					goto end_block_gen;
+			}
+			printf("set ignore pc1: 0x%lx valid: %d\n", pc, jc.valid);
+			hpage->set_ignore(pc);
 		}
-		ignore_pc[pc & ((1 << 20) - 1)] = true;
 	}
+	return;
+
+end_block_gen:
+	block_c = false;
+	if(block.count >= RVJIT_MIN_INSTRUCTIONS)
+	{
+		// Check if our arena is overfilled
+		if(arenas[last_arena].used_size == arenas[last_arena].size)
+		{
+			// Create new arena
+			createNewArena();
+		}
+		auto& arena = arenas[last_arena];
+
+		emitter.rvjit_emit_epilogue(block);
+
+		/*char name[64];
+		snprintf(name, 64, "/tmp/jit_0x%lx.bin", block.pc);
+		FILE* f = fopen(name, "wb");
+		fwrite(block.bytes, 1, block.byte_pos, f);
+		fclose(f);
+		printf("jit: 0x%lx\n", block.pc);*/
+
+		// We built block sized enough. Go go gadget w^x allocations
+		JIT_Function func		  = arena.push_function(block.bytes, block.byte_pos);
+		func.inst_size			  = block.size;
+		func.pc					  = block.pc;
+		func.page_version		  = page_verion_bitmap[(block.pc - 0x80000000) >> 12];
+		jits[jit_index(block.pc)] = std::move(func);
+		printf("compiled block.pc: 0x%lx pc: 0x%lx size: %d\n", block.pc, pc, block.size);
+		count++;
+
+		if(block.pc == 0x80377fb8)
+		{
+			printf("yea we compiled at 0x80377fb8 with guest size: %d\n", block.size);
+		}
+	}
+	hpage->set_ignore(pc);
 }
 void JIT_Context::stopBlock()
 {
@@ -110,9 +155,9 @@ void JIT_Context::stopBlock()
 void JIT_Context::createNewArena()
 {
 	last_arena++;
+
 	arenas.insert({ last_arena, JIT_Arena() });
-	JIT_Arena& arena	= arenas.at(last_arena);
-	arena.page_versions = page_verion_bitmap;
+	JIT_Arena& arena = arenas.at(last_arena);
 	arena.init();
 }
 
@@ -180,10 +225,9 @@ JIT_Function JIT_Arena::push_function(const void* code, size_t code_size)
 
 	used_size += RVJIT_FUNC_SIZE;
 	JIT_Function result;
-	result.func			= reinterpret_cast<JITCompilatedFunc>(func_pos);
-	result.size			= code_size;
-	result.valid		= true;
-	result.page_version = page_versions[(result.pc - 0x80000000) >> 12];
+	result.func	 = reinterpret_cast<JITCompilatedFunc>(func_pos);
+	result.size	 = code_size;
+	result.valid = true;
 	return result;
 }
 

@@ -37,8 +37,7 @@ Machine::Machine(uint64_t mem_size, uint8_t hart_count) : memory_size(mem_size),
 	// Init harts
 	for(int i = 0; i < hart_count; i++)
 	{
-		Hart hart = Hart(i, mem_size);
-		harts.push_back(hart);
+		harts.emplace_back(i, mem_size);
 	}
 };
 
@@ -194,6 +193,7 @@ void Machine::run()
 	fread(buffer, 1, size, bios_file);
 	buffer[size] = '\0';
 	bool out	 = mmap->load_buffer(0x80000000, buffer, size, &entry_pc);
+	delete[] buffer;
 	if(!out) return;
 	if(kernel_file != nullptr)
 	{
@@ -204,6 +204,7 @@ void Machine::run()
 		fread(buffer, 1, size, kernel_file);
 		buffer[size] = '\0';
 		out			 = mmap->load_buffer(0x80200000, buffer, size);
+		delete[] buffer;
 	}
 	if(!out) return;
 
@@ -251,6 +252,7 @@ void Machine::work()
 			fread(buffer, 1, size, bios_file);
 			buffer[size] = '\0';
 			mmap->load_buffer(0x80000000, buffer, size);
+			delete[] buffer;
 			if(kernel_file != nullptr)
 			{
 				fseek(kernel_file, 0, SEEK_END);
@@ -260,6 +262,7 @@ void Machine::work()
 				fread(buffer, 1, size, kernel_file);
 				buffer[size] = '\0';
 				mmap->load_buffer(0x80200000, buffer, size);
+				delete[] buffer;
 			}
 
 			write_fdt();
@@ -268,15 +271,15 @@ void Machine::work()
 			uint64_t dtb_path_in_memory = 0x80000000 + memory_size - 0x20000;
 			for(int i = 0; i < harts_count; i++)
 			{
-				Hart hart = Hart(i, memory_size);
-				hart.mmap = mmap;
-				hart.mmio = mmio;
-				hart.idec = idec;
+				harts.emplace_back(i, memory_size);
+				Hart& hart = harts.back();
+				hart.mmap  = mmap;
+				hart.mmio  = mmio;
+				hart.idec  = idec;
 #ifdef USE_JIT
 				hart.jidec = jidec;
 #endif
 				hart.init(dtb_path_in_memory, entry_pc);
-				harts.push_back(hart);
 			}
 // prepare
 #ifdef USE_GDBSTUB
@@ -349,6 +352,7 @@ void Machine::reset()
 		fread(buffer, 1, size, bios_file);
 		buffer[size] = '\0';
 		mmap->load_buffer(0x80000000, buffer, size);
+		delete[] buffer;
 		if(kernel_file != nullptr)
 		{
 			fseek(kernel_file, 0, SEEK_END);
@@ -358,6 +362,7 @@ void Machine::reset()
 			fread(buffer, 1, size, kernel_file);
 			buffer[size] = '\0';
 			mmap->load_buffer(0x80200000, buffer, size);
+			delete[] buffer;
 		}
 
 		write_fdt();
@@ -366,15 +371,15 @@ void Machine::reset()
 		uint64_t dtb_path_in_memory = 0x80000000 + memory_size - 0x20000;
 		for(int i = 0; i < harts_count; i++)
 		{
-			Hart hart = Hart(i, memory_size);
-			hart.mmap = mmap;
-			hart.mmio = mmio;
-			hart.idec = idec;
+			harts.emplace_back(i, memory_size);
+			Hart& hart = harts.back();
+			hart.mmap  = mmap;
+			hart.mmio  = mmio;
+			hart.idec  = idec;
 #ifdef USE_JIT
 			hart.jidec = jidec;
 #endif
 			hart.init(dtb_path_in_memory, entry_pc);
-			harts.push_back(hart);
 		}
 // prepare
 #ifdef USE_GDBSTUB
@@ -412,4 +417,5 @@ void Machine::destroy_mmap()
 	}
 	mmap->regions.clear();
 	delete mmap;
+	delete mmio;
 }

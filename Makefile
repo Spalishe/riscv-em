@@ -90,6 +90,7 @@ endif
 CXX_VERSION := $(shell $(CXX) --version | head -n 1)
 AR_VERSION := $(shell $(AR) --version | head -n 1)
 
+#  -fsanitize=address and -fno-omit-frame-pointer for detailed debugging(ASAN)
 LIBS := -latomic -pthread
 CXXFLAGS := -std=c++20 -std=gnu++20 $(LIBS) -O3 -g -march=native -flto -MMD -MP -Iinclude
 

@@ -39,7 +39,9 @@ Framebuffer::Framebuffer(uint64_t start, Machine& cpu, fdt_node* fdt, size_t wid
 		fdt_node_add_prop_u32(fb_fdt, "width", width);
 		fdt_node_add_prop_u32(fb_fdt, "height", height);
 		fdt_node_add_prop_u32(fb_fdt, "stride", width * 4);
-		fdt_node_add_child(fdt_node_find(fdt, "soc"), fb_fdt);
+		fdt_node* soc = fdt_node_find(fdt, "soc");
+		fdt_node_add_child(soc, fb_fdt);
+		fdt_node_free(soc);
 	}
 }
 

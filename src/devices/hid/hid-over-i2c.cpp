@@ -37,12 +37,18 @@ HIDOverI2C::HIDOverI2C(Machine& cpu, fdt_node* fdt, std::vector<uint8_t> report_
 		struct fdt_node* i2c_fdt = fdt_node_create_reg("i2c", irq_num);
 		fdt_node_add_prop_u32(i2c_fdt, "reg", irq_num);
 		fdt_node_add_prop_str(i2c_fdt, "compatible", "hid-over-i2c");
-		fdt_node_add_prop_u32(i2c_fdt, "interrupt-parent", fdt_node_get_phandle(fdt_node_find_reg(fdt_node_find(fdt, "soc"), "plic", 0x0C000000)));
+		fdt_node* soc  = fdt_node_find(fdt, "soc");
+		fdt_node* plic = fdt_node_find_reg(soc, "plic", 0x0C000000);
+		fdt_node_add_prop_u32(i2c_fdt, "interrupt-parent", fdt_node_get_phandle(plic));
+		fdt_node_free(plic);
 		fdt_node_add_prop_u32(i2c_fdt, "interrupts", irq_num);
 		fdt_node_add_prop_u32(i2c_fdt, "hid-descr-addr", 0x01);
 		fdt_node_add_prop(i2c_fdt, "wakeup-source", NULL, 0);
 
-		fdt_node_add_child(fdt_node_find_reg_any(fdt_node_find(fdt, "soc"), "i2c"), i2c_fdt);
+		fdt_node* i2c = fdt_node_find_reg_any(soc, "i2c");
+		fdt_node_add_child(i2c, i2c_fdt);
+		fdt_node_free(soc);
+		fdt_node_free(i2c);
 	}
 };
 

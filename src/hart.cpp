@@ -76,25 +76,30 @@ void Hart::tick()
 	{
 		JIT_Function& jit_entry = jctx->jits[jit_index(pc)];
 
-		if(jit_entry.valid && jit_entry.pc == pc) [[unlikely]]
+		if(jit_entry.valid && jit_entry.pc == pc && last_jit_pc_exit != pc) [[unlikely]]
 		{
 			if(jit_entry.page_version != jctx->page_verion_bitmap[(pc - 0x80000000) >> 12]) [[unlikely]]
 			{
-				jit_entry.valid						  = false;
-				jctx->ignore_pc[pc & ((1 << 20) - 1)] = 0;
-				jctx->pc_hits[(pc >> 2) & 0x1FFFF]	  = 0;
+				jit_entry.valid = false;
+				for(auto* val : jctx->pc_hits)
+					delete val;
+				jctx->pc_hits.clear();
 				return;
 			}
 			hctx.exit_pc = 0;
 			jit_entry.func(&hctx);
 			if(hctx.exit_pc != 0)
-				pc = hctx.exit_pc;
+			{
+				pc				 = hctx.exit_pc;
+				last_jit_pc_exit = pc;
+			}
 			else
 				pc += jit_entry.inst_size;
 
 			return;
 		}
 	}
+	last_jit_pc_exit = 0;
 #endif
 	uint32_t inst			= fetch(pc);
 	InstructionCache& cache = idec->decode_inst(pc, inst);

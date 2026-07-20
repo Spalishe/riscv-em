@@ -30,10 +30,10 @@ struct HIDOverI2C : I2CSlave
 	HIDOverI2C(Machine& cpu, fdt_node* fdt, std::vector<uint8_t> report_desc, uint16_t input_report_size);
 	~HIDOverI2C()
 	{
-		if(input_report != nullptr) delete input_report;
-		if(output_report != nullptr) delete output_report;
-		if(data_register != nullptr) delete data_register;
-		if(command_register != nullptr) delete command_register;
+		if(input_report != nullptr) delete[] input_report;
+		if(output_report != nullptr) delete[] output_report;
+		if(data_register != nullptr) delete[] data_register;
+		if(command_register != nullptr) delete[] command_register;
 	}
 	PLIC* plic;
 	int irq_num;

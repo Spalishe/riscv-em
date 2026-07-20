@@ -29,7 +29,7 @@ struct I2CSlave
 	{
 		if(buffer)
 		{
-			delete buffer;
+			delete[] buffer;
 		}
 	};
 	uint8_t address;

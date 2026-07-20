@@ -35,12 +35,14 @@ struct HReg
 	bool used		  = false;
 	uint8_t vreg	  = 0xFF;
 	uint64_t last_use = 0;
+	uint8_t idx		  = 0;
 };
 struct VReg
 {
 	bool allocated = false;
 	uint8_t vreg;
 	uint8_t host_reg = 0xFF;
+	uint8_t host_idx = 0;
 	bool dirty		 = false;
 	bool valid		 = false;
 	bool is_zero	 = false;
@@ -59,7 +61,7 @@ struct JIT_Block
 	uint8_t bytes[RVJIT_FUNC_SIZE];
 	uint16_t byte_pos = 0;
 	std::vector<JumpLabel> jmp_labels;
-	uint64_t inst_addr_jmp[RVJIT_FUNC_SIZE];
+	uint64_t inst_addr_jmp[RVJIT_FUNC_SIZE * 4];
 
 	uint64_t pc;
 	uint64_t size  = 0;
