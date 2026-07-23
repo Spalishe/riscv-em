@@ -264,12 +264,16 @@ int main(int argc, char* argv[])
 	machine.init_auto_devices();
 	uart = machine.mmio->get<UART>();
 
+	auto i2c = machine.mmio->get<I2C>();
+
 #ifdef USE_FRAMEBUFFER
 	AppWindow window;
 	VkInstance instance;
 	VkSurfaceKHR surface;
 	if(fb_w != 0 && fb_h != 0)
 	{
+		auto kb		  = i2c->create_device<HID_Keyboard>(machine, machine.fdt);
+		window.kb	  = std::dynamic_pointer_cast<HID_Keyboard>(kb);
 		window.width  = fb_w;
 		window.height = fb_h;
 		if(!InitializeNativeWindow(window, "riscv-em"))
@@ -285,16 +289,6 @@ int main(int argc, char* argv[])
 		StartEventLoop(window);
 
 		machine.mmio->create_device<Framebuffer>(0x18000000, machine, machine.fdt, fb_w, fb_h, window);
-	}
-#endif
-
-	auto i2c = machine.mmio->get<I2C>();
-	auto kb	 = i2c->create_device<HID_Keyboard>(machine, machine.fdt);
-
-#ifdef USE_FRAMEBUFFER
-	if(fb_w != 0 && fb_h != 0)
-	{
-		window.kb = std::static_pointer_cast<HID_Keyboard>(kb);
 	}
 #endif
 

@@ -206,7 +206,6 @@ namespace
 		auto* window = static_cast<WaylandWindow*>(data);
 		if(window && window->kb)
 		{
-
 			if(state == WL_KEYBOARD_KEY_STATE_PRESSED)
 				key_press(*window->input, key);
 			else
@@ -490,13 +489,10 @@ inline bool InitializeNativeWindow(AppWindow& appWindow, const std::string& titl
 {
 	(void)title;
 	WaylandWindow window = {};
-	window.kb			 = appWindow.kb;
-	window.input		 = &appWindow.input;
-	bool out			 = InitializeWaylandScreen(window, appWindow.width, appWindow.height);
-	if(out)
-	{
-		appWindow.wl = std::move(window);
-	}
+	appWindow.wl		 = std::move(window);
+	appWindow.wl.kb		 = appWindow.kb;
+	appWindow.wl.input	 = &appWindow.input;
+	bool out			 = InitializeWaylandScreen(appWindow.wl, appWindow.width, appWindow.height);
 	return out;
 }
 
