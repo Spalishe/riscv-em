@@ -41,7 +41,7 @@ void JIT_Context::handleInstruction(Hart& h, InstructionCache& cache, uint64_t p
 	if(jits[jit_index(pc)].valid) return;
 
 	uint64_t page_idx = (pc - 0x80000000) >> 12;
-	assert_msg(page_idx < pc_hits.size(), "page_idx: {}; pc: {}", page_idx, pc);
+	assert_msg(page_idx < pc_hits.size(), "page_idx: {}; pc: {} pc_hits.size(): {}", page_idx, pc, pc_hits.size());
 	if(!pc_hits[page_idx])
 	{
 		pc_hits[page_idx] = new HitPage{};
@@ -63,7 +63,6 @@ void JIT_Context::handleInstruction(Hart& h, InstructionCache& cache, uint64_t p
 			block.size += cache.inst->size;
 			block.count++;
 			hpage->set_ignore(pc);
-			printf("set ignore pc2: 0x%lx\n", pc);
 			if(stop)
 				goto end_block_gen;
 		}
@@ -87,6 +86,8 @@ void JIT_Context::handleInstruction(Hart& h, InstructionCache& cache, uint64_t p
 				block.byte_pos = 0;
 				block.valid	   = true;
 				block.pc	   = pc;
+				block.size	   = 0;
+				block.count	   = 0;
 				block.jmp_labels.clear();
 
 				emitter.reset();
@@ -98,7 +99,6 @@ void JIT_Context::handleInstruction(Hart& h, InstructionCache& cache, uint64_t p
 				if(stop)
 					goto end_block_gen;
 			}
-			printf("set ignore pc1: 0x%lx valid: %d\n", pc, jc.valid);
 			hpage->set_ignore(pc);
 		}
 	}
@@ -131,7 +131,6 @@ end_block_gen:
 		func.pc					  = block.pc;
 		func.page_version		  = page_verion_bitmap[(block.pc - 0x80000000) >> 12];
 		jits[jit_index(block.pc)] = std::move(func);
-		printf("compiled block.pc: 0x%lx pc: 0x%lx size: %d\n", block.pc, pc, block.size);
 		count++;
 
 		if(block.pc == 0x80377fb8)

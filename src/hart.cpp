@@ -83,12 +83,13 @@ void Hart::tick()
 				jit_entry.valid = false;
 				for(auto* val : jctx->pc_hits)
 					delete val;
-				jctx->pc_hits.clear();
+				jctx->clear_pc_hits();
 				return;
 			}
-			hctx.exit_pc = 0;
-			hctx.hart	 = this;
+			hctx.exit_pc	= 0;
+			hctx.loop_count = 1000;
 			jit_entry.func(&hctx);
+
 			if(hctx.exit_pc != 0)
 			{
 				pc				 = hctx.exit_pc;

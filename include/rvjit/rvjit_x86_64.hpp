@@ -94,10 +94,14 @@ inline uint8_t rex(bool W, bool R, bool X, bool B)
 	return (0b0100 << 4) | (W << 3) | (R << 2) | (X << 1) | B;
 }
 
+inline bool needs_disp0(uint8_t base)
+{
+	return base != REG_RBP && base != REG_R13;
+}
 #define NO_INDEX 0xFF
 inline bool needs_sib(uint8_t base, uint8_t index)
 {
-	return index != 0xFF || (base & 7) == 4; // rsp/r12
+	return index != NO_INDEX || (base & 7) == 4; // rsp/r12
 }
 
 // SIB helper
@@ -106,7 +110,7 @@ inline void sib_helper(JIT_Block& blk, uint8_t reg, uint8_t base, uint8_t index,
 	bool has_index = index != 0xFF;
 	bool need_sib  = needs_sib(base, index);
 	uint8_t mod;
-	if(disp == 0 && (base & 7) != 5)
+	if(disp == 0 && needs_disp0(base))
 		mod = 0;
 	else if(disp >= -128 && disp <= 127)
 		mod = 1;
@@ -148,13 +152,36 @@ inline void sub_rr32(JIT_Block& blk, char dest, char source)
 	blk.bytes[blk.byte_pos++] = 0x29;
 	blk.bytes[blk.byte_pos++] = modrm(3, (source & 7), (dest & 7));
 }
-// SUB r/m64, imm32
+// SUB r64, imm32
 inline void sub_rimm32(JIT_Block& blk, char dest, int32_t imm32)
 {
 	// dest is RM, imm32 is 5
 	blk.bytes[blk.byte_pos++] = rex(1, 0, 0, (dest > 7));
 	blk.bytes[blk.byte_pos++] = 0x81;
 	blk.bytes[blk.byte_pos++] = modrm(3, 0b101, (dest & 7));
+	blk.bytes[blk.byte_pos++] = imm32 & 0xFF;
+	blk.bytes[blk.byte_pos++] = (imm32 >> 8) & 0xFF;
+	blk.bytes[blk.byte_pos++] = (imm32 >> 16) & 0xFF;
+	blk.bytes[blk.byte_pos++] = (imm32 >> 24) & 0xFF;
+}
+// SUB r/m64, imm32
+inline void sub_mimm32(
+	JIT_Block& blk,
+	uint8_t reg_base,
+	uint8_t reg_index,
+	uint8_t scale,
+	int32_t disp,
+	int32_t imm32)
+{
+	blk.bytes[blk.byte_pos++] = rex(1, 0,
+									(reg_index != 0xFF && reg_index > 7),
+									(reg_base > 7));
+
+	blk.bytes[blk.byte_pos++] = 0x81;
+
+	// reg field = 5 => SUB
+	sib_helper(blk, 5, reg_base, reg_index, scale, disp);
+
 	blk.bytes[blk.byte_pos++] = imm32 & 0xFF;
 	blk.bytes[blk.byte_pos++] = (imm32 >> 8) & 0xFF;
 	blk.bytes[blk.byte_pos++] = (imm32 >> 16) & 0xFF;
@@ -691,6 +718,12 @@ inline void jmp32(JIT_Block& blk, int32_t rel32)
 	blk.bytes[blk.byte_pos++] = (rel32 >> 16) & 0xFF;
 	blk.bytes[blk.byte_pos++] = (rel32 >> 24) & 0xFF;
 }
+// JS rel8
+inline void js8(JIT_Block& blk, int8_t rel8)
+{
+	blk.bytes[blk.byte_pos++] = 0x78;
+	blk.bytes[blk.byte_pos++] = rel8;
+}
 // MOVZX r64, r/m8
 inline void movzx(JIT_Block& blk, char dest, char source)
 {
@@ -867,6 +900,7 @@ inline HReg* JIT_Emitter::spill(JIT_Block& blk, uint64_t locked)
 		if(reg.last_use < victim->last_use)
 			victim = &reg;
 	}
+	if(victim == nullptr) return victim;
 	victim->used = false;
 	VReg& vreg	 = vregs[victim->vreg];
 	if(vreg.dirty)
@@ -1061,9 +1095,14 @@ inline void JIT_Emitter::inst_emit_j_type(Hart& h, InstructionData& inst, JIT_Bl
 
 	rd.dirty = true;
 }
-inline void JIT_Emitter::inst_emit_u_type(Hart& h, InstructionData& inst, JIT_Block& blk, JOpFunction emit_op, uint64_t pc, void* tmp)
+inline void JIT_Emitter::inst_emit_u_type(Hart& h, InstructionData& inst, JIT_Block& blk, UOpFunction emit_op, uint64_t pc, void* tmp)
 {
 	blk.inst_addr_jmp[blk.size] = blk.byte_pos;
+	if(inst.rd == 0)
+	{
+		// x0 write ignored
+		return;
+	}
 
 	VReg& rd = rvjit_alloc_reg(blk, inst.rd, 0);
 

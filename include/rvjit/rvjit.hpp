@@ -23,9 +23,9 @@ Copyright 2026 Spalishe
 #include <sys/mman.h>
 #include <unordered_map>
 
-#define RVJIT_MIN_INSTRUCTIONS 12
+#define RVJIT_MIN_INSTRUCTIONS 1
 #define RVJIT_MAX_INSTRUCTIONS 48
-#define RVJIT_PC_CAP		   0x3000
+#define RVJIT_PC_CAP		   100
 #define RVJIT_FUNC_SIZE		   0x1000 // DONT CHANGE IT IF YOU DONT KNOW WHAT YOU'RE DOING! If emitted function will overflow arena's buffer, it will be your fault
 #define RVJIT_ARENA_PAGES	   0x400  // Linux default page size is 4096, then 1024 * 4096 = 4194304 bytes, 4 MB
 static constexpr size_t JIT_CACHE_SIZE = 1 << 20;
@@ -39,6 +39,7 @@ struct JIT_HartContext
 	uint64_t memsize;
 	uint64_t exit_pc = 0;
 	Hart* hart;
+	int32_t loop_count = 1000;
 };
 
 using JITCompilatedFunc = void (*)(JIT_HartContext*);
@@ -189,7 +190,7 @@ struct HitPage
 };
 struct JIT_Context
 {
-	JIT_Context(uint64_t memory_size)
+	JIT_Context(uint64_t memory_size) : memory_size(memory_size)
 	{
 		last_arena		   = 0;
 		emitter			   = JIT_Emitter();
@@ -252,13 +253,20 @@ struct JIT_Context
 
 	uint64_t* page_verion_bitmap;
 
-	uint64_t last_arena = 0;
-	uint64_t count		= 0;
+	uint64_t last_arena	 = 0;
+	uint64_t count		 = 0;
+	uint64_t memory_size = 0;
 
 	JIT_Emitter emitter;
 
 	void handleInstruction(Hart& h, InstructionCache& cache, uint64_t prev_pc);
 	void stopBlock();
 	void createNewArena();
+
+	inline void clear_pc_hits()
+	{
+		pc_hits.clear();
+		pc_hits.resize(memory_size >> 12, nullptr);
+	}
 };
 #endif

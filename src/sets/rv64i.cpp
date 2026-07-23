@@ -17,6 +17,7 @@ Copyright 2026 Spalishe
 
 #include "../../include/decode.hpp"
 #include "../../include/hart.hpp"
+#include <cstddef>
 
 // R-Type
 
@@ -861,6 +862,9 @@ bool execjit_SLT(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter&
 	emitter.inst_emit_r_type(hart, inst, blk, false,
 							 [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2, uint64_t pc, void* tmp)
 	{
+		if(rs1.vreg == 0) xor_rr(blk, rs1.host_reg, rs1.host_reg);
+		if(rs2.vreg == 0) xor_rr(blk, rs2.host_reg, rs2.host_reg);
+
 		cmp(blk, rs1.host_reg, rs2.host_reg);
 		setl(blk, rd.host_reg);
 		movzx(blk, rd.host_reg, rd.host_reg);
@@ -871,6 +875,8 @@ bool execjit_SLTU(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter
 {
 	emitter.inst_emit_r_type(hart, inst, blk, false, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, VReg& rs2, uint64_t pc, void* tmp)
 	{
+		if(rs1.vreg == 0) xor_rr(blk, rs1.host_reg, rs1.host_reg);
+		if(rs2.vreg == 0) xor_rr(blk, rs2.host_reg, rs2.host_reg);
 		cmp(blk, rs1.host_reg, rs2.host_reg);
 		setb(blk, rd.host_reg);
 		movzx(blk, rd.host_reg, rd.host_reg);
@@ -1028,6 +1034,31 @@ bool execjit_SRAIW(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitte
 	}, blk.pc + blk.size);
 	return false;
 }
+bool execjit_SLTI(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	emitter.inst_emit_i_type(hart, inst, blk, false,
+							 [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, uint64_t imm, uint64_t pc, void* tmp)
+	{
+		if(rs1.vreg == 0) xor_rr(blk, rs1.host_reg, rs1.host_reg);
+		mov_imm64(blk, REG_RCX, imm);
+		cmp(blk, rs1.host_reg, REG_RCX);
+		setl(blk, rd.host_reg);
+		movzx(blk, rd.host_reg, rd.host_reg);
+	}, blk.pc + blk.size);
+	return false;
+}
+bool execjit_SLTIU(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
+{
+	emitter.inst_emit_i_type(hart, inst, blk, false, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, uint64_t imm, uint64_t pc, void* tmp)
+	{
+		if(rs1.vreg == 0) xor_rr(blk, rs1.host_reg, rs1.host_reg);
+		mov_imm64(blk, REG_RCX, imm);
+		cmp(blk, rs1.host_reg, REG_RCX);
+		setb(blk, rd.host_reg);
+		movzx(blk, rd.host_reg, rd.host_reg);
+	}, blk.pc + blk.size);
+	return false;
+}
 
 uint64_t jit_slow_lb(Hart* h, uint64_t addr)
 {
@@ -1160,21 +1191,39 @@ bool jit_load(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& em
 		{
 			// Slow path, make interpreter work instead
 			/*mov_imm64(blk, REG_RCX, pc);
-			mov_mr(blk, REG_RCX, REG_R12, NO_INDEX, 0, 32);
+			mov_mr(blk, REG_RCX, REG_R12, NO_INDEX, 0, offsetof(JIT_HartContext, exit_pc));
 			blk.jmp_labels.push_back({ "epilogue", blk.byte_pos, false });
 			jmp32(blk, 0);*/
 			// old method, returning to interpreter
 			push(blk, REG_RDI);
 			push(blk, REG_RSI);
 			push(blk, REG_RAX);
+			/*push(blk, REG_RAX);
+			push(blk, REG_RDX);
+			push(blk, REG_RSI);
+			push(blk, REG_RDI);
+			push(blk, REG_R8);
+			push(blk, REG_R9);
+			push(blk, REG_R10);
+			push(blk, REG_R11);*/
+
 			mov(blk, REG_RSI, REG_RCX);
 			mov_rm(blk, REG_RDI, REG_R12, NO_INDEX, 0, offsetof(JIT_HartContext, hart));
 			mov_imm64(blk, REG_RAX, (uint64_t)function_data.slow_find);
 			call(blk, REG_RAX);
-			mov(blk, rd.host_reg, REG_RAX);
+			mov(blk, REG_RCX, REG_RAX);
 			pop(blk, REG_RAX);
 			pop(blk, REG_RSI);
 			pop(blk, REG_RDI);
+			/*pop(blk, REG_R11);
+			pop(blk, REG_R10);
+			pop(blk, REG_R9);
+			pop(blk, REG_R8);
+			pop(blk, REG_RDI);
+			pop(blk, REG_RSI);
+			pop(blk, REG_RDX);
+			pop(blk, REG_RAX);*/
+			mov(blk, rd.host_reg, REG_RCX);
 
 			blk.jmp_labels.push_back({ "end", blk.byte_pos, false, 1 });
 			jmp8(blk, 0);
@@ -1226,6 +1275,7 @@ void jit_slow_sb(Hart* h, uint64_t addr, uint64_t val)
 		{
 			// found a device
 			dev->write(addr, MemorySize::Byte, val);
+			return;
 		}
 	}
 }
@@ -1240,6 +1290,7 @@ void jit_slow_sh(Hart* h, uint64_t addr, uint64_t val)
 		{
 			// found a device
 			dev->write(addr, MemorySize::Short, val);
+			return;
 		}
 	}
 }
@@ -1254,6 +1305,7 @@ void jit_slow_sw(Hart* h, uint64_t addr, uint64_t val)
 		{
 			// found a device
 			dev->write(addr, MemorySize::Int, val);
+			return;
 		}
 	}
 }
@@ -1268,6 +1320,7 @@ void jit_slow_sd(Hart* h, uint64_t addr, uint64_t val)
 		{
 			// found a device
 			dev->write(addr, MemorySize::Long, val);
+			return;
 		}
 	}
 }
@@ -1277,10 +1330,10 @@ bool jit_store(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& e
 	emitter.inst_emit_s_type(hart, inst, blk, [](JIT_Emitter& em, JIT_Block& blk, VReg& rs1, VReg& rs2, uint64_t imm, uint64_t pc, void* tmp)
 	{
 		mov(blk, REG_RCX, rs1.host_reg);
-		add_rimm32(blk, REG_RCX, imm);
+		add_rimm32(blk, REG_RCX, (int32_t)imm);
 		sub_rimm32(blk, REG_RCX, 0x40000000); //
 		sub_rimm32(blk, REG_RCX, 0x40000000); // This does sum of 0x80000000, which is beyond the int32_t limit
-		cmp_rm(blk, REG_RCX, REG_R12, NO_INDEX, 0, 24);
+		cmp_rm(blk, REG_RCX, REG_R12, NO_INDEX, 0, offsetof(JIT_HartContext, memsize));
 
 		blk.jmp_labels.push_back({ "fast_path", blk.byte_pos, false, 1 });
 		jbe8(blk, 0);
@@ -1297,11 +1350,35 @@ bool jit_store(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& e
 			push(blk, REG_RSI);
 			push(blk, REG_RAX);
 			push(blk, REG_RDX);
+
+			/*push(blk, REG_RAX);
+			push(blk, REG_RDX);
+			push(blk, REG_RSI);
+			push(blk, REG_RDI);
+			push(blk, REG_R8);
+			push(blk, REG_R9);
+			push(blk, REG_R10);
+			push(blk, REG_R11);*/
+
+			if(rs2.vreg == 0)
+				xor_rr(blk, REG_RDX, REG_RDX);
+			else
+				mov(blk, REG_RDX, rs2.host_reg);
+
 			mov(blk, REG_RSI, REG_RCX);
 			mov_rm(blk, REG_RDI, REG_R12, NO_INDEX, 0, offsetof(JIT_HartContext, hart));
-			mov(blk, REG_RDX, rs2.host_reg);
 			mov_imm64(blk, REG_RAX, (uint64_t)function_data.slow_find);
 			call(blk, REG_RAX);
+
+			/*pop(blk, REG_R11);
+			pop(blk, REG_R10);
+			pop(blk, REG_R9);
+			pop(blk, REG_R8);
+			pop(blk, REG_RDI);
+			pop(blk, REG_RSI);
+			pop(blk, REG_RDX);
+			pop(blk, REG_RAX);*/
+
 			pop(blk, REG_RDX);
 			pop(blk, REG_RAX);
 			pop(blk, REG_RSI);
@@ -1313,7 +1390,17 @@ bool jit_store(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& e
 		em.realize_label(blk, "fast_path");
 
 		auto function_ptr = reinterpret_cast<MovSignature>(function_data.fast_mov);
-		function_ptr(blk, rs2.host_reg, REG_R14, REG_RCX, 0, 0);
+
+		if(rs2.vreg == 0)
+		{
+			push(blk, REG_RAX);
+			xor_rr(blk, REG_RAX, REG_RAX);
+			function_ptr(blk, REG_RAX, REG_R14, REG_RCX, 0, 0);
+			pop(blk, REG_RAX);
+		}
+		else
+			function_ptr(blk, rs2.host_reg, REG_R14, REG_RCX, 0, 0);
+
 		em.realize_label(blk, "end");
 	}, blk.pc + blk.size, reinterpret_cast<void*>(&stru));
 	return false;
@@ -1339,6 +1426,14 @@ bool jit_branch(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& 
 {
 	emitter.inst_emit_b_type(hart, inst, blk, [](JIT_Emitter& em, JIT_Block& blk, VReg& rs1, VReg& rs2, uint64_t imm, uint64_t pc, void* tmp)
 	{
+		// Check for loop
+		sub_mimm32(blk, REG_R12, NO_INDEX, 0, offsetof(JIT_HartContext, loop_count), blk.count);
+		blk.jmp_labels.push_back({ "slow_path",
+								   blk.byte_pos,
+								   false,
+								   1 });
+		js8(blk, 0);
+
 		cmp(blk, rs1.host_reg, rs2.host_reg);
 
 		blk.jmp_labels.push_back({ "taken",
@@ -1355,7 +1450,6 @@ bool jit_branch(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& 
 								   false,
 								   1 });
 		jmp8(blk, 0);
-
 		// taken handler
 		em.realize_label(blk, "taken");
 		blk.jmp_labels.push_back({ "branch",
@@ -1365,6 +1459,8 @@ bool jit_branch(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& 
 								   (int64_t)blk.size + (int64_t)imm });
 		jmp32(blk, 0);
 		{
+			em.realize_label(blk, "slow_path");
+
 			// Slow path, make interpreter work instead
 			mov_imm64(blk, REG_RCX, pc);
 			mov_mr(blk, REG_RCX, REG_R12, NO_INDEX, 0, offsetof(JIT_HartContext, exit_pc));
@@ -1374,7 +1470,7 @@ bool jit_branch(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& 
 
 		em.realize_label(blk, "end");
 	}, blk.pc + blk.size, func);
-	return false;
+	return true;
 }
 
 bool execjit_BEQ(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter& emitter)
@@ -1406,8 +1502,17 @@ bool execjit_JAL(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter&
 	emitter.inst_emit_j_type(hart, inst, blk, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, uint64_t imm, uint64_t pc, void* tmp)
 	{
 		// Move PC+4 to RD
-		mov_imm64(blk, rd.host_reg, imm);
+		mov_imm64(blk, rd.host_reg, pc);
 		add_r64imm8(blk, rd.host_reg, 4);
+
+		// Check for loop
+		sub_mimm32(blk, REG_R12, NO_INDEX, 0, offsetof(JIT_HartContext, loop_count), blk.count);
+		blk.jmp_labels.push_back({ "slow_path",
+								   blk.byte_pos,
+								   false,
+								   1 });
+		js8(blk, 0);
+
 		blk.jmp_labels.push_back({ "branch",
 								   blk.byte_pos,
 								   false,
@@ -1415,6 +1520,8 @@ bool execjit_JAL(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter&
 								   (int64_t)blk.size + (int64_t)imm });
 		jmp32(blk, 0);
 		{
+			em.realize_label(blk, "slow_path");
+
 			// Slow path, make interpreter work instead
 			mov_imm64(blk, REG_RCX, pc);
 			mov_mr(blk, REG_RCX, REG_R12, NO_INDEX, 0, offsetof(JIT_HartContext, exit_pc));
@@ -1429,10 +1536,20 @@ bool execjit_JALR(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter
 	emitter.inst_emit_i_type(hart, inst, blk, false, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, VReg& rs1, uint64_t imm, uint64_t pc, void* tmp)
 	{
 		// Move PC+4 to RD
-		mov_imm64(blk, rd.host_reg, imm);
+		mov_imm64(blk, rd.host_reg, pc);
 		add_r64imm8(blk, rd.host_reg, 4);
 
+		// Check for loop
+		sub_mimm32(blk, REG_R12, NO_INDEX, 0, offsetof(JIT_HartContext, loop_count), blk.count);
+		blk.jmp_labels.push_back({ "slow_path",
+								   blk.byte_pos,
+								   false,
+								   1 });
+		js8(blk, 0);
+
 		{
+			em.realize_label(blk, "slow_path");
+
 			// Slow path, make interpreter work instead
 			mov_imm64(blk, REG_RCX, pc);
 			mov_mr(blk, REG_RCX, REG_R12, NO_INDEX, 0, offsetof(JIT_HartContext, exit_pc));
@@ -1447,8 +1564,8 @@ bool execjit_LUI(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitter&
 	emitter.inst_emit_u_type(hart, inst, blk, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, uint64_t imm, uint64_t pc, void* tmp)
 	{
 		// RD = IMM << 12
-		mov_imm64(blk, rd.host_reg, imm);
-		shl_rimm8(blk, rd.host_reg, 12);
+		mov_imm64(blk, rd.host_reg, (int64_t)imm);
+		// shl_rimm8(blk, rd.host_reg, 12); // Not doing that cuz our imm value is already offseted
 	}, blk.pc + blk.size);
 	return false;
 }
@@ -1457,8 +1574,8 @@ bool execjit_AUIPC(Hart& hart, InstructionData& inst, JIT_Block& blk, JIT_Emitte
 	emitter.inst_emit_u_type(hart, inst, blk, [](JIT_Emitter& em, JIT_Block& blk, VReg& rd, uint64_t imm, uint64_t pc, void* tmp)
 	{
 		// RD = IMM << 12
-		mov_imm64(blk, rd.host_reg, imm);
-		shl_rimm8(blk, rd.host_reg, 12);
+		mov_imm64(blk, rd.host_reg, (int64_t)imm);
+		// shl_rimm8(blk, rd.host_reg, 12); // Not doing that cuz our imm value is already offseted
 		mov_imm64(blk, REG_RCX, pc);
 		add_rr(blk, rd.host_reg, REG_RCX);
 	}, blk.pc + blk.size);
@@ -1493,26 +1610,29 @@ void JIT_InstructionDecoder::init_rv64i()
 	conversion_tbl[&exec_SRLIW] = &execjit_SRLIW;
 	conversion_tbl[&exec_SRAI]	= &execjit_SRAI;
 	conversion_tbl[&exec_SRAIW] = &execjit_SRAIW;
-	conversion_tbl[&exec_LB]	= &execjit_LB;
-	conversion_tbl[&exec_LBU]	= &execjit_LBU;
-	conversion_tbl[&exec_LH]	= &execjit_LH;
-	conversion_tbl[&exec_LHU]	= &execjit_LHU;
-	conversion_tbl[&exec_LW]	= &execjit_LW;
-	conversion_tbl[&exec_LWU]	= &execjit_LWU;
-	conversion_tbl[&exec_LD]	= &execjit_LD;
-	conversion_tbl[&exec_SB]	= &execjit_SB;
-	conversion_tbl[&exec_SH]	= &execjit_SH;
-	conversion_tbl[&exec_SW]	= &execjit_SW;
-	conversion_tbl[&exec_SD]	= &execjit_SD;
-	conversion_tbl[&exec_BEQ]	= &execjit_BEQ;
+	conversion_tbl[&exec_SLTI]	= &execjit_SLTI;
+	conversion_tbl[&exec_SLTIU] = &execjit_SLTIU;
+
+	/*conversion_tbl[&exec_LB]  = &execjit_LB;
+	conversion_tbl[&exec_LBU] = &execjit_LBU;
+	conversion_tbl[&exec_LH]  = &execjit_LH;
+	conversion_tbl[&exec_LHU] = &execjit_LHU;
+	conversion_tbl[&exec_LW]  = &execjit_LW;
+	conversion_tbl[&exec_LWU] = &execjit_LWU;
+	conversion_tbl[&exec_LD]  = &execjit_LD;*/
+	conversion_tbl[&exec_SB] = &execjit_SB;
+	conversion_tbl[&exec_SH] = &execjit_SH;
+	conversion_tbl[&exec_SW] = &execjit_SW;
+	conversion_tbl[&exec_SD] = &execjit_SD;
+	/*conversion_tbl[&exec_BEQ]	= &execjit_BEQ;
 	conversion_tbl[&exec_BNE]	= &execjit_BNE;
 	conversion_tbl[&exec_BLT]	= &execjit_BLT;
 	conversion_tbl[&exec_BGE]	= &execjit_BGE;
 	conversion_tbl[&exec_BLTU]	= &execjit_BLTU;
-	conversion_tbl[&exec_BGEU]	= &execjit_BGEU;
-	conversion_tbl[&exec_JAL]	= &execjit_JAL;
-	conversion_tbl[&exec_JALR]	= &execjit_JALR;
-	conversion_tbl[&exec_LUI]	= &execjit_LUI;
-	conversion_tbl[&exec_AUIPC] = &execjit_AUIPC;
+	conversion_tbl[&exec_BGEU]	= &execjit_BGEU;*/
+	// conversion_tbl[&exec_JAL]	= &execjit_JAL;
+	// conversion_tbl[&exec_JALR]	= &execjit_JALR;
+	// conversion_tbl[&exec_LUI]	= &execjit_LUI;
+	// conversion_tbl[&exec_AUIPC] = &execjit_AUIPC;
 }
 #endif
